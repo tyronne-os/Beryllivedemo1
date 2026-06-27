@@ -194,6 +194,9 @@ export default function BerylDiffusionPromo() {
       <section style={{background:"linear-gradient(180deg,#080503 0%,#0d0a0f 50%,#080503 100%)",padding:"0 0 0 0",overflow:"hidden"}}>
         <style>{`
           @keyframes count-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+          @keyframes bf-drift{0%{transform:translateX(0) translateY(0) rotate(0deg) scale(1)} 40%{transform:translateX(50px) translateY(-28px) rotate(22deg) scale(1.1)} 100%{transform:translateX(110px) translateY(-8px) rotate(-12deg) scale(0.9)}}
+          @keyframes bf-wiggle{0%,100%{transform:scaleX(1)}50%{transform:scaleX(0.55)}}
+          @keyframes ds-rise{0%{transform:translateY(100%);opacity:0}10%{opacity:1}90%{opacity:.7}100%{transform:translateY(-100%);opacity:0}}
           .bench-row:hover{background:rgba(200,169,81,.06)!important}
           .bench-winner{color:#c8a951!important;font-weight:700!important}
           @media(max-width:900px){
@@ -206,7 +209,7 @@ export default function BerylDiffusionPromo() {
         {/* ── SPLIT: hero image left, copy right ── */}
         <div className="llm-split" style={{display:"grid",gridTemplateColumns:"1fr 1fr",minHeight:"70vh"}}>
 
-          {/* LEFT — Beryl Live hero image */}
+          {/* LEFT — Beryl Live hero image + butterflies + data stream */}
           <div className="llm-hero-img" style={{position:"relative",overflow:"hidden"}}>
             <img
               src={cdn("beryl-llm/banner-portrait.png")}
@@ -216,10 +219,62 @@ export default function BerylDiffusionPromo() {
             />
             <div style={{position:"absolute",inset:0,background:"linear-gradient(to right,transparent 60%,#080503 100%)"}}/>
             <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,rgba(8,5,3,.5) 0%,transparent 30%)"}}/>
+
             {/* Floating tag */}
-            <div style={{position:"absolute",top:32,left:24,background:"rgba(8,5,3,.85)",backdropFilter:"blur(12px)",border:"1px solid rgba(200,169,81,.3)",borderRadius:8,padding:"10px 18px"}}>
+            <div style={{position:"absolute",top:32,left:24,background:"rgba(8,5,3,.85)",backdropFilter:"blur(12px)",border:"1px solid rgba(200,169,81,.3)",borderRadius:8,padding:"10px 18px",zIndex:6}}>
               <div style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:3,color:"#c8a951",textTransform:"uppercase"}}>Live Demonstration</div>
               <div style={{fontSize:12,color:"#E8DCC8",fontWeight:600,marginTop:3}}>Beryl LLM v2 · Active</div>
+            </div>
+
+            {/* ── BUTTERFLIES ── */}
+            {[
+              {x:10, y:50, s:1.1, d:0,   dur:6},
+              {x:20, y:25, s:0.8, d:1.2, dur:7},
+              {x:35, y:68, s:1.3, d:0.5, dur:5.5},
+              {x:15, y:15, s:0.7, d:2.1, dur:8},
+              {x:50, y:42, s:0.9, d:0.8, dur:6.5},
+              {x:8,  y:78, s:1.0, d:1.8, dur:7.5},
+              {x:60, y:12, s:0.75,d:0.3, dur:9},
+              {x:40, y:58, s:1.2, d:2.5, dur:5},
+              {x:25, y:85, s:0.65,d:0.9, dur:8.5},
+              {x:55, y:32, s:0.85,d:1.5, dur:7},
+            ].map((b,i)=>(
+              <div key={i} style={{
+                position:"absolute",left:`${b.x}%`,top:`${b.y}%`,
+                animation:`bf-drift ${b.dur}s ${b.d}s ease-in-out infinite alternate`,
+                zIndex:5,pointerEvents:"none",
+              }}>
+                <svg viewBox="0 0 70 50" width={44*b.s} height={32*b.s} xmlns="http://www.w3.org/2000/svg"
+                  style={{animation:`bf-wiggle ${b.dur*0.4}s ${b.d}s ease-in-out infinite`}}>
+                  <path d="M35 25 Q8 4 1 18 Q-3 34 16 34 Q26 34 35 25Z"   fill="rgba(255,140,50,.85)"  stroke="rgba(255,200,80,.5)"  strokeWidth="0.6"/>
+                  <path d="M35 25 Q62 4 69 18 Q73 34 54 34 Q44 34 35 25Z"  fill="rgba(130,60,220,.8)"   stroke="rgba(190,120,255,.5)" strokeWidth="0.6"/>
+                  <path d="M35 25 Q14 38 9 48 Q18 55 26 44 Q31 34 35 25Z"  fill="rgba(255,80,110,.75)"  stroke="rgba(255,150,170,.4)" strokeWidth="0.6"/>
+                  <path d="M35 25 Q56 38 61 48 Q52 55 44 44 Q39 34 35 25Z" fill="rgba(60,170,255,.75)"  stroke="rgba(120,220,255,.4)" strokeWidth="0.6"/>
+                  <circle cx="35" cy="25" r="2.5" fill="rgba(255,230,100,.9)"/>
+                </svg>
+              </div>
+            ))}
+
+            {/* ── DATA STREAM — right edge ── */}
+            <div style={{position:"absolute",right:0,top:0,bottom:0,width:"18%",overflow:"hidden",zIndex:5,pointerEvents:"none"}}>
+              {Array.from({length:10}).map((_,i)=>{
+                const chars="01アイウエオカキ∑∂∆∇ΩΦΨ█▓░⬆↑⟨⟩∞≈≡≠";
+                const delay=(i*0.4).toFixed(2);
+                const dur=(3.5+(i%5)*0.8).toFixed(1);
+                const left=(i*10.5).toFixed(1);
+                return(
+                  <div key={i} style={{
+                    position:"absolute",left:`${left}%`,bottom:"-10%",
+                    animation:`ds-rise ${dur}s ${delay}s linear infinite`,
+                    fontFamily:"monospace",fontSize:10+(i%3)*2,
+                    color:i%3===0?"rgba(200,169,81,.8)":i%3===1?"rgba(100,200,255,.6)":"rgba(180,255,180,.5)",
+                    writingMode:"vertical-rl",textOrientation:"mixed",lineHeight:1.4,whiteSpace:"nowrap",userSelect:"none",
+                  }}>
+                    {Array.from({length:10}).map((_,j)=>chars[(i*3+j)%chars.length]).join("")}
+                  </div>
+                );
+              })}
+              <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,rgba(8,5,3,.9) 0%,transparent 25%,transparent 75%,rgba(8,5,3,.9) 100%)"}}/>
             </div>
           </div>
 
@@ -516,110 +571,7 @@ export default function BerylDiffusionPromo() {
         </div>
       </section>
 
-      {/* ── DIGITAL ARTIST BANNER — butterfly + data stream ── */}
-      <section style={{position:"relative",width:"100%",height:"520px",overflow:"hidden"}}>
 
-        {/* Background: rainbow portrait */}
-        <img
-          src={cdn("beryl-llm/rainbow-artist.png")}
-          alt="Digital Artist"
-          style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center top"}}
-        />
-
-        {/* Dark overlay */}
-        <div style={{position:"absolute",inset:0,background:"linear-gradient(to right,rgba(8,5,3,.75) 0%,rgba(8,5,3,.2) 50%,rgba(8,5,3,.65) 100%)"}}/>
-
-        {/* ── BUTTERFLIES ── */}
-        <style>{`
-          @keyframes bf-drift  { 0%{transform:translateX(0) translateY(0) rotate(0deg) scale(1)} 40%{transform:translateX(60px) translateY(-30px) rotate(25deg) scale(1.1)} 100%{transform:translateX(130px) translateY(-10px) rotate(-10deg) scale(0.9)} }
-          @keyframes bf-wiggle { 0%,100%{transform:scaleX(1)} 50%{transform:scaleX(0.6)} }
-          @keyframes ds-rise   { 0%{transform:translateY(100%);opacity:0} 10%{opacity:1} 90%{opacity:.7} 100%{transform:translateY(-100%);opacity:0} }
-        `}</style>
-
-        {[
-          {x:8,  y:55, s:1.1, d:0,    dur:6},
-          {x:18, y:30, s:0.8, d:1.2,  dur:7},
-          {x:32, y:70, s:1.3, d:0.5,  dur:5.5},
-          {x:22, y:20, s:0.7, d:2.1,  dur:8},
-          {x:45, y:45, s:0.9, d:0.8,  dur:6.5},
-          {x:12, y:80, s:1.0, d:1.8,  dur:7.5},
-          {x:55, y:15, s:0.75,d:0.3,  dur:9},
-          {x:38, y:60, s:1.2, d:2.5,  dur:5},
-          {x:60, y:35, s:0.85,d:1.5,  dur:7},
-          {x:28, y:88, s:0.65,d:0.9,  dur:8.5},
-        ].map((b,i)=>(
-          <div key={i} style={{
-            position:"absolute",
-            left:`${b.x}%`, top:`${b.y}%`,
-            animation:`bf-drift ${b.dur}s ${b.d}s ease-in-out infinite alternate`,
-            zIndex:4,
-          }}>
-            <svg viewBox="0 0 70 50" width={44*b.s} height={32*b.s} xmlns="http://www.w3.org/2000/svg"
-              style={{animation:`bf-wiggle ${b.dur*0.4}s ${b.d}s ease-in-out infinite`}}
-            >
-              <path d="M35 25 Q8 4 1 18 Q-3 34 16 34 Q26 34 35 25Z"  fill="rgba(255,140,50,.85)"  stroke="rgba(255,200,80,.5)" strokeWidth="0.6"/>
-              <path d="M35 25 Q62 4 69 18 Q73 34 54 34 Q44 34 35 25Z" fill="rgba(130,60,220,.8)"   stroke="rgba(190,120,255,.5)" strokeWidth="0.6"/>
-              <path d="M35 25 Q14 38 9 48 Q18 55 26 44 Q31 34 35 25Z" fill="rgba(255,80,110,.75)"  stroke="rgba(255,150,170,.4)" strokeWidth="0.6"/>
-              <path d="M35 25 Q56 38 61 48 Q52 55 44 44 Q39 34 35 25Z" fill="rgba(60,170,255,.75)" stroke="rgba(120,220,255,.4)" strokeWidth="0.6"/>
-              <circle cx="35" cy="25" r="2.5" fill="rgba(255,230,100,.9)"/>
-            </svg>
-          </div>
-        ))}
-
-        {/* ── DATA STREAM — right side ── */}
-        <div style={{position:"absolute",right:0,top:0,bottom:0,width:"22%",overflow:"hidden",zIndex:4}}>
-          {Array.from({length:14}).map((_,i)=>{
-            const chars = "01アイウエオカキ∑∂∆∇ΩΦΨ█▓▒░⬆↑⟨⟩∞≈≡≠≤≥";
-            const col = chars[i % chars.length];
-            const delay = (i * 0.35).toFixed(2);
-            const dur   = (3.5 + (i % 5) * 0.8).toFixed(1);
-            const left  = (i * 7.1).toFixed(1);
-            return (
-              <div key={i} style={{
-                position:"absolute",
-                left:`${left}%`,
-                bottom:"-10%",
-                animation:`ds-rise ${dur}s ${delay}s linear infinite`,
-                fontFamily:"monospace",
-                fontSize: 11 + (i%3)*2,
-                color: i%3===0 ? "rgba(200,169,81,.8)" : i%3===1 ? "rgba(100,200,255,.6)" : "rgba(180,255,180,.5)",
-                letterSpacing:1,
-                writingMode:"vertical-rl",
-                textOrientation:"mixed",
-                lineHeight:1.4,
-                whiteSpace:"nowrap",
-                userSelect:"none",
-              }}>
-                {Array.from({length:12}).map((_,j)=>chars[(i*3+j)%chars.length]).join("")}
-              </div>
-            );
-          })}
-          {/* gradient fade at top and bottom of stream */}
-          <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,rgba(8,5,3,.9) 0%,transparent 20%,transparent 80%,rgba(8,5,3,.9) 100%)",pointerEvents:"none"}}/>
-        </div>
-
-        {/* Copy — left side */}
-        <div style={{position:"absolute",left:0,top:0,bottom:0,width:"50%",display:"flex",flexDirection:"column",justifyContent:"center",padding:"40px 40px 40px 48px",zIndex:5}}>
-          <div style={{fontFamily:"'Cinzel',serif",fontSize:10,letterSpacing:5,color:"#c8a951",textTransform:"uppercase",marginBottom:16,opacity:.85}}>
-            ✦ Created with Beryl · Digital Artist
-          </div>
-          <h2 style={{fontFamily:"'Cinzel Decorative',serif",fontSize:"clamp(1.4rem,3.5vw,2.6rem)",fontWeight:900,color:"#E8DCC8",lineHeight:1.15,marginBottom:18}}>
-            Art Doesn't Wait<br/>
-            <span className="gold">for Inspiration</span>
-          </h2>
-          <p style={{fontSize:14,color:"#888",lineHeight:1.8,maxWidth:320,marginBottom:28}}>
-            From a single prompt, Beryl conjures entire worlds. Every pixel, every character, every scene — generated in real time.
-          </p>
-          <Link href="/beryl-llm/studio" style={{
-            display:"inline-block",fontFamily:"'Cinzel',serif",fontSize:11,letterSpacing:2.5,
-            textTransform:"uppercase",color:"#0a0604",fontWeight:700,textDecoration:"none",
-            background:"linear-gradient(135deg,#8B6914,#c8a951,#f5e070,#c8a951,#8B6914)",
-            backgroundSize:"300% auto",padding:"12px 32px",width:"fit-content",
-          }}>
-            Start Creating →
-          </Link>
-        </div>
-      </section>
 
       {/* ── CAPABILITIES ── */}
       <section style={{padding:"80px 24px",maxWidth:1100,margin:"0 auto"}}>
