@@ -116,7 +116,7 @@ export default function Nav() {
           <Link href="/contact" className="nl">Contact</Link>
           <Link href="/beryl-llm" className="llm-pill">
             <span className="llm-pill-dot"/>
-            <span className="llm-pill-text">Beryl LLM</span>
+            <span className="llm-pill-text">Beryl Diffusion</span>
           </Link>
         </div>
 
@@ -137,7 +137,7 @@ export default function Nav() {
         <a href="/#pricing" className="nl-mob" onClick={()=>setMenuOpen(false)}>Pricing</a>
         <Link href="/desktop" className="nl-mob" onClick={()=>setMenuOpen(false)}>Desktop</Link>
         <Link href="/contact" className="nl-mob" onClick={()=>setMenuOpen(false)}>Contact</Link>
-        <Link href="/beryl-llm" className="nl-mob" onClick={()=>setMenuOpen(false)}>Beryl LLM</Link>
+        <Link href="/beryl-llm" className="nl-mob" onClick={()=>setMenuOpen(false)}>Beryl Diffusion</Link>
         <div style={{marginTop:32}}>
           <Link href="/demo" onClick={()=>setMenuOpen(false)} style={{
             display:"block", textAlign:"center", padding:"16px 32px",

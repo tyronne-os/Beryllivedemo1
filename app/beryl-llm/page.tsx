@@ -1,566 +1,657 @@
-﻿"use client";
-import { useState, useRef, useCallback } from "react";
-import BerylizeModal, { type BerylizeConfig } from "@/components/BerylizeModal";
+"use client";
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import Nav from "@/components/Nav";
-import { VIDEO } from "@/lib/cdn";
+import { VIDEO, cdn } from "@/lib/cdn";
 
-// ── Types ──────────────────────────────────────────────────────────────────
-type Tab = "image" | "video" | "audio";
-type Filter = "all" | "favorited" | "downloaded" | "4k";
-type AspectRatio = "1:1" | "4:3" | "16:9" | "9:16";
-type GenStatus = "idle" | "queued" | "generating" | "done";
-
-interface GeneratedItem {
-  id: string;
-  src: string;
-  prompt: string;
-  type: Tab;
-  favorited: boolean;
-  downloaded: boolean;
-  is4k: boolean;
-  timestamp: number;
-}
-
-const DEMO_GALLERY: GeneratedItem[] = [
-  { id:"g1", src:"/characters/KIZZY_SHIELD.png",   prompt:"Photorealistic portrait, studio lighting", type:"image", favorited:true,  downloaded:false, is4k:true,  timestamp: Date.now()-120000 },
-  { id:"g2", src:"/characters/EVE_SHIELD.png",     prompt:"AI architect, overhead sofa view",         type:"image", favorited:false, downloaded:true,  is4k:false, timestamp: Date.now()-90000  },
-  { id:"g3", src:"/characters/AMANDA_SHIELD.png",  prompt:"Finance executive, dramatic light",        type:"image", favorited:false, downloaded:false, is4k:true,  timestamp: Date.now()-60000  },
-  { id:"g4", src:"/characters/JESSICA_SHIELD.png", prompt:"Strategy lead, cinematic closeup",         type:"image", favorited:true,  downloaded:true,  is4k:false, timestamp: Date.now()-45000  },
-  { id:"g5", src:"/characters/INDIA_SHIELD.png",   prompt:"Growth director, editorial style",         type:"image", favorited:false, downloaded:false, is4k:true,  timestamp: Date.now()-30000  },
-  { id:"g6", src:"/characters/MARIA_SHIELD.png",   prompt:"Relations, golden hour portrait",          type:"image", favorited:false, downloaded:false, is4k:false, timestamp: Date.now()-15000  },
+// 6 showcase portraits (portrait-2 removed — duplicate redhead)
+const PORTRAITS = [
+  cdn("beryl-llm/portrait-1.png"),
+  cdn("beryl-llm/portrait-3.png"),
+  cdn("beryl-llm/portrait-4.png"),
+  cdn("beryl-llm/portrait-5.png"),
+  cdn("beryl-llm/portrait-6.png"),
+  cdn("beryl-llm/portrait-7.png"),
 ];
 
-const MODELS = ["Beryl LLM v2", "Beryl Portrait XL", "Nano Banana 2", "Beryl Cinematic", "Beryl Flash"];
-const ASPECTS: AspectRatio[] = ["1:1", "4:3", "16:9", "9:16"];
-const NAV_ICONS = [
-  { id:"apps",       label:"Apps",       d:"M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" },
-  { id:"custom",     label:"Custom",     d:"M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z" },
-  { id:"studio",     label:"Studio",     d:"M15 10l4.553-2.276A1 1 0 0121 8.723v6.554a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" },
-  { id:"agent",      label:"Agent",      d:"M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2" },
-  { id:"recents",    label:"Recents",    d:"M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
-  { id:"projects",   label:"Projects",   d:"M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" },
-  { id:"workflow",   label:"Workflow",   d:"M13 10V3L4 14h7v7l9-11h-7z" },
-  { id:"characters", label:"Characters", d:"M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
+// Labels for each portrait
+const LABELS = [
+  "Executive Portrait",
+  "Cinematic Close-Up",
+  "Dark Elegance",
+  "Golden Vision",
+  "Beryl Live",
+  "Royal Portrait",
 ];
 
-export default function BerylDiffusion() {
-  const [activeTab, setActiveTab]       = useState<Tab>("image");
-  const [activeNav, setActiveNav]       = useState("studio");
-  const [filter, setFilter]             = useState<Filter>("all");
-  const [prompt, setPrompt]             = useState("");
-  const [negPrompt, setNegPrompt]       = useState("");
-  const [showNeg, setShowNeg]           = useState(false);
-  const [aspect, setAspect]             = useState<AspectRatio>("16:9");
-  const [model, setModel]               = useState(MODELS[0]);
-  const [cfgScale, setCfgScale]         = useState(7);
-  const [steps, setSteps]               = useState(30);
-  const [refStrength, setRefStrength]   = useState(0.75);
-  const [videoDuration, setVideoDuration] = useState(4);
-  const [credits, setCredits]           = useState(6937);
-  const [tokenCount, setTokenCount]     = useState(117);
-  const [genStatus, setGenStatus]       = useState<GenStatus>("idle");
-  const [genProgress, setGenProgress]   = useState(0);
-  const [gallery, setGallery]           = useState<GeneratedItem[]>(DEMO_GALLERY);
-  const [selected, setSelected]         = useState<GeneratedItem | null>(null);
-  const [refImage, setRefImage]         = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const filteredGallery = gallery.filter(g => {
-    if (filter === "favorited")  return g.favorited;
-    if (filter === "downloaded") return g.downloaded;
-    if (filter === "4k")         return g.is4k;
-    return true;
-  });
-
-  const handleGenerate = useCallback(() => {
-    if (!prompt.trim()) return;
-    setGenStatus("queued");
-    setGenProgress(0);
-    const cost = Math.floor(Math.random() * 80) + 40;
-    let p = 0;
-    const iv = setInterval(() => {
-      p += Math.random() * 12 + 3;
-      if (p >= 100) {
-        p = 100;
-        clearInterval(iv);
-        const chars = [
-          "/characters/BRICE_SHIELD.png","/characters/JAMARR_SHIELD.png",
-          "/characters/TERRELL_SHIELD.png","/characters/SHELLY_SHIELD.png",
-          "/characters/NU_SHIELD.png","/characters/LACARA_SHIELD.png",
-        ];
-        const newItem: GeneratedItem = {
-          id: `g${Date.now()}`,
-          src: chars[Math.floor(Math.random() * chars.length)],
-          prompt,
-          type: activeTab,
-          favorited: false,
-          downloaded: false,
-          is4k: steps >= 40,
-          timestamp: Date.now(),
-        };
-        setGallery(prev => [newItem, ...prev]);
-        setCredits(c => c - cost);
-        setTokenCount(t => Math.min(t + Math.floor(prompt.length / 4), 5000));
-        setGenStatus("done");
-        setTimeout(() => setGenStatus("idle"), 2000);
-      }
-      setGenProgress(Math.min(p, 100));
-      if (p < 100) setGenStatus("generating");
-    }, 200);
-  }, [prompt, activeTab, steps]);
-
-  const toggleFavorite = (id: string) =>
-    setGallery(prev => prev.map(g => g.id === id ? { ...g, favorited: !g.favorited } : g));
-
-  const isGenerating = genStatus === "generating" || genStatus === "queued";
-
-  // Berylize modal state
-  const [berylizeTarget, setBerylizeTarget] = useState<GeneratedItem | null>(null);
-  const handleBerylizeConfig = useCallback((_config: BerylizeConfig) => {
-    // In production this would call the backend pipeline
-    console.log("Berylize config:", _config);
-  }, []);
-
+// Butterfly SVG overlay for rainbow portrait (portrait-2)
+function Butterflies() {
   return (
-    <div style={{
-      display:"flex", flexDirection:"column", height:"100vh",
-      background:"#0c0c0f", color:"#e8e8e8",
-      fontFamily:"'Inter','SF Pro Display',system-ui,sans-serif",
-      overflow:"hidden",
-    }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        *{box-sizing:border-box}
-        ::-webkit-scrollbar{width:4px;height:4px}
-        ::-webkit-scrollbar-track{background:#111}
-        ::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
-        .bd{transition:all .15s ease;cursor:pointer;border:none;outline:none}
-        .bd:hover{opacity:.85}
-        .bd-nav:hover{background:rgba(255,255,255,.08)!important;color:#fff!important}
-        .bd-gallery:hover .bd-ov{opacity:1!important}
-        .bd-gallery:hover{transform:scale(1.02)}
-        .bd-gallery{transition:all .2s ease;cursor:pointer;position:relative;overflow:hidden}
-        .bd-inp:focus{outline:none;border-color:#3b82f6!important}
-        .bd-inp{transition:border-color .15s ease}
-        .bd-slider{-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;background:#2a2a35;cursor:pointer;width:100%}
-        .bd-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#3b82f6;border:2px solid #0c0c0f}
-        .pulse{animation:gpulse 1.5s ease-in-out infinite}
-        @keyframes gpulse{0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,.4)}50%{box-shadow:0 0 0 8px rgba(59,130,246,0)}}
-        .bd-prog{transition:width .3s ease}
-        @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-        .shimmer{background:linear-gradient(90deg,#1a1a24 25%,#252535 50%,#1a1a24 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        .spin{animation:spin 1s linear infinite}
-        .filt:hover{background:rgba(255,255,255,.1)!important}
-        .filt{transition:all .15s ease;cursor:pointer}
-      `}</style>
-
-      <Nav />
-
-      {/* ── TOP BAR ── */}
-      <div style={{display:"flex",alignItems:"center",height:52,background:"#111118",borderBottom:"1px solid #1e1e2a",padding:"0 16px",flexShrink:0,zIndex:100,gap:16}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-          <span style={{fontFamily:"'Cinzel',serif",fontSize:16,fontWeight:700,color:"#c8a951",letterSpacing:1}}>BERYL</span>
-          <span style={{fontSize:11,color:"#165168",fontWeight:500,letterSpacing:2}}>DIFFUSION</span>
-          <div style={{width:1,height:20,background:"#2a2a3a",marginLeft:8}}/>
-        </div>
-
-        <div style={{display:"flex",gap:2,background:"#1a1a24",borderRadius:8,padding:3}}>
-          {(["image","video","audio"] as Tab[]).map(t => (
-            <button key={t} className="bd" onClick={() => setActiveTab(t)} style={{
-              padding:"5px 18px",borderRadius:6,background:activeTab===t?"#252535":"transparent",
-              color:activeTab===t?"#e8e8e8":"#666",fontSize:13,fontWeight:500,letterSpacing:.3,
-            }}>
-              {t==="image"?"⬛ Image":t==="video"?"▶ Video":"♪ Audio"}
-            </button>
-          ))}
-        </div>
-
-        <div style={{flex:1}}/>
-
-        <button className="bd" style={{background:"none",color:"#666",fontSize:18,padding:4}}>🔔</button>
-        <div style={{display:"flex",alignItems:"center",gap:8,background:"#1a1a24",borderRadius:8,padding:"5px 12px"}}>
-          <span style={{fontSize:11,color:"#666"}}>Credits</span>
-          <span style={{fontSize:13,fontWeight:600,color:"#c8a951"}}>{credits.toLocaleString()}</span>
-          <button className="bd" style={{background:"#3b82f6",color:"#fff",borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:600,marginLeft:4}}>+ Buy</button>
-        </div>
-        <div style={{width:30,height:30,borderRadius:"50%",background:"linear-gradient(135deg,#c8a951,#8B6914)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#0c0c0f"}}>B</div>
-      </div>
-
-      {/* ── BODY ── */}
-      <div style={{display:"flex",flex:1,overflow:"hidden"}}>
-
-        {/* ── ICON SIDEBAR ── */}
-        <div style={{width:60,background:"#0e0e16",borderRight:"1px solid #1e1e2a",display:"flex",flexDirection:"column",alignItems:"center",padding:"12px 0",gap:4,flexShrink:0}}>
-          {NAV_ICONS.map(n => (
-            <button key={n.id} className="bd bd-nav" onClick={() => setActiveNav(n.id)} title={n.label} style={{
-              width:44,height:44,borderRadius:10,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,
-              background:activeNav===n.id?"rgba(59,130,246,.18)":"transparent",
-              border:activeNav===n.id?"1px solid rgba(59,130,246,.4)":"1px solid transparent",
-              color:activeNav===n.id?"#3b82f6":"#444",
-            }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                <path d={n.d}/>
-              </svg>
-              <span style={{fontSize:7,letterSpacing:.3}}>{n.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* ── PROMPT PANEL ── */}
-        <div style={{width:300,background:"#111118",borderRight:"1px solid #1e1e2a",display:"flex",flexDirection:"column",overflow:"hidden",flexShrink:0}}>
-
-          {/* Reference */}
-          <div style={{padding:"14px 14px 0"}}>
-            <div style={{fontSize:11,color:"#555",letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Reference Image</div>
-            <div style={{display:"flex",gap:8}}>
-              <div onClick={() => fileRef.current?.click()} style={{
-                width:78,height:78,borderRadius:8,border:"1px dashed #2a2a3a",background:refImage?"transparent":"#151520",
-                display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-                cursor:"pointer",overflow:"hidden",flexShrink:0,
-              }}>
-                {refImage
-                  ? <img src={refImage} alt="ref" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                  : <><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="1.5"><path d="M12 5v14M5 12h14"/></svg><span style={{fontSize:9,color:"#333",marginTop:4}}>Image 1</span></>
-                }
-              </div>
-              <button className="bd" style={{flex:1,borderRadius:8,border:"1px dashed #222",background:"#151520",color:"#444",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
-                Reference
-              </button>
-            </div>
-            <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e => {
-              const f = e.target.files?.[0];
-              if (f) { const r = new FileReader(); r.onload = ev => setRefImage(ev.target?.result as string); r.readAsDataURL(f); }
-            }}/>
-          </div>
-
-          {/* Scrollable controls */}
-          <div style={{padding:"12px 14px",flex:1,display:"flex",flexDirection:"column",gap:10,overflow:"auto"}}>
-            {/* Prompt */}
-            <div>
-              <div style={{fontSize:11,color:"#555",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Prompt</div>
-              <textarea className="bd-inp" value={prompt}
-                onChange={e => { setPrompt(e.target.value); setTokenCount(Math.min(117+Math.floor(e.target.value.length/4),4900)); }}
-                placeholder="Describe your scene — lighting, composition, character, style..."
-                style={{width:"100%",minHeight:120,maxHeight:180,background:"#151520",border:"1px solid #222",borderRadius:8,color:"#d8d8d8",fontSize:12,lineHeight:1.6,padding:"10px 12px",resize:"vertical",fontFamily:"inherit"}}
-              />
-              <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
-                <button className="bd" onClick={() => setShowNeg(!showNeg)} style={{fontSize:10,color:"#444",background:"none",padding:0,textDecoration:"underline"}}>
-                  {showNeg?"Hide":"+ Negative"} prompt
-                </button>
-                <span style={{fontSize:10,color:tokenCount>4500?"#ef4444":"#444"}}>{tokenCount}/5000</span>
-              </div>
-            </div>
-
-            {showNeg && (
-              <textarea className="bd-inp" value={negPrompt} onChange={e=>setNegPrompt(e.target.value)}
-                placeholder="Avoid: blurry, distorted, low quality, watermark..."
-                style={{width:"100%",minHeight:70,background:"#151520",border:"1px solid #222",borderRadius:8,color:"#d8d8d8",fontSize:12,lineHeight:1.6,padding:"10px 12px",resize:"vertical",fontFamily:"inherit"}}
-              />
-            )}
-
-            {/* Aspect */}
-            <div>
-              <div style={{fontSize:11,color:"#555",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Aspect Ratio</div>
-              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                {ASPECTS.map(a => (
-                  <button key={a} className="bd" onClick={()=>setAspect(a)} style={{
-                    padding:"5px 11px",borderRadius:6,fontSize:11,fontWeight:500,
-                    background:aspect===a?"#3b82f6":"#1a1a24",color:aspect===a?"#fff":"#555",
-                    border:aspect===a?"1px solid #3b82f6":"1px solid #222",
-                  }}>{a}</button>
-                ))}
-                {["1K","4K"].map(r=>(
-                  <button key={r} className="bd" style={{padding:"5px 11px",borderRadius:6,fontSize:11,background:"#1a1a24",color:"#555",border:"1px solid #222"}}>{r}</button>
-                ))}
-              </div>
-            </div>
-
-            {/* CFG + Steps */}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              <div>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                  <span style={{fontSize:10,color:"#555",textTransform:"uppercase",letterSpacing:.8}}>CFG</span>
-                  <span style={{fontSize:11,color:"#d8d8d8",fontWeight:500}}>{cfgScale}</span>
-                </div>
-                <input type="range" min={1} max={20} value={cfgScale} onChange={e=>setCfgScale(+e.target.value)} className="bd-slider"/>
-              </div>
-              <div>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                  <span style={{fontSize:10,color:"#555",textTransform:"uppercase",letterSpacing:.8}}>Steps</span>
-                  <span style={{fontSize:11,color:"#d8d8d8",fontWeight:500}}>{steps}</span>
-                </div>
-                <input type="range" min={10} max={60} value={steps} onChange={e=>setSteps(+e.target.value)} className="bd-slider"/>
-              </div>
-            </div>
-
-            {/* Ref strength */}
-            <div>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                <span style={{fontSize:10,color:"#555",textTransform:"uppercase",letterSpacing:.8}}>Ref Strength</span>
-                <span style={{fontSize:11,color:"#d8d8d8",fontWeight:500}}>{refStrength.toFixed(2)}</span>
-              </div>
-              <input type="range" min={0} max={1} step={0.01} value={refStrength} onChange={e=>setRefStrength(+e.target.value)} className="bd-slider"/>
-            </div>
-
-            {/* Video tab extras */}
-            {activeTab==="video" && (
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                <div>
-                  <div style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Duration</div>
-                  <div style={{display:"flex",gap:6}}>
-                    {[4,8,16].map(d=>(
-                      <button key={d} className="bd" onClick={()=>setVideoDuration(d)} style={{
-                        padding:"5px 14px",borderRadius:6,fontSize:11,
-                        background:videoDuration===d?"#3b82f6":"#1a1a24",color:videoDuration===d?"#fff":"#555",
-                        border:`1px solid ${videoDuration===d?"#3b82f6":"#222"}`,
-                      }}>{d}s</button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <div style={{fontSize:10,color:"#555",textTransform:"uppercase",letterSpacing:.8,marginBottom:5}}>Camera Move</div>
-                  <select className="bd-inp" style={{width:"100%",background:"#151520",border:"1px solid #222",borderRadius:6,color:"#d8d8d8",fontSize:12,padding:"7px 10px"}}>
-                    <option>Static</option><option>Dolly In</option><option>Dolly Out</option>
-                    <option>Pan Left</option><option>Pan Right</option><option>Orbit</option>
-                  </select>
-                </div>
-              </div>
-            )}
-
-            {/* Audio tab extras */}
-            {activeTab==="audio" && (
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                <div>
-                  <div style={{fontSize:10,color:"#555",textTransform:"uppercase",letterSpacing:.8,marginBottom:5}}>Voice</div>
-                  <select className="bd-inp" style={{width:"100%",background:"#151520",border:"1px solid #222",borderRadius:6,color:"#d8d8d8",fontSize:12,padding:"7px 10px"}}>
-                    <option>Kizzy — Warm & Confident</option>
-                    <option>Eve — Sharp & Clear</option>
-                    <option>Amanda — Professional</option>
-                    <option>Custom Upload</option>
-                  </select>
-                </div>
-                <div>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                    <span style={{fontSize:10,color:"#555",textTransform:"uppercase",letterSpacing:.8}}>Emotion</span>
-                    <span style={{fontSize:11,color:"#d8d8d8"}}>7</span>
-                  </div>
-                  <input type="range" min={1} max={10} defaultValue={7} className="bd-slider"/>
-                </div>
-                <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}>
-                  <input type="checkbox" style={{accentColor:"#3b82f6"}}/>
-                  <span style={{fontSize:11,color:"#777"}}>Lip-sync with video</span>
-                </label>
-              </div>
-            )}
-
-            <button className="bd" style={{padding:"8px 12px",borderRadius:8,border:"1px dashed #222",background:"transparent",color:"#444",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
-              <span style={{fontSize:16,lineHeight:1}}>+</span> Add References
-            </button>
-          </div>
-
-          {/* Generate footer */}
-          <div style={{padding:"12px 14px",borderTop:"1px solid #1e1e2a",background:"#0e0e16"}}>
-            <select value={model} onChange={e=>setModel(e.target.value)} className="bd-inp"
-              style={{width:"100%",background:"#151520",border:"1px solid #222",borderRadius:8,color:"#d8d8d8",fontSize:12,padding:"8px 12px",marginBottom:10,fontFamily:"inherit"}}>
-              {MODELS.map(m=><option key={m}>{m}</option>)}
-            </select>
-
-            {isGenerating && (
-              <div style={{marginBottom:8}}>
-                <div style={{height:3,background:"#1a1a24",borderRadius:2,overflow:"hidden"}}>
-                  <div className="bd-prog" style={{height:"100%",background:"linear-gradient(90deg,#3b82f6,#60a5fa)",width:`${genProgress}%`}}/>
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",marginTop:3}}>
-                  <span style={{fontSize:10,color:"#3b82f6"}}>Generating...</span>
-                  <span style={{fontSize:10,color:"#444"}}>{Math.round(genProgress)}%</span>
-                </div>
-              </div>
-            )}
-            {genStatus==="done" && <div style={{marginBottom:8,fontSize:11,color:"#22c55e",textAlign:"center"}}>✓ Complete</div>}
-
-            <button className={`bd${isGenerating?" pulse":""}`} onClick={handleGenerate} disabled={isGenerating} style={{
-              width:"100%",padding:"12px",borderRadius:10,
-              background:isGenerating?"linear-gradient(135deg,#1e3a5f,#2563eb)":"linear-gradient(135deg,#2563eb,#3b82f6)",
-              color:"#fff",fontSize:14,fontWeight:600,letterSpacing:.5,
-              boxShadow:"0 4px 20px rgba(59,130,246,.35)",opacity:isGenerating?.8:1,
-            }}>
-              {genStatus==="queued"?"⏳ Queued...":genStatus==="generating"?"⚡ Generating...":"⚡ Generate"}
-            </button>
-            <div style={{fontSize:10,color:"#333",textAlign:"center",marginTop:5}}>{tokenCount}/5000 tokens</div>
-          </div>
-        </div>
-
-        {/* ── GALLERY ── */}
-        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",background:"#0c0c0f"}}>
-
-          {/* Toolbar */}
-          <div style={{display:"flex",alignItems:"center",padding:"10px 20px",borderBottom:"1px solid #1a1a24",gap:10,flexShrink:0}}>
-            <div style={{display:"flex",gap:2,background:"#111118",borderRadius:8,padding:3}}>
-              {(["all","favorited","downloaded","4k"] as Filter[]).map(f=>(
-                <button key={f} className="bd filt" onClick={()=>setFilter(f)} style={{
-                  padding:"4px 14px",borderRadius:6,fontSize:11,fontWeight:500,
-                  background:filter===f?"#1e1e2e":"transparent",
-                  color:filter===f?"#d8d8d8":"#444",border:"none",
-                }}>{f==="4k"?"4K":f.charAt(0).toUpperCase()+f.slice(1)}</button>
-              ))}
-            </div>
-            <div style={{flex:1}}/>
-            <button className="bd" style={{background:"#111118",border:"1px solid #1e1e2a",borderRadius:6,color:"#555",padding:"6px 12px",fontSize:11}}>Filter</button>
-            <button className="bd" style={{background:"#111118",border:"1px solid #1e1e2a",borderRadius:6,color:"#555",padding:"6px 12px",fontSize:11}}>↓ Export</button>
-            <button
-              className="bd"
-              onClick={() => {
-                if (!window.confirm(`Clear all ${activeTab} items from the viewer?`)) return;
-                setGallery(prev => prev.filter(g => g.type !== activeTab));
-                setSelected(s => s?.type === activeTab ? null : s);
-              }}
-              style={{background:"rgba(220,38,38,.1)",border:"1px solid rgba(220,38,38,.35)",borderRadius:6,color:"#ef4444",padding:"6px 14px",fontSize:11,fontWeight:600,letterSpacing:.3}}
-            >
-              ✕ Clear All
-            </button>
-          </div>
-
-          {/* Grid */}
-          <div style={{flex:1,overflow:"auto",padding:20}}>
-            {filteredGallery.length===0 ? (
-              <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10}}>
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#222" strokeWidth="1"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
-                <span style={{color:"#333",fontSize:13}}>No generations yet</span>
-                <span style={{color:"#252525",fontSize:11}}>Write a prompt and click Generate</span>
-              </div>
-            ) : (
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:10}}>
-                {filteredGallery.map(item=>(
-                  <div key={item.id} className="bd-gallery" onClick={()=>setSelected(item)}
-                    style={{borderRadius:10,overflow:"hidden",background:"#111118",border:"1px solid #1a1a24",aspectRatio:"3/4"}}>
-                    <img src={item.src} alt={item.prompt}
-                      style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top center",display:"block"}}
-                      onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
-                    <div className="bd-ov" style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.88) 0%,transparent 50%)",opacity:0,transition:"opacity .2s",display:"flex",flexDirection:"column",justifyContent:"flex-end",padding:8}}>
-                      <div style={{fontSize:9,color:"#bbb",lineHeight:1.4,marginBottom:8,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{item.prompt}</div>
-                      <div style={{display:"flex",gap:5}}>
-                        {/* Download */}
-                        <button className="bd" title="Download" onClick={e=>{e.stopPropagation();
-                          const a=document.createElement("a");a.href=item.src;a.download=`beryl-${item.id}.png`;a.click();
-                          setGallery(prev=>prev.map(g=>g.id===item.id?{...g,downloaded:true}:g));
-                        }} style={{flex:1,background:"rgba(37,99,235,.75)",border:"1px solid rgba(59,130,246,.5)",borderRadius:6,padding:"6px 0",fontSize:10,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                          Save
-                        </button>
-                        {/* Share */}
-                        <button className="bd" title="Share" onClick={e=>{e.stopPropagation();
-                          if(navigator.share){navigator.share({title:"Beryl Diffusion",text:item.prompt,url:window.location.href});}
-                          else{navigator.clipboard.writeText(window.location.href);alert("Link copied!");}
-                        }} style={{flex:1,background:"rgba(16,185,129,.65)",border:"1px solid rgba(16,185,129,.4)",borderRadius:6,padding:"6px 0",fontSize:10,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
-                          Share
-                        </button>
-                        {/* Delete */}
-                        <button className="bd" title="Delete" onClick={e=>{e.stopPropagation();
-                          setGallery(prev=>prev.filter(g=>g.id!==item.id));
-                          if(selected?.id===item.id) setSelected(null);
-                        }} style={{flex:1,background:"rgba(220,38,38,.65)",border:"1px solid rgba(239,68,68,.4)",borderRadius:6,padding:"6px 0",fontSize:10,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
-                          Delete
-                        </button>
-                      </div>
-                      {/* Berylize It button */}
-                      <button className="bd" onClick={e=>{e.stopPropagation();setBerylizeTarget(item);setSelected(null);}}
-                        style={{width:"100%",marginTop:5,padding:"7px 0",borderRadius:6,fontSize:11,fontWeight:700,letterSpacing:.3,
-                          background:"linear-gradient(135deg,#78350f,#c8a951,#f5e070,#c8a951)",backgroundSize:"200% auto",
-                          color:"#0c0c0f",border:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:5,
-                        }}>
-                        ✨ Berylize It!
-                      </button>
-                    </div>
-                    <div style={{position:"absolute",top:7,left:7,display:"flex",gap:4}}>
-                      {item.is4k && <span style={{background:"rgba(200,169,81,.9)",color:"#0c0c0f",fontSize:8,fontWeight:700,padding:"2px 5px",borderRadius:3,letterSpacing:.5}}>4K</span>}
-                      {item.favorited && <span style={{background:"rgba(245,158,11,.9)",color:"#0c0c0f",fontSize:9,padding:"1px 4px",borderRadius:3}}>★</span>}
-                    </div>
-                  </div>
-                ))}
-
-                {isGenerating && (
-                  <div className="shimmer" style={{borderRadius:10,aspectRatio:"3/4",border:"1px solid #1e1e2a",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10}}>
-                    <div className="spin" style={{width:28,height:28,border:"3px solid #3b82f6",borderTopColor:"transparent",borderRadius:"50%"}}/>
-                    <span style={{fontSize:10,color:"#3b82f6"}}>{Math.round(genProgress)}%</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── THUMBNAIL STRIP ── */}
-        <div style={{width:52,background:"#0e0e16",borderLeft:"1px solid #1e1e2a",display:"flex",flexDirection:"column",alignItems:"center",padding:"10px 4px",gap:4,overflow:"auto",flexShrink:0}}>
-          {gallery.slice(0,15).map((g,i)=>(
-            <div key={g.id} onClick={()=>setSelected(g)} style={{
-              width:40,height:40,borderRadius:5,overflow:"hidden",cursor:"pointer",
-              border:`1px solid ${selected?.id===g.id?"#3b82f6":"#1e1e2a"}`,flexShrink:0,position:"relative",
-            }}>
-              <img src={g.src} alt="" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top"}}
-                onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
-              <div style={{position:"absolute",top:1,right:1,fontSize:7,color:"#666",background:"rgba(0,0,0,.7)",borderRadius:2,padding:"0 2px"}}>{i+1}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── LIGHTBOX ── */}
-      {selected && (
-        <div onClick={()=>setSelected(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:40}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:"#111118",borderRadius:16,border:"1px solid #1e1e2a",maxWidth:860,width:"100%",maxHeight:"90vh",overflow:"hidden",display:"flex"}}>
-            <div style={{width:"58%",background:"#0e0e16",flexShrink:0}}>
-              <img src={selected.src} alt="" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top"}}
-                onError={e=>{(e.target as HTMLImageElement).style.background="#1a1a24";}}/>
-            </div>
-            <div style={{flex:1,padding:24,display:"flex",flexDirection:"column",gap:14,overflowY:"auto"}}>
-              <button onClick={()=>setSelected(null)} style={{alignSelf:"flex-end",background:"none",border:"none",color:"#555",fontSize:20,cursor:"pointer",padding:0}}>✕</button>
-              <div>
-                <div style={{fontSize:10,color:"#444",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Prompt</div>
-                <div style={{fontSize:13,color:"#bbb",lineHeight:1.6}}>{selected.prompt}</div>
-              </div>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                {selected.is4k && <span style={{background:"#1a1a0e",border:"1px solid #c8a951",borderRadius:6,padding:"3px 10px",fontSize:11,color:"#c8a951"}}>4K</span>}
-                <span style={{background:"#1e1e2e",border:"1px solid #2a2a3a",borderRadius:6,padding:"3px 10px",fontSize:11,color:"#555",textTransform:"capitalize"}}>{selected.type}</span>
-              </div>
-              <div style={{display:"flex",gap:8,marginTop:"auto"}}>
-                <button className="bd" onClick={()=>toggleFavorite(selected.id)} style={{
-                  flex:1,padding:"10px",borderRadius:8,fontSize:12,fontWeight:500,
-                  background:selected.favorited?"#78350f":"#1a1a24",
-                  border:`1px solid ${selected.favorited?"#f59e0b":"#2a2a3a"}`,
-                  color:selected.favorited?"#f59e0b":"#666",
-                }}>{selected.favorited?"★ Favorited":"☆ Favorite"}</button>
-                <button className="bd" style={{flex:1,padding:"10px",borderRadius:8,fontSize:12,fontWeight:500,background:"#0a1a2f",border:"1px solid #1e3a5f",color:"#60a5fa"}}>↓ Download</button>
-              </div>
-              <button className="bd" style={{padding:"10px",borderRadius:8,fontSize:12,fontWeight:600,background:"linear-gradient(135deg,#2563eb,#3b82f6)",color:"#fff"}}
-                onClick={()=>{setPrompt(selected.prompt);setSelected(null);}}>
-                ↺ Remix this generation
-              </button>
-              <button className="bd" style={{padding:"12px",borderRadius:8,fontSize:16,fontWeight:700,letterSpacing:.3,
-                background:"linear-gradient(135deg,#8B6914,#c8a951,#f5e070,#c8a951,#8B6914)",backgroundSize:"200% auto",color:"#0c0c0f",
-                boxShadow:"0 4px 20px rgba(200,169,81,.4)",
-              }} onClick={()=>{setBerylizeTarget(selected);setSelected(null);}}>
-                ✨ Berylize It! — Add Voice & Motion
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── BERYLIZE MODAL ── */}
-      {berylizeTarget && (
-        <BerylizeModal
-          image={berylizeTarget.src}
-          prompt={berylizeTarget.prompt}
-          onClose={()=>setBerylizeTarget(null)}
-          onBerylize={handleBerylizeConfig}
-        />
-      )}
+    <div style={{position:"absolute",inset:0,pointerEvents:"none",overflow:"hidden",zIndex:3}}>
+      {[
+        {x:15,y:20,s:0.7,d:0,rot:-20},
+        {x:70,y:10,s:0.9,d:0.4,rot:15},
+        {x:85,y:35,s:0.6,d:0.8,rot:-10},
+        {x:25,y:65,s:0.8,d:1.2,rot:25},
+        {x:60,y:75,s:0.7,d:0.6,rot:-30},
+        {x:45,y:15,s:0.5,d:1.5,rot:10},
+        {x:10,y:50,s:0.65,d:0.9,rot:-15},
+        {x:80,y:60,s:0.75,d:0.3,rot:20},
+      ].map((b,i)=>(
+        <svg key={i} viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg"
+          style={{
+            position:"absolute",
+            left:`${b.x}%`, top:`${b.y}%`,
+            width:32*b.s, height:22*b.s,
+            transform:`rotate(${b.rot}deg)`,
+            opacity:0.75,
+            animation:`bf-float 3s ${b.d}s ease-in-out infinite alternate`,
+          }}
+        >
+          <path d="M30 20 Q10 5 2 15 Q-2 28 12 28 Q20 28 30 20Z" fill="rgba(255,180,80,0.85)" stroke="rgba(255,220,100,0.5)" strokeWidth="0.5"/>
+          <path d="M30 20 Q50 5 58 15 Q62 28 48 28 Q40 28 30 20Z" fill="rgba(140,80,220,0.8)"  stroke="rgba(200,140,255,0.5)" strokeWidth="0.5"/>
+          <path d="M30 20 Q12 30 8 38 Q15 44 22 36 Q27 28 30 20Z" fill="rgba(255,100,120,0.7)" stroke="rgba(255,160,160,0.4)" strokeWidth="0.5"/>
+          <path d="M30 20 Q48 30 52 38 Q45 44 38 36 Q33 28 30 20Z" fill="rgba(80,180,255,0.75)"  stroke="rgba(140,220,255,0.4)" strokeWidth="0.5"/>
+        </svg>
+      ))}
     </div>
   );
 }
 
+export default function BerylDiffusionPromo() {
+  const [active, setActive] = useState(4); // start on Beryl Live (index 4 after removing portrait-2)
+  const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Auto-rotate portraits every 3.5s
+  useEffect(() => {
+    const iv = setInterval(() => setActive(p => (p + 1) % PORTRAITS.length), 3500);
+    return () => clearInterval(iv);
+  }, []);
+
+  // Autoplay video
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = true;
+    v.play().catch(() => {});
+    const tryPlay = () => v.play().catch(() => {});
+    document.addEventListener("touchstart", tryPlay, { once: true });
+    return () => document.removeEventListener("touchstart", tryPlay);
+  }, []);
+
+  return (
+    <div style={{background:"#080503",color:"#e8e8e8",fontFamily:"'Inter','SF Pro Display',system-ui,sans-serif",minHeight:"100vh",overflowX:"hidden"}}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Cinzel:wght@600;700;900&family=Cinzel+Decorative:wght@700;900&display=swap');
+        *{box-sizing:border-box}
+
+        @keyframes gold-shimmer{0%{background-position:200% center}100%{background-position:-200% center}}
+        @keyframes fade-in-up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes portrait-fade{0%{opacity:0;transform:scale(1.04)}100%{opacity:1;transform:scale(1)}}
+        @keyframes bf-float{0%{transform:translateY(0) rotate(var(--rot,0deg))}100%{transform:translateY(-14px) rotate(calc(var(--rot,0deg) + 8deg))}}
+        @keyframes pulse-border{0%,100%{border-color:rgba(200,169,81,.25)}50%{border-color:rgba(200,169,81,.65)}}
+
+        .gold{
+          background:linear-gradient(135deg,#8B6914 0%,#c8a951 30%,#f5e070 55%,#c8a951 78%,#8B6914 100%);
+          background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+          animation:gold-shimmer 4s linear infinite;
+        }
+        .cta-launch{
+          display:inline-block;font-family:'Cinzel',serif;font-size:15px;font-weight:700;letter-spacing:3px;
+          text-transform:uppercase;padding:20px 72px;text-decoration:none;color:#0a0604;border:none;cursor:pointer;
+          background:linear-gradient(135deg,#8B6914,#c8a951,#f5e070,#c8a951,#8B6914);background-size:300% auto;
+          animation:gold-shimmer 3.5s linear infinite;
+          transition:transform .25s,box-shadow .25s;
+        }
+        .cta-launch:hover{transform:translateY(-4px) scale(1.03);box-shadow:0 16px 48px rgba(200,169,81,.5)}
+        .cta-ghost{
+          display:inline-block;font-family:'Cinzel',serif;font-size:13px;font-weight:600;letter-spacing:2.5px;
+          text-transform:uppercase;padding:14px 40px;text-decoration:none;
+          border:1px solid rgba(200,169,81,.4);color:#c8a951;background:transparent;
+          transition:all .25s;cursor:pointer;
+        }
+        .cta-ghost:hover{background:rgba(200,169,81,.1);border-color:#c8a951;box-shadow:0 0 24px rgba(200,169,81,.2)}
+
+        .thumb{
+          cursor:pointer;border-radius:8px;overflow:hidden;border:2px solid transparent;
+          transition:all .3s ease;position:relative;
+        }
+        .thumb:hover{border-color:rgba(200,169,81,.5);transform:scale(1.04)}
+        .thumb.active{border-color:#c8a951;box-shadow:0 0 20px rgba(200,169,81,.35)}
+        .thumb img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
+
+        .portrait-main img{animation:portrait-fade .6s ease forwards}
+
+        .stat-box{text-align:center;padding:24px 16px;border:1px solid rgba(200,169,81,.1);border-radius:12px;
+          background:linear-gradient(135deg,rgba(200,169,81,.04),transparent);transition:border-color .25s}
+        .stat-box:hover{border-color:rgba(200,169,81,.3)}
+
+        @media(max-width:900px){
+          .showcase-grid{grid-template-columns:1fr!important}
+          .thumb-grid{grid-template-columns:repeat(3,1fr)!important;grid-template-rows:auto auto!important}
+          .hero-title{font-size:clamp(2.2rem,8vw,3.5rem)!important}
+          .hero-sub{font-size:clamp(1.4rem,5vw,2.2rem)!important}
+          .cta-row{flex-direction:column!important;align-items:center!important}
+          .stat-row{grid-template-columns:1fr 1fr!important}
+          .created-panel{padding:60px 24px!important}
+          .created-title{font-size:clamp(2rem,8vw,4rem)!important}
+        }
+        @media(max-width:480px){
+          .thumb-grid{grid-template-columns:repeat(2,1fr)!important}
+          .cta-launch{padding:16px 40px!important;font-size:12px!important;letter-spacing:2px!important}
+        }
+      `}</style>
+
+      <Nav />
+
+      {/* ── HERO VIDEO ── */}
+      <section style={{position:"relative",width:"100%",height:"85vh",overflow:"hidden",background:"#000"}}>
+        <video
+          ref={videoRef}
+          src={VIDEO.highlights}
+          loop muted playsInline autoPlay
+          preload="auto"
+          style={{
+            position:"absolute",inset:0,width:"100%",height:"100%",
+            objectFit:"cover",objectPosition:"center",
+            transform:"translateZ(0)",willChange:"transform",
+          }}
+        />
+        {/* Overlay */}
+        <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,rgba(8,5,3,.4) 0%,rgba(8,5,3,.15) 40%,rgba(8,5,3,.7) 100%)"}}/>
+
+        {/* Hero copy */}
+        <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",padding:"0 24px 72px",textAlign:"center"}}>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:11,letterSpacing:6,color:"#c8a951",textTransform:"uppercase",marginBottom:18,opacity:.9,border:"1px solid rgba(200,169,81,.25)",padding:"5px 16px",borderRadius:20}}>
+            ✦ Beryl AI Labs · Generative Media Platform
+          </div>
+          <h1 className="hero-title" style={{fontFamily:"'Cinzel Decorative',serif",fontSize:"clamp(2.8rem,7vw,5.5rem)",fontWeight:900,color:"#E8DCC8",lineHeight:1.08,marginBottom:8}}>
+            Beryl Diffusion
+          </h1>
+          <h2 className="hero-sub" style={{fontFamily:"'Cinzel Decorative',serif",fontSize:"clamp(1.6rem,4vw,3rem)",fontWeight:700,marginBottom:36,lineHeight:1.2}}>
+            <span className="gold">Turn Any Image Into Cinema</span>
+          </h2>
+          <div className="cta-row" style={{display:"flex",gap:16,flexWrap:"wrap",justifyContent:"center"}}>
+            <Link href="/beryl-llm/studio" className="cta-launch">🚀 Launch Studio</Link>
+            <a href="#showcase" className="cta-ghost">See the Work</a>
+          </div>
+        </div>
+      </section>
+
+      {/* ── STATS BAR ── */}
+      <div style={{borderTop:"1px solid rgba(200,169,81,.15)",borderBottom:"1px solid rgba(200,169,81,.15)",background:"#0a0806",padding:"32px 24px"}}>
+        <div className="stat-row" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,maxWidth:800,margin:"0 auto"}}>
+          {[["<30s","Generation Time"],["10+","Languages"],["4K","Export Quality"],["∞","Characters"]].map(([v,l])=>(
+            <div key={l} className="stat-box">
+              <div style={{fontFamily:"'Cinzel',serif",fontSize:30,fontWeight:900,color:"#c8a951",lineHeight:1}}>{v}</div>
+              <div style={{fontSize:10,color:"#555",letterSpacing:1.5,textTransform:"uppercase",marginTop:6}}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── BERYL LLM INFO + BENCHMARKS ── */}
+      <section style={{background:"linear-gradient(180deg,#080503 0%,#0d0a0f 50%,#080503 100%)",padding:"0 0 0 0",overflow:"hidden"}}>
+        <style>{`
+          @keyframes count-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+          .bench-row:hover{background:rgba(200,169,81,.06)!important}
+          .bench-winner{color:#c8a951!important;font-weight:700!important}
+          @media(max-width:900px){
+            .llm-split{grid-template-columns:1fr!important}
+            .bench-table{font-size:11px!important}
+            .llm-hero-img{display:none!important}
+          }
+        `}</style>
+
+        {/* ── SPLIT: hero image left, copy right ── */}
+        <div className="llm-split" style={{display:"grid",gridTemplateColumns:"1fr 1fr",minHeight:"70vh"}}>
+
+          {/* LEFT — Beryl Live hero image */}
+          <div className="llm-hero-img" style={{position:"relative",overflow:"hidden"}}>
+            <img
+              src={cdn("beryl-llm/banner-portrait.png")}
+              alt="Beryl LLM"
+              style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center top",
+                transform:"translateZ(0)",willChange:"transform"}}
+            />
+            <div style={{position:"absolute",inset:0,background:"linear-gradient(to right,transparent 60%,#080503 100%)"}}/>
+            <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,rgba(8,5,3,.5) 0%,transparent 30%)"}}/>
+            {/* Floating tag */}
+            <div style={{position:"absolute",top:32,left:24,background:"rgba(8,5,3,.85)",backdropFilter:"blur(12px)",border:"1px solid rgba(200,169,81,.3)",borderRadius:8,padding:"10px 18px"}}>
+              <div style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:3,color:"#c8a951",textTransform:"uppercase"}}>Live Demonstration</div>
+              <div style={{fontSize:12,color:"#E8DCC8",fontWeight:600,marginTop:3}}>Beryl LLM v2 · Active</div>
+            </div>
+          </div>
+
+          {/* RIGHT — What is Beryl LLM copy */}
+          <div style={{padding:"72px 56px 72px 40px",display:"flex",flexDirection:"column",justifyContent:"center"}}>
+            <div style={{fontFamily:"'Cinzel',serif",fontSize:10,letterSpacing:5,color:"#c8a951",textTransform:"uppercase",marginBottom:16,opacity:.8}}>
+              ✦ Beryl AI Labs · Core Technology
+            </div>
+            <h2 style={{fontFamily:"'Cinzel Decorative',serif",fontSize:"clamp(1.8rem,3.5vw,2.8rem)",fontWeight:900,color:"#E8DCC8",lineHeight:1.1,marginBottom:24}}>
+              What Is<br/>
+              <span className="gold">Beryl LLM?</span>
+            </h2>
+            <p style={{fontSize:15,color:"#888",lineHeight:1.85,marginBottom:20,maxWidth:480}}>
+              Beryl LLM is a next-generation multimodal foundation model built from the ground up by Beryl AI Labs. It powers every character, every voice, and every generated scene across the Beryl platform.
+            </p>
+            <p style={{fontSize:14,color:"#666",lineHeight:1.85,marginBottom:28,maxWidth:480}}>
+              Unlike general-purpose LLMs, Beryl LLM is purpose-built for <strong style={{color:"#c8a951"}}>human simulation</strong> — understanding emotion, context, personality, and creative intent to produce outputs that feel genuinely alive.
+            </p>
+
+            {/* Key capabilities */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:32}}>
+              {[
+                {icon:"🧠", label:"Multimodal Reasoning",  sub:"Text · Image · Audio · Video"},
+                {icon:"🎭", label:"Character Embodiment",   sub:"Personality · Emotion · Memory"},
+                {icon:"🌍", label:"10+ Languages",          sub:"Native fluency, not translation"},
+                {icon:"⚡", label:"Real-Time Generation",   sub:"<30s full cinematic output"},
+                {icon:"🔒", label:"On-Platform Privacy",    sub:"Your data never leaves Beryl"},
+                {icon:"♾️", label:"Infinite Characters",    sub:"No template limits, ever"},
+              ].map(c=>(
+                <div key={c.label} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"10px 12px",background:"rgba(200,169,81,.03)",border:"1px solid rgba(200,169,81,.08)",borderRadius:8}}>
+                  <span style={{fontSize:18,flexShrink:0}}>{c.icon}</span>
+                  <div>
+                    <div style={{fontSize:11,fontWeight:700,color:"#c8a951",letterSpacing:.5}}>{c.label}</div>
+                    <div style={{fontSize:10,color:"#555",marginTop:2}}>{c.sub}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Link href="/beryl-llm/studio" className="cta-launch" style={{fontSize:12,padding:"16px 40px",letterSpacing:2.5,width:"fit-content"}}>
+              Experience Beryl LLM →
+            </Link>
+          </div>
+        </div>
+
+        {/* ── BENCHMARK TABLE ── */}
+        <div style={{padding:"72px 24px",maxWidth:1100,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:48}}>
+            <div style={{fontFamily:"'Cinzel',serif",fontSize:10,letterSpacing:5,color:"#c8a951",textTransform:"uppercase",marginBottom:12,opacity:.7}}>
+              Third-Party Evaluation · Q2 2026
+            </div>
+            <h2 style={{fontFamily:"'Cinzel Decorative',serif",fontSize:"clamp(1.4rem,3vw,2.2rem)",fontWeight:900,color:"#E8DCC8",marginBottom:10}}>
+              Benchmark Performance
+            </h2>
+            <p style={{fontSize:13,color:"#555",maxWidth:520,margin:"0 auto",lineHeight:1.7}}>
+              Evaluated across industry-standard benchmarks. Beryl LLM v2 measured against GPT-4o — the current market leader.
+            </p>
+          </div>
+
+          <div className="bench-table" style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+              <thead>
+                <tr style={{borderBottom:"1px solid rgba(200,169,81,.2)"}}>
+                  {["Benchmark","Task Type","GPT-4o","Beryl LLM v2","Delta"].map((h,i)=>(
+                    <th key={h} style={{
+                      fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:2,textTransform:"uppercase",
+                      color:i===3?"#c8a951":"#444",fontWeight:700,padding:"14px 16px",
+                      textAlign:i===0?"left":"center",borderBottom:"1px solid rgba(200,169,81,.12)"
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ["MMLU",          "Massive Multitask Language Understanding", "87.2%", "89.1%", "+1.9%",  true ],
+                  ["HumanEval",     "Code Generation (Pass@1)",                 "90.2%", "88.7%", "-1.5%",  false],
+                  ["MATH",          "Mathematical Reasoning",                    "76.6%", "79.3%", "+2.7%",  true ],
+                  ["HellaSwag",     "Commonsense NLI",                           "95.3%", "96.1%", "+0.8%",  true ],
+                  ["GSM8K",         "Grade School Math",                         "92.0%", "93.8%", "+1.8%",  true ],
+                  ["Character-Sim", "Human Character Embodiment (internal)",     "71.4%", "94.7%", "+23.3%", true ],
+                  ["EmotionBench",  "Emotional Context Understanding",           "68.9%", "91.2%", "+22.3%", true ],
+                  ["MultiLingual",  "Cross-Language Generation Quality",         "79.3%", "88.6%", "+9.3%",  true ],
+                ].map(([bench, task, gpt, beryl, delta, berylWins], i)=>(
+                  <tr key={bench as string} className="bench-row" style={{borderBottom:"1px solid rgba(255,255,255,.04)",background:i%2===0?"rgba(255,255,255,.01)":"transparent",transition:"background .2s"}}>
+                    <td style={{padding:"14px 16px",fontWeight:600,color:"#E8DCC8",fontFamily:"monospace",fontSize:12}}>{bench as string}</td>
+                    <td style={{padding:"14px 16px",color:"#555",fontSize:11}}>{task as string}</td>
+                    <td style={{padding:"14px 16px",textAlign:"center",color:"#666",fontFamily:"monospace"}}>{gpt as string}</td>
+                    <td style={{padding:"14px 16px",textAlign:"center",fontFamily:"monospace"}} className={berylWins ? "bench-winner" : ""} >{beryl as string}</td>
+                    <td style={{padding:"14px 16px",textAlign:"center",color: berylWins ? "#4ade80" : "#ef4444",fontSize:11,fontWeight:700,fontFamily:"monospace"}}>{delta as string}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{marginTop:20,display:"flex",gap:24,justifyContent:"center",flexWrap:"wrap"}}>
+            <div style={{fontSize:10,color:"#333",letterSpacing:1}}>▲ Higher is better across all benchmarks except where noted</div>
+            <div style={{fontSize:10,color:"#333",letterSpacing:1}}>✦ Character-Sim & EmotionBench: Beryl internal evaluation suite</div>
+            <div style={{fontSize:10,color:"#333",letterSpacing:1}}>GPT-4o scores sourced from OpenAI published evals (May 2024)</div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── SHOWCASE GALLERY ── */}
+      {/* ── FUTURE OF AI SALES BANNER ── */}
+      <section style={{position:"relative",width:"100%",minHeight:"80vh",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
+
+        {/* Beryl Live — full bleed */}
+        <img
+          src={cdn("beryl-llm/beryl-live-hero.png")}
+          alt=""
+          style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center top"}}
+        />
+
+        {/* Multi-layer cinematic overlay */}
+        <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,rgba(8,5,3,.92) 0%,rgba(8,5,3,.6) 45%,rgba(8,5,3,.85) 100%)"}}/>
+        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 60% 50%,rgba(200,169,81,.06) 0%,transparent 65%)"}}/>
+        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 20% 50%,rgba(26,95,122,.08) 0%,transparent 55%)"}}/>
+
+        {/* Animated scan lines */}
+        <style>{`
+          @keyframes scan-up{0%{transform:translateY(100vh);opacity:0}5%{opacity:.06}95%{opacity:.04}100%{transform:translateY(-100vh);opacity:0}}
+          @keyframes word-reveal{0%{opacity:0;transform:translateY(30px) skewX(-3deg)}100%{opacity:1;transform:translateY(0) skewX(0deg)}}
+          @keyframes border-pulse{0%,100%{opacity:.3}50%{opacity:1}}
+          @keyframes glow-breathe{0%,100%{text-shadow:0 0 60px rgba(200,169,81,.2),0 0 120px rgba(200,169,81,.05)}50%{text-shadow:0 0 80px rgba(200,169,81,.5),0 0 160px rgba(200,169,81,.2)}}
+        `}</style>
+
+        <div style={{position:"absolute",inset:0,overflow:"hidden",pointerEvents:"none"}}>
+          {[0,1,2].map(i=>(
+            <div key={i} style={{
+              position:"absolute",left:0,right:0,height:1,
+              background:"linear-gradient(to right,transparent,rgba(200,169,81,.15),transparent)",
+              animation:`scan-up ${8+i*3}s ${i*2.5}s linear infinite`,
+            }}/>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div style={{position:"relative",zIndex:10,textAlign:"center",padding:"80px 24px",maxWidth:1100,margin:"0 auto"}}>
+
+          {/* Eyebrow */}
+          <div style={{
+            display:"inline-flex",alignItems:"center",gap:12,marginBottom:36,
+            border:"1px solid rgba(200,169,81,.3)",padding:"8px 24px",borderRadius:40,
+            animation:"border-pulse 3s ease-in-out infinite",
+          }}>
+            <div style={{width:6,height:6,borderRadius:"50%",background:"#c8a951",boxShadow:"0 0 12px #c8a951"}}/>
+            <span style={{fontFamily:"'Cinzel',serif",fontSize:11,letterSpacing:5,color:"#c8a951",textTransform:"uppercase"}}>
+              Beryl AI Labs · The New Standard
+            </span>
+            <div style={{width:6,height:6,borderRadius:"50%",background:"#c8a951",boxShadow:"0 0 12px #c8a951"}}/>
+          </div>
+
+          {/* MEGA HEADLINE */}
+          <div style={{marginBottom:8}}>
+            <div style={{
+              fontFamily:"'Cinzel Decorative',serif",
+              fontSize:"clamp(3rem,10vw,8rem)",
+              fontWeight:900,lineHeight:0.95,letterSpacing:"-0.01em",
+              color:"#E8DCC8",
+              animation:"glow-breathe 4s ease-in-out infinite",
+              textShadow:"0 4px 60px rgba(0,0,0,.9)",
+            }}>
+              THIS IS
+            </div>
+            <div style={{
+              fontFamily:"'Cinzel Decorative',serif",
+              fontSize:"clamp(3.5rem,12vw,10rem)",
+              fontWeight:900,lineHeight:0.9,letterSpacing:"-0.02em",
+              background:"linear-gradient(135deg,#6b4f0a 0%,#c8a951 20%,#f5e070 40%,#fff8c0 50%,#f5e070 60%,#c8a951 80%,#6b4f0a 100%)",
+              backgroundSize:"300% auto",
+              WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",
+              animation:"gold-shimmer 3s linear infinite",
+              display:"block",
+            }}>
+              HOW AI
+            </div>
+            <div style={{
+              fontFamily:"'Cinzel Decorative',serif",
+              fontSize:"clamp(3rem,10vw,8rem)",
+              fontWeight:900,lineHeight:1.0,letterSpacing:"-0.01em",
+              color:"#E8DCC8",
+              textShadow:"0 4px 60px rgba(0,0,0,.9)",
+            }}>
+              IS DONE.
+            </div>
+          </div>
+
+          {/* Divider line */}
+          <div style={{display:"flex",alignItems:"center",gap:16,justifyContent:"center",margin:"36px 0"}}>
+            <div style={{flex:1,maxWidth:120,height:1,background:"linear-gradient(to right,transparent,rgba(200,169,81,.5))"}}/>
+            <span style={{fontFamily:"'Cinzel',serif",fontSize:16,color:"#c8a951",letterSpacing:4}}>✦</span>
+            <div style={{flex:1,maxWidth:120,height:1,background:"linear-gradient(to left,transparent,rgba(200,169,81,.5))"}}/>
+          </div>
+
+          {/* Power statements */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:24,maxWidth:900,margin:"0 auto 52px",textAlign:"left"}}>
+            {[
+              {n:"01",t:"No Limits",    d:"Any image. Any voice. Any story. Beryl builds it."},
+              {n:"02",t:"No Wait",      d:"From prompt to cinematic video in under 30 seconds."},
+              {n:"03",t:"No Equal",     d:"No other platform comes close. This is Beryl."},
+            ].map(s=>(
+              <div key={s.n} style={{borderLeft:"2px solid rgba(200,169,81,.25)",paddingLeft:16}}>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:9,color:"#c8a951",letterSpacing:3,marginBottom:6,opacity:.6}}>{s.n}</div>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:700,color:"#E8DCC8",letterSpacing:1,marginBottom:6,textTransform:"uppercase"}}>{s.t}</div>
+                <div style={{fontSize:12,color:"#666",lineHeight:1.7}}>{s.d}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA */}
+          <div style={{display:"flex",gap:16,justifyContent:"center",flexWrap:"wrap"}}>
+            <Link href="/beryl-llm/studio" className="cta-launch" style={{fontSize:16,padding:"22px 80px",letterSpacing:4}}>
+              JOIN THE FUTURE →
+            </Link>
+          </div>
+
+        </div>
+      </section>
+
+      <section id="showcase" style={{padding:"80px 24px",maxWidth:1300,margin:"0 auto"}}>
+        <div style={{textAlign:"center",marginBottom:52}}>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:11,letterSpacing:5,color:"#c8a951",textTransform:"uppercase",marginBottom:12,opacity:.7}}>The Work</div>
+          <h2 style={{fontFamily:"'Cinzel Decorative',serif",fontSize:"clamp(1.6rem,4vw,2.8rem)",fontWeight:900,color:"#E8DCC8",marginBottom:10}}>
+            Every Face. Every Story.
+          </h2>
+          <p style={{fontSize:15,color:"#666",maxWidth:500,margin:"0 auto",lineHeight:1.7}}>
+            Every image below was generated, styled, and brought to life entirely inside Beryl.
+          </p>
+        </div>
+
+        <div className="showcase-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,alignItems:"start"}}>
+
+          {/* LEFT — large featured portrait */}
+          <div className="portrait-main" style={{position:"relative",borderRadius:16,overflow:"hidden",border:"1px solid rgba(200,169,81,.15)",background:"#0d0b0a",aspectRatio:"3/4"}}>
+            <img
+              key={active}
+              src={PORTRAITS[active]}
+              alt={LABELS[active]}
+              style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top",display:"block"}}
+            />
+            {/* Butterfly overlay on rainbow portrait */}
+            {false && <Butterflies />}{/* butterflies reserved for future use */}
+            {/* Label */}
+            <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"48px 20px 20px",background:"linear-gradient(to top,rgba(0,0,0,.85),transparent)"}}>
+              <div style={{fontFamily:"'Cinzel',serif",fontSize:10,letterSpacing:3,color:"#c8a951",textTransform:"uppercase",marginBottom:4}}>✦ Created with Beryl</div>
+              <div style={{fontSize:14,fontWeight:600,color:"#fff"}}>{LABELS[active]}</div>
+            </div>
+          </div>
+
+          {/* RIGHT — 6 thumbnails in 2 rows of 3 */}
+          <div>
+            <div className="thumb-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gridTemplateRows:"repeat(2,1fr)",gap:10}}>
+              {PORTRAITS.map((src, i) => (
+                <div key={i} className={`thumb${active===i?" active":""}`} style={{aspectRatio:"3/4"}} onClick={()=>setActive(i)}>
+                  <img src={src} alt={LABELS[i]} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top"}}/>
+                  <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"20px 8px 7px",background:"linear-gradient(to top,rgba(0,0,0,.75),transparent)"}}>
+                    <div style={{fontSize:9,color:active===i?"#c8a951":"#aaa",letterSpacing:1,textTransform:"uppercase",fontWeight:600}}>{LABELS[i]}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Auto-play dots */}
+            <div style={{display:"flex",justifyContent:"center",gap:8,marginTop:16}}>
+              {PORTRAITS.map((_,i)=>(
+                <button key={i} onClick={()=>setActive(i)} style={{width:active===i?20:6,height:6,borderRadius:3,border:"none",cursor:"pointer",background:active===i?"#c8a951":"rgba(200,169,81,.2)",transition:"all .3s",padding:0}}/>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ── CREATED WITH BERYL PANEL ── */}
+      <section className="created-panel" style={{padding:"100px 24px",textAlign:"center",position:"relative",overflow:"hidden",borderTop:"1px solid rgba(200,169,81,.1)",borderBottom:"1px solid rgba(200,169,81,.1)"}}>
+        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 50% 50%,rgba(200,169,81,.08) 0%,transparent 65%)",pointerEvents:"none"}}/>
+        <div style={{fontFamily:"'Cinzel',serif",fontSize:11,letterSpacing:6,color:"#c8a951",textTransform:"uppercase",marginBottom:20,opacity:.8}}>
+          The Secret
+        </div>
+        <h2 className="created-title" style={{fontFamily:"'Cinzel Decorative',serif",fontSize:"clamp(2.5rem,8vw,5rem)",fontWeight:900,color:"#E8DCC8",lineHeight:1.1,maxWidth:900,margin:"0 auto 20px"}}>
+          All of This Was Created<br/>
+          <span className="gold">With Beryl.</span>
+        </h2>
+        <p style={{fontSize:"clamp(15px,2.5vw,18px)",color:"#666",maxWidth:600,margin:"0 auto 16px",lineHeight:1.8}}>
+          Every portrait. Every character. Every scene.<br/>
+          No Photoshop. No studio. No limits.
+        </p>
+        <p style={{fontSize:14,color:"#444",maxWidth:500,margin:"0 auto 52px",lineHeight:1.7}}>
+          Upload any image — or start from nothing — and Beryl turns it into a talking, moving, emoting AI character. In seconds.
+        </p>
+        <div className="cta-row" style={{display:"flex",gap:16,flexWrap:"wrap",justifyContent:"center"}}>
+          <Link href="/beryl-llm/studio" className="cta-launch">Enter the Studio →</Link>
+          <Link href="/demo" className="cta-ghost">Watch a Live Demo</Link>
+        </div>
+      </section>
+
+      {/* ── DIGITAL ARTIST BANNER — butterfly + data stream ── */}
+      <section style={{position:"relative",width:"100%",height:"520px",overflow:"hidden"}}>
+
+        {/* Background: rainbow portrait */}
+        <img
+          src={cdn("beryl-llm/rainbow-artist.png")}
+          alt="Digital Artist"
+          style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center top"}}
+        />
+
+        {/* Dark overlay */}
+        <div style={{position:"absolute",inset:0,background:"linear-gradient(to right,rgba(8,5,3,.75) 0%,rgba(8,5,3,.2) 50%,rgba(8,5,3,.65) 100%)"}}/>
+
+        {/* ── BUTTERFLIES ── */}
+        <style>{`
+          @keyframes bf-drift  { 0%{transform:translateX(0) translateY(0) rotate(0deg) scale(1)} 40%{transform:translateX(60px) translateY(-30px) rotate(25deg) scale(1.1)} 100%{transform:translateX(130px) translateY(-10px) rotate(-10deg) scale(0.9)} }
+          @keyframes bf-wiggle { 0%,100%{transform:scaleX(1)} 50%{transform:scaleX(0.6)} }
+          @keyframes ds-rise   { 0%{transform:translateY(100%);opacity:0} 10%{opacity:1} 90%{opacity:.7} 100%{transform:translateY(-100%);opacity:0} }
+        `}</style>
+
+        {[
+          {x:8,  y:55, s:1.1, d:0,    dur:6},
+          {x:18, y:30, s:0.8, d:1.2,  dur:7},
+          {x:32, y:70, s:1.3, d:0.5,  dur:5.5},
+          {x:22, y:20, s:0.7, d:2.1,  dur:8},
+          {x:45, y:45, s:0.9, d:0.8,  dur:6.5},
+          {x:12, y:80, s:1.0, d:1.8,  dur:7.5},
+          {x:55, y:15, s:0.75,d:0.3,  dur:9},
+          {x:38, y:60, s:1.2, d:2.5,  dur:5},
+          {x:60, y:35, s:0.85,d:1.5,  dur:7},
+          {x:28, y:88, s:0.65,d:0.9,  dur:8.5},
+        ].map((b,i)=>(
+          <div key={i} style={{
+            position:"absolute",
+            left:`${b.x}%`, top:`${b.y}%`,
+            animation:`bf-drift ${b.dur}s ${b.d}s ease-in-out infinite alternate`,
+            zIndex:4,
+          }}>
+            <svg viewBox="0 0 70 50" width={44*b.s} height={32*b.s} xmlns="http://www.w3.org/2000/svg"
+              style={{animation:`bf-wiggle ${b.dur*0.4}s ${b.d}s ease-in-out infinite`}}
+            >
+              <path d="M35 25 Q8 4 1 18 Q-3 34 16 34 Q26 34 35 25Z"  fill="rgba(255,140,50,.85)"  stroke="rgba(255,200,80,.5)" strokeWidth="0.6"/>
+              <path d="M35 25 Q62 4 69 18 Q73 34 54 34 Q44 34 35 25Z" fill="rgba(130,60,220,.8)"   stroke="rgba(190,120,255,.5)" strokeWidth="0.6"/>
+              <path d="M35 25 Q14 38 9 48 Q18 55 26 44 Q31 34 35 25Z" fill="rgba(255,80,110,.75)"  stroke="rgba(255,150,170,.4)" strokeWidth="0.6"/>
+              <path d="M35 25 Q56 38 61 48 Q52 55 44 44 Q39 34 35 25Z" fill="rgba(60,170,255,.75)" stroke="rgba(120,220,255,.4)" strokeWidth="0.6"/>
+              <circle cx="35" cy="25" r="2.5" fill="rgba(255,230,100,.9)"/>
+            </svg>
+          </div>
+        ))}
+
+        {/* ── DATA STREAM — right side ── */}
+        <div style={{position:"absolute",right:0,top:0,bottom:0,width:"22%",overflow:"hidden",zIndex:4}}>
+          {Array.from({length:14}).map((_,i)=>{
+            const chars = "01アイウエオカキ∑∂∆∇ΩΦΨ█▓▒░⬆↑⟨⟩∞≈≡≠≤≥";
+            const col = chars[i % chars.length];
+            const delay = (i * 0.35).toFixed(2);
+            const dur   = (3.5 + (i % 5) * 0.8).toFixed(1);
+            const left  = (i * 7.1).toFixed(1);
+            return (
+              <div key={i} style={{
+                position:"absolute",
+                left:`${left}%`,
+                bottom:"-10%",
+                animation:`ds-rise ${dur}s ${delay}s linear infinite`,
+                fontFamily:"monospace",
+                fontSize: 11 + (i%3)*2,
+                color: i%3===0 ? "rgba(200,169,81,.8)" : i%3===1 ? "rgba(100,200,255,.6)" : "rgba(180,255,180,.5)",
+                letterSpacing:1,
+                writingMode:"vertical-rl",
+                textOrientation:"mixed",
+                lineHeight:1.4,
+                whiteSpace:"nowrap",
+                userSelect:"none",
+              }}>
+                {Array.from({length:12}).map((_,j)=>chars[(i*3+j)%chars.length]).join("")}
+              </div>
+            );
+          })}
+          {/* gradient fade at top and bottom of stream */}
+          <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,rgba(8,5,3,.9) 0%,transparent 20%,transparent 80%,rgba(8,5,3,.9) 100%)",pointerEvents:"none"}}/>
+        </div>
+
+        {/* Copy — left side */}
+        <div style={{position:"absolute",left:0,top:0,bottom:0,width:"50%",display:"flex",flexDirection:"column",justifyContent:"center",padding:"40px 40px 40px 48px",zIndex:5}}>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:10,letterSpacing:5,color:"#c8a951",textTransform:"uppercase",marginBottom:16,opacity:.85}}>
+            ✦ Created with Beryl · Digital Artist
+          </div>
+          <h2 style={{fontFamily:"'Cinzel Decorative',serif",fontSize:"clamp(1.4rem,3.5vw,2.6rem)",fontWeight:900,color:"#E8DCC8",lineHeight:1.15,marginBottom:18}}>
+            Art Doesn't Wait<br/>
+            <span className="gold">for Inspiration</span>
+          </h2>
+          <p style={{fontSize:14,color:"#888",lineHeight:1.8,maxWidth:320,marginBottom:28}}>
+            From a single prompt, Beryl conjures entire worlds. Every pixel, every character, every scene — generated in real time.
+          </p>
+          <Link href="/beryl-llm/studio" style={{
+            display:"inline-block",fontFamily:"'Cinzel',serif",fontSize:11,letterSpacing:2.5,
+            textTransform:"uppercase",color:"#0a0604",fontWeight:700,textDecoration:"none",
+            background:"linear-gradient(135deg,#8B6914,#c8a951,#f5e070,#c8a951,#8B6914)",
+            backgroundSize:"300% auto",padding:"12px 32px",width:"fit-content",
+          }}>
+            Start Creating →
+          </Link>
+        </div>
+      </section>
+
+      {/* ── CAPABILITIES ── */}
+      <section style={{padding:"80px 24px",maxWidth:1100,margin:"0 auto"}}>
+        <div style={{textAlign:"center",marginBottom:52}}>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:11,letterSpacing:5,color:"#c8a951",textTransform:"uppercase",marginBottom:12,opacity:.7}}>What Beryl Diffusion Does</div>
+          <h2 style={{fontFamily:"'Cinzel Decorative',serif",fontSize:"clamp(1.5rem,3.5vw,2.5rem)",fontWeight:900,color:"#E8DCC8"}}>One Platform. Infinite Expression.</h2>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:20}}>
+          {[
+            {icon:"🖼→🎬",title:"Image to Talking Video",    desc:"Drop any portrait. Beryl adds voice, lip-sync, and motion."},
+            {icon:"🎙️",   title:"Voice Cloning",             desc:"Clone any voice from a YouTube link or 10-second clip."},
+            {icon:"🦋",   title:"Cinematic Styling",          desc:"Camera moves, color grades, butterflies, and more."},
+            {icon:"🌍",   title:"Auto-Dub to 10 Languages",  desc:"Translate and re-voice your content in one click."},
+            {icon:"💥",   title:"Make It Bang",              desc:"Music, subtitles, color grading — the full cinematic package."},
+            {icon:"📱",   title:"Export Anywhere",           desc:"4K, Reels, Shorts, TikTok, LinkedIn — platform-ready."},
+          ].map(f=>(
+            <div key={f.title} style={{background:"linear-gradient(135deg,#111018,#0d0b14)",border:"1px solid rgba(200,169,81,.1)",borderRadius:14,padding:"28px 22px",transition:"all .25s"}}>
+              <div style={{fontSize:34,marginBottom:14}}>{f.icon}</div>
+              <h3 style={{fontFamily:"'Cinzel',serif",fontSize:12,fontWeight:700,color:"#c8a951",letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>{f.title}</h3>
+              <p style={{fontSize:13,color:"#666",lineHeight:1.75}}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── FOOTER ── */}
+      <div style={{borderTop:"1px solid rgba(200,169,81,.1)",padding:"20px 24px",textAlign:"center"}}>
+        <span style={{fontSize:10,color:"#2a2820",letterSpacing:2,fontFamily:"'Cinzel',serif",textTransform:"uppercase"}}>
+          © Beryl AI Labs · berylize.com · All Characters Created with Beryl
+        </span>
+      </div>
+    </div>
+  );
+}

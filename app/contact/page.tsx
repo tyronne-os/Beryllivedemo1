@@ -60,7 +60,7 @@ export default function ContactPage() {
             alt="Kizzy"
             style={{
               width: "100%", height: "100%",
-              objectFit: "cover", objectPosition: "center top",
+              objectFit: "cover", objectPosition: "50% 10%",
             }}
           />
           {/* Dark gradient overlay */}

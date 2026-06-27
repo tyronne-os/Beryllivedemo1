@@ -96,7 +96,7 @@ export default function KizzyBanner() {
         display: "flex", justifyContent: "center",
       }}>
         <a
-          href="/beryl-llm"
+          href="/beryl-llm/studio"
           className="kizzy-cta"
           style={{
             display: "inline-block",
