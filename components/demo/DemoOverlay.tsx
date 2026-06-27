@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 
 export default function DemoOverlay({onSubmit}:{onSubmit:(name:string,email:string)=>void}) {
@@ -16,7 +16,7 @@ export default function DemoOverlay({onSubmit}:{onSubmit:(name:string,email:stri
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(8,5,3,0.93)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={{background:"#0D1117",border:"1px solid rgba(232,220,200,0.15)",padding:"48px 40px",maxWidth:440,width:"90%",textAlign:"center"}}>
-        <div style={{fontFamily:"'Cinzel',serif",fontSize:10,letterSpacing:3,textTransform:"uppercase",color:"#4CAF50",marginBottom:16}}>Live Session · Eve</div>
+        <div style={{fontFamily:"'Cinzel',serif",fontSize:16,fontWeight:700,letterSpacing:3,textTransform:"uppercase",color:"#4CAF50",marginBottom:16}}>Live Session · Eve</div>
         <h2 style={{fontFamily:"'Cinzel',serif",fontSize:22,fontWeight:600,color:"#E8DCC8",marginBottom:10}}>Meet Eve.</h2>
         <p style={{fontSize:15,color:"rgba(232,220,200,0.65)",lineHeight:1.7,fontFamily:"'Cormorant Garamond',serif",marginBottom:32}}>
           You have 3 minutes with the most advanced live AI presence ever built. Tell her your name — she will remember everything.
@@ -33,3 +33,4 @@ export default function DemoOverlay({onSubmit}:{onSubmit:(name:string,email:stri
     </div>
   );
 }
+

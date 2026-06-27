@@ -1,0 +1,10 @@
+gradio>=4.44.0
+spaces
+torch>=2.1.0
+diffusers>=0.30.0
+transformers>=4.44.0
+accelerate>=0.33.0
+xformers
+safetensors
+TTS
+sentencepiece

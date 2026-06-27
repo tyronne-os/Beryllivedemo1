@@ -1,536 +1,555 @@
-"use client";
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+﻿"use client";
+import { useState, useRef, useCallback } from "react";
+import BerylizeModal, { type BerylizeConfig } from "@/components/BerylizeModal";
+import Nav from "@/components/Nav";
+import { VIDEO } from "@/lib/cdn";
 
-const GALLERY = [
-  { src:"/beryl-llm/portrait-1.png", label:"Rendered in Beryl LLM", caption:"Neural portrait synthesis — zero reference images" },
-  { src:"/beryl-llm/portrait-7.png", label:"Rendered in Beryl LLM", caption:"Sub-100ms full-frame generation at 4K native" },
-  { src:"/beryl-llm/portrait-3.png", label:"Rendered in Beryl LLM", caption:"Photorealistic skin, lighting, and texture fidelity" },
-  { src:"/beryl-llm/portrait-4.png", label:"Rendered in Beryl LLM", caption:"Complex hair and material simulation — single pass" },
-  { src:"/beryl-llm/portrait-5.png", label:"Rendered in Beryl LLM", caption:"Emotion-encoded latent space for avatar expressivity" },
-  { src:"/beryl-llm/portrait-6.png", label:"Rendered in Beryl LLM", caption:"Proprietary diffusion backbone — fully owned IP" },
+// ── Types ──────────────────────────────────────────────────────────────────
+type Tab = "image" | "video" | "audio";
+type Filter = "all" | "favorited" | "downloaded" | "4k";
+type AspectRatio = "1:1" | "4:3" | "16:9" | "9:16";
+type GenStatus = "idle" | "queued" | "generating" | "done";
+
+interface GeneratedItem {
+  id: string;
+  src: string;
+  prompt: string;
+  type: Tab;
+  favorited: boolean;
+  downloaded: boolean;
+  is4k: boolean;
+  timestamp: number;
+}
+
+const DEMO_GALLERY: GeneratedItem[] = [
+  { id:"g1", src:"/characters/KIZZY_SHIELD.png",   prompt:"Photorealistic portrait, studio lighting", type:"image", favorited:true,  downloaded:false, is4k:true,  timestamp: Date.now()-120000 },
+  { id:"g2", src:"/characters/EVE_SHIELD.png",     prompt:"AI architect, overhead sofa view",         type:"image", favorited:false, downloaded:true,  is4k:false, timestamp: Date.now()-90000  },
+  { id:"g3", src:"/characters/AMANDA_SHIELD.png",  prompt:"Finance executive, dramatic light",        type:"image", favorited:false, downloaded:false, is4k:true,  timestamp: Date.now()-60000  },
+  { id:"g4", src:"/characters/JESSICA_SHIELD.png", prompt:"Strategy lead, cinematic closeup",         type:"image", favorited:true,  downloaded:true,  is4k:false, timestamp: Date.now()-45000  },
+  { id:"g5", src:"/characters/INDIA_SHIELD.png",   prompt:"Growth director, editorial style",         type:"image", favorited:false, downloaded:false, is4k:true,  timestamp: Date.now()-30000  },
+  { id:"g6", src:"/characters/MARIA_SHIELD.png",   prompt:"Relations, golden hour portrait",          type:"image", favorited:false, downloaded:false, is4k:false, timestamp: Date.now()-15000  },
 ];
 
-const SPECS = [
-  { stat:"<100ms", label:"Generation latency", sub:"At 4K resolution" },
-  { stat:"12B", label:"Parameter count", sub:"Proprietary architecture" },
-  { stat:"4K", label:"Native output", sub:"No upscaling" },
-  { stat:"50+", label:"Supported languages", sub:"Multilingual voice synthesis" },
-  { stat:"165ms", label:"Realtime response", sub:"Live avatar inference" },
-  { stat:"100%", label:"Owned IP", sub:"No third-party models" },
+const MODELS = ["Beryl LLM v2", "Beryl Portrait XL", "Nano Banana 2", "Beryl Cinematic", "Beryl Flash"];
+const ASPECTS: AspectRatio[] = ["1:1", "4:3", "16:9", "9:16"];
+const NAV_ICONS = [
+  { id:"apps",       label:"Apps",       d:"M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" },
+  { id:"custom",     label:"Custom",     d:"M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z" },
+  { id:"studio",     label:"Studio",     d:"M15 10l4.553-2.276A1 1 0 0121 8.723v6.554a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" },
+  { id:"agent",      label:"Agent",      d:"M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2" },
+  { id:"recents",    label:"Recents",    d:"M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
+  { id:"projects",   label:"Projects",   d:"M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" },
+  { id:"workflow",   label:"Workflow",   d:"M13 10V3L4 14h7v7l9-11h-7z" },
+  { id:"characters", label:"Characters", d:"M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
 ];
 
-const PILLARS = [
-  {
-    icon:"⬡",
-    title:"Avatar Synthesis Engine",
-    body:"Beryl LLM's core visual backbone generates photorealistic human avatars from a learned latent space trained on proprietary data. Every character in the Amanda Squad was created entirely within Beryl LLM — no Stable Diffusion, no Midjourney, no external pipeline.",
-  },
-  {
-    icon:"◎",
-    title:"Realtime Inference Core",
-    body:"Standard diffusion models require 2–30 seconds per frame. Beryl LLM's inference architecture delivers sub-165ms end-to-end response — fast enough for live conversation. This is not post-processing optimization. It is a fundamentally different compute graph.",
-  },
-  {
-    icon:"⟁",
-    title:"Emotion-Encoded Latent Space",
-    body:"Beryl LLM represents emotional state as first-class tokens in its latent space. This means the model does not simulate emotion after generation — it encodes affect directly into every frame, producing responses that feel genuine rather than performed.",
-  },
-  {
-    icon:"◈",
-    title:"Multimodal Voice Integration",
-    body:"Visual generation and voice synthesis share the same attention layers in Beryl LLM. Lip sync, micro-expression, and vocal prosody are co-generated — not post-aligned. The result is the first AI face that truly matches its voice at the neural level.",
-  },
-];
+export default function BerylDiffusion() {
+  const [activeTab, setActiveTab]       = useState<Tab>("image");
+  const [activeNav, setActiveNav]       = useState("studio");
+  const [filter, setFilter]             = useState<Filter>("all");
+  const [prompt, setPrompt]             = useState("");
+  const [negPrompt, setNegPrompt]       = useState("");
+  const [showNeg, setShowNeg]           = useState(false);
+  const [aspect, setAspect]             = useState<AspectRatio>("16:9");
+  const [model, setModel]               = useState(MODELS[0]);
+  const [cfgScale, setCfgScale]         = useState(7);
+  const [steps, setSteps]               = useState(30);
+  const [refStrength, setRefStrength]   = useState(0.75);
+  const [videoDuration, setVideoDuration] = useState(4);
+  const [credits, setCredits]           = useState(6937);
+  const [tokenCount, setTokenCount]     = useState(117);
+  const [genStatus, setGenStatus]       = useState<GenStatus>("idle");
+  const [genProgress, setGenProgress]   = useState(0);
+  const [gallery, setGallery]           = useState<GeneratedItem[]>(DEMO_GALLERY);
+  const [selected, setSelected]         = useState<GeneratedItem | null>(null);
+  const [refImage, setRefImage]         = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-export default function BerylLLMPage() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoReady, setVideoReady] = useState(false);
-  const [activeGallery, setActiveGallery] = useState(0);
+  const filteredGallery = gallery.filter(g => {
+    if (filter === "favorited")  return g.favorited;
+    if (filter === "downloaded") return g.downloaded;
+    if (filter === "4k")         return g.is4k;
+    return true;
+  });
 
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.muted = true;
-    v.play().catch(() => {
-      document.addEventListener("click", () => v.play(), { once: true });
-    });
-  }, []);
+  const handleGenerate = useCallback(() => {
+    if (!prompt.trim()) return;
+    setGenStatus("queued");
+    setGenProgress(0);
+    const cost = Math.floor(Math.random() * 80) + 40;
+    let p = 0;
+    const iv = setInterval(() => {
+      p += Math.random() * 12 + 3;
+      if (p >= 100) {
+        p = 100;
+        clearInterval(iv);
+        const chars = [
+          "/characters/BRICE_SHIELD.png","/characters/JAMARR_SHIELD.png",
+          "/characters/TERRELL_SHIELD.png","/characters/SHELLY_SHIELD.png",
+          "/characters/NU_SHIELD.png","/characters/LACARA_SHIELD.png",
+        ];
+        const newItem: GeneratedItem = {
+          id: `g${Date.now()}`,
+          src: chars[Math.floor(Math.random() * chars.length)],
+          prompt,
+          type: activeTab,
+          favorited: false,
+          downloaded: false,
+          is4k: steps >= 40,
+          timestamp: Date.now(),
+        };
+        setGallery(prev => [newItem, ...prev]);
+        setCredits(c => c - cost);
+        setTokenCount(t => Math.min(t + Math.floor(prompt.length / 4), 5000));
+        setGenStatus("done");
+        setTimeout(() => setGenStatus("idle"), 2000);
+      }
+      setGenProgress(Math.min(p, 100));
+      if (p < 100) setGenStatus("generating");
+    }, 200);
+  }, [prompt, activeTab, steps]);
 
-  // Auto-cycle gallery
-  useEffect(() => {
-    const t = setInterval(() => setActiveGallery(i => (i + 1) % GALLERY.length), 4000);
-    return () => clearInterval(t);
+  const toggleFavorite = (id: string) =>
+    setGallery(prev => prev.map(g => g.id === id ? { ...g, favorited: !g.favorited } : g));
+
+  const isGenerating = genStatus === "generating" || genStatus === "queued";
+
+  // Berylize modal state
+  const [berylizeTarget, setBerylizeTarget] = useState<GeneratedItem | null>(null);
+  const handleBerylizeConfig = useCallback((_config: BerylizeConfig) => {
+    // In production this would call the backend pipeline
+    console.log("Berylize config:", _config);
   }, []);
 
   return (
-    <div style={{ background: "#080503", minHeight: "100vh", color: "#E8DCC8", fontFamily: "'Cormorant Garamond', serif" }}>
+    <div style={{
+      display:"flex", flexDirection:"column", height:"100vh",
+      background:"#0c0c0f", color:"#e8e8e8",
+      fontFamily:"'Inter','SF Pro Display',system-ui,sans-serif",
+      overflow:"hidden",
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        *{box-sizing:border-box}
+        ::-webkit-scrollbar{width:4px;height:4px}
+        ::-webkit-scrollbar-track{background:#111}
+        ::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+        .bd{transition:all .15s ease;cursor:pointer;border:none;outline:none}
+        .bd:hover{opacity:.85}
+        .bd-nav:hover{background:rgba(255,255,255,.08)!important;color:#fff!important}
+        .bd-gallery:hover .bd-ov{opacity:1!important}
+        .bd-gallery:hover{transform:scale(1.02)}
+        .bd-gallery{transition:all .2s ease;cursor:pointer;position:relative;overflow:hidden}
+        .bd-inp:focus{outline:none;border-color:#3b82f6!important}
+        .bd-inp{transition:border-color .15s ease}
+        .bd-slider{-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;background:#2a2a35;cursor:pointer;width:100%}
+        .bd-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#3b82f6;border:2px solid #0c0c0f}
+        .pulse{animation:gpulse 1.5s ease-in-out infinite}
+        @keyframes gpulse{0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,.4)}50%{box-shadow:0 0 0 8px rgba(59,130,246,0)}}
+        .bd-prog{transition:width .3s ease}
+        @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        .shimmer{background:linear-gradient(90deg,#1a1a24 25%,#252535 50%,#1a1a24 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .spin{animation:spin 1s linear infinite}
+        .filt:hover{background:rgba(255,255,255,.1)!important}
+        .filt{transition:all .15s ease;cursor:pointer}
+      `}</style>
 
-      {/* ── NAV ── */}
-      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 40px", height: 64, background: "rgba(8,5,3,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(200,169,81,0.12)" }}>
-        <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 2 }}>
-          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 18, fontWeight: 700, color: "#1a5f7a" }}>Beryl</span>
-          <span className="logo-live" style={{ fontFamily: "'Cinzel',serif", fontSize: 18, fontWeight: 700 }}>Live</span>
-        </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-          <Link href="/" style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 2, textTransform: "uppercase", color: "rgba(232,220,200,0.6)", textDecoration: "none" }}>← Home</Link>
-          <Link href="/beryl-llm" style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 2, textTransform: "uppercase", color: "#c8a951", textDecoration: "none" }}>Beryl LLM</Link>
-          <Link href="/demo" style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 2, textTransform: "uppercase", color: "#fff", textDecoration: "none", background: "rgba(200,169,81,0.15)", border: "1px solid rgba(200,169,81,0.4)", padding: "8px 20px" }}>Live Demo</Link>
-        </div>
-      </nav>
+      <Nav />
 
-      {/* ── HERO VIDEO ── */}
-      <section style={{ position: "relative", height: "100vh", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <video
-          ref={videoRef}
-          autoPlay muted loop playsInline
-          onCanPlay={() => setVideoReady(true)}
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: videoReady ? 1 : 0, transition: "opacity 1.2s" }}
-        >
-          <source src="/videos/beryl-llm-highlights.mp4" type="video/mp4" />
-        </video>
-
-        {/* Gradient overlays */}
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(8,5,3,0.3) 0%, rgba(8,5,3,0.1) 40%, rgba(8,5,3,0.7) 80%, rgba(8,5,3,1) 100%)" }} />
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 60%, transparent 30%, rgba(8,5,3,0.5) 100%)" }} />
-
-        {/* Hero text */}
-        <div style={{ position: "relative", zIndex: 2, textAlign: "center", padding: "0 32px", maxWidth: 900 }}>
-          <div style={{ fontFamily: "'Cinzel',serif", fontSize: 11, letterSpacing: 6, textTransform: "uppercase", color: "#c8a951", marginBottom: 24, opacity: 0.9 }}>
-            Proprietary Foundation Model
-          </div>
-          <h1 style={{ fontFamily: "'Cinzel',serif", fontSize: "clamp(52px,8vw,96px)", fontWeight: 700, lineHeight: 1, marginBottom: 24, letterSpacing: "-0.02em" }}>
-            <span style={{ color: "#1a5f7a" }}>Beryl</span>{" "}
-            <span className="logo-live">LLM</span>
-          </h1>
-          <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "clamp(18px,2vw,24px)", lineHeight: 1.7, color: "rgba(232,220,200,0.85)", maxWidth: 680, margin: "0 auto 40px" }}>
-            The world's first foundation model built exclusively for live human-AI presence. Every face. Every voice. Every frame. Rendered by Beryl.
-          </p>
-          <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/demo" style={{ textDecoration: "none", fontFamily: "'Cinzel',serif", fontSize: 11, letterSpacing: 2, textTransform: "uppercase", padding: "14px 36px", background: "linear-gradient(135deg,#c8a951,#f5e070,#c8a951)", color: "#080503", fontWeight: 700 }}>
-              Experience Live Demo
-            </Link>
-            <a href="#research" style={{ textDecoration: "none", fontFamily: "'Cinzel',serif", fontSize: 11, letterSpacing: 2, textTransform: "uppercase", padding: "14px 36px", border: "1px solid rgba(200,169,81,0.4)", color: "#c8a951" }}>
-              Read the Research
-            </a>
-          </div>
+      {/* ── TOP BAR ── */}
+      <div style={{display:"flex",alignItems:"center",height:52,background:"#111118",borderBottom:"1px solid #1e1e2a",padding:"0 16px",flexShrink:0,zIndex:100,gap:16}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+          <span style={{fontFamily:"'Cinzel',serif",fontSize:16,fontWeight:700,color:"#c8a951",letterSpacing:1}}>BERYL</span>
+          <span style={{fontSize:11,color:"#165168",fontWeight:500,letterSpacing:2}}>DIFFUSION</span>
+          <div style={{width:1,height:20,background:"#2a2a3a",marginLeft:8}}/>
         </div>
 
-        {/* Scroll indicator */}
-        <div style={{ position: "absolute", bottom: 32, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, opacity: 0.5 }}>
-          <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 3, textTransform: "uppercase", color: "#c8a951" }}>Scroll</div>
-          <div style={{ width: 1, height: 48, background: "linear-gradient(to bottom,#c8a951,transparent)" }} />
-        </div>
-      </section>
-
-      {/* ── STATS BAR ── */}
-      <section style={{ background: "#0a0604", borderTop: "1px solid rgba(200,169,81,0.12)", borderBottom: "1px solid rgba(200,169,81,0.12)", padding: "40px 32px" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 0 }}>
-          {SPECS.map((s, i) => (
-            <div key={s.stat} style={{ textAlign: "center", padding: "16px 8px", borderRight: i < SPECS.length - 1 ? "1px solid rgba(200,169,81,0.1)" : undefined }}>
-              <div style={{ fontFamily: "'Cinzel',serif", fontSize: "clamp(22px,2.5vw,34px)", fontWeight: 700, color: "#c8a951", lineHeight: 1 }}>{s.stat}</div>
-              <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "rgba(232,220,200,0.6)", marginTop: 6 }}>{s.label}</div>
-              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 12, color: "rgba(232,220,200,0.35)", marginTop: 3, fontStyle: "italic" }}>{s.sub}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── INTRO STATEMENT ── */}
-      <section id="research" style={{ padding: "100px 32px", maxWidth: 820, margin: "0 auto", textAlign: "center" }}>
-        <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 4, textTransform: "uppercase", color: "#4CAF50", marginBottom: 24 }}>Why Beryl LLM Exists</div>
-        <p style={{ fontSize: "clamp(22px,2.8vw,32px)", lineHeight: 1.65, color: "rgba(232,220,200,0.9)", fontStyle: "italic", marginBottom: 32 }}>
-          "Every major AI company built intelligence. None of them built a face. We did both — and we own every line of it."
-        </p>
-        <p style={{ fontSize: 18, lineHeight: 1.85, color: "rgba(232,220,200,0.65)" }}>
-          Beryl LLM is not a wrapper around an existing model. It is a ground-up foundation model trained for one purpose: real-time human presence. While the industry built text generators, we built a visual reasoning engine capable of producing photorealistic faces, synchronized voices, and emotionally coherent responses — all in a single inference pass, under 165 milliseconds.
-        </p>
-        <div style={{ width: 60, height: 1, background: "#c8a951", margin: "48px auto 0", opacity: 0.4 }} />
-      </section>
-
-      {/* ── REALNESS BANNER ── */}
-      <section style={{ position:"relative", width:"100%", overflow:"hidden", background:"#000" }}>
-        <style>{`
-          @keyframes scan-line {
-            0%   { transform: translateY(-100%); opacity: 0.7; }
-            100% { transform: translateY(100vh); opacity: 0; }
-          }
-          @keyframes scan-line-2 {
-            0%   { transform: translateY(-100%); opacity: 0.4; }
-            100% { transform: translateY(100vh); opacity: 0; }
-          }
-          @keyframes corner-pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-          }
-          @keyframes glitch-1 {
-            0%, 94%, 100% { clip-path: none; transform: none; }
-            95% { clip-path: polygon(0 20%, 100% 20%, 100% 25%, 0 25%); transform: translateX(-4px); }
-            96% { clip-path: polygon(0 60%, 100% 60%, 100% 65%, 0 65%); transform: translateX(4px); }
-            97% { clip-path: polygon(0 80%, 100% 80%, 100% 83%, 0 83%); transform: translateX(-2px); }
-          }
-          @keyframes data-scroll {
-            0%   { transform: translateY(0); }
-            100% { transform: translateY(-50%); }
-          }
-          @keyframes ring-pulse {
-            0%   { transform: translate(-50%,-50%) scale(0.85); opacity: 0.6; }
-            100% { transform: translate(-50%,-50%) scale(1.4); opacity: 0; }
-          }
-          @keyframes ring-pulse-2 {
-            0%   { transform: translate(-50%,-50%) scale(0.9); opacity: 0.4; }
-            100% { transform: translate(-50%,-50%) scale(1.6); opacity: 0; }
-          }
-          @keyframes banner-text-in {
-            0%   { opacity:0; transform: translateY(16px); }
-            100% { opacity:1; transform: translateY(0); }
-          }
-          @keyframes blink-cursor {
-            0%, 100% { opacity: 1; } 50% { opacity: 0; }
-          }
-          @keyframes holo-shift {
-            0%   { background-position: 0% 50%; }
-            50%  { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-          }
-        `}</style>
-
-        {/* Background image */}
-        <div style={{ position:"relative", minHeight:680, display:"flex", alignItems:"center" }}>
-          <img src="/beryl-llm/banner-portrait.png" alt=""
-            style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 20%" }} />
-
-          {/* Dark gradient overlay — heavier on left for text */}
-          <div style={{ position:"absolute", inset:0, background:"linear-gradient(105deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.75) 38%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.55) 100%)" }} />
-
-          {/* Rainbow color tint matching portrait */}
-          <div style={{ position:"absolute", inset:0, background:"linear-gradient(135deg, rgba(120,0,200,0.08), rgba(0,120,255,0.06), rgba(0,200,100,0.05), rgba(255,200,0,0.06), rgba(255,60,0,0.07))", mixBlendMode:"screen" }} />
-
-          {/* Animated scan line 1 */}
-          <div style={{ position:"absolute", left:0, right:0, height:2, background:"linear-gradient(90deg, transparent, rgba(200,169,81,0.8), rgba(255,255,255,0.6), rgba(200,169,81,0.8), transparent)", animation:"scan-line 3.5s linear infinite", zIndex:3, pointerEvents:"none" }} />
-          {/* Animated scan line 2 — offset */}
-          <div style={{ position:"absolute", left:0, right:0, height:1, background:"linear-gradient(90deg, transparent, rgba(100,200,255,0.5), transparent)", animation:"scan-line-2 5s linear infinite 1.8s", zIndex:3, pointerEvents:"none" }} />
-
-          {/* ── BUTTERFLIES ── */}
-          {[
-            { color:"#ff0080,#ff6600,#ffcc00", delay:"0s",   dur:"9s",  top:"18%", size:44, yAmp:55,  startX:-80  },
-            { color:"#00ccff,#8800ff,#ff0080", delay:"2.2s", dur:"11s", top:"42%", size:36, yAmp:70,  startX:-60  },
-            { color:"#00ff88,#00ccff,#0044ff", delay:"4.5s", dur:"8s",  top:"62%", size:52, yAmp:40,  startX:-100 },
-            { color:"#ffcc00,#ff6600,#ff0040", delay:"1.1s", dur:"13s", top:"28%", size:30, yAmp:90,  startX:-70  },
-            { color:"#cc00ff,#ff0080,#ffcc00", delay:"6s",   dur:"10s", top:"72%", size:40, yAmp:50,  startX:-90  },
-            { color:"#00ff44,#ffcc00,#ff6600", delay:"3s",   dur:"7s",  top:"12%", size:28, yAmp:65,  startX:-50  },
-            { color:"#ff6600,#cc00ff,#00ccff", delay:"7.5s", dur:"12s", top:"50%", size:48, yAmp:30,  startX:-110 },
-          ].map((b, i) => (
-            <div key={i} style={{
-              position:"absolute",
-              top: b.top,
-              left: 0,
-              zIndex: 5,
-              pointerEvents:"none",
-              animation: `butterfly-fly-${i} ${b.dur} linear ${b.delay} infinite`,
+        <div style={{display:"flex",gap:2,background:"#1a1a24",borderRadius:8,padding:3}}>
+          {(["image","video","audio"] as Tab[]).map(t => (
+            <button key={t} className="bd" onClick={() => setActiveTab(t)} style={{
+              padding:"5px 18px",borderRadius:6,background:activeTab===t?"#252535":"transparent",
+              color:activeTab===t?"#e8e8e8":"#666",fontSize:13,fontWeight:500,letterSpacing:.3,
             }}>
-              <style>{`
-                @keyframes butterfly-fly-${i} {
-                  0%   { transform: translateX(${b.startX}px) translateY(0px); opacity:0; }
-                  5%   { opacity: 1; }
-                  25%  { transform: translateX(25vw)  translateY(${-b.yAmp}px); }
-                  50%  { transform: translateX(50vw)  translateY(${b.yAmp * 0.6}px); }
-                  75%  { transform: translateX(75vw)  translateY(${-b.yAmp * 0.4}px); }
-                  95%  { opacity: 1; }
-                  100% { transform: translateX(110vw) translateY(${b.yAmp * 0.3}px); opacity:0; }
-                }
-                @keyframes flap-left-${i} {
-                  0%, 100% { transform: scaleX(1) skewY(-6deg); }
-                  50%      { transform: scaleX(0.15) skewY(2deg); }
-                }
-                @keyframes flap-right-${i} {
-                  0%, 100% { transform: scaleX(-1) skewY(-6deg); }
-                  50%      { transform: scaleX(-0.15) skewY(2deg); }
-                }
-              `}</style>
-              <svg width={b.size * 2.4} height={b.size * 1.8} viewBox="0 0 96 72" style={{ overflow:"visible", filter:`drop-shadow(0 0 6px ${b.color.split(',')[0]})` }}>
-                <defs>
-                  <radialGradient id={`bg-left-${i}`} cx="70%" cy="40%">
-                    <stop offset="0%" stopColor={b.color.split(',')[0]} stopOpacity="0.95"/>
-                    <stop offset="50%" stopColor={b.color.split(',')[1]} stopOpacity="0.85"/>
-                    <stop offset="100%" stopColor={b.color.split(',')[2]} stopOpacity="0.7"/>
-                  </radialGradient>
-                  <radialGradient id={`bg-right-${i}`} cx="30%" cy="40%">
-                    <stop offset="0%" stopColor={b.color.split(',')[2]} stopOpacity="0.95"/>
-                    <stop offset="50%" stopColor={b.color.split(',')[1]} stopOpacity="0.85"/>
-                    <stop offset="100%" stopColor={b.color.split(',')[0]} stopOpacity="0.7"/>
-                  </radialGradient>
-                </defs>
-                {/* Body */}
-                <ellipse cx="48" cy="36" rx="3" ry="18" fill="rgba(0,0,0,0.7)"/>
-                {/* Antennae */}
-                <line x1="48" y1="18" x2="36" y2="6" stroke="rgba(0,0,0,0.6)" strokeWidth="1.2"/>
-                <circle cx="36" cy="6" r="2" fill={b.color.split(',')[0]}/>
-                <line x1="48" y1="18" x2="60" y2="6" stroke="rgba(0,0,0,0.6)" strokeWidth="1.2"/>
-                <circle cx="60" cy="6" r="2" fill={b.color.split(',')[2]}/>
-                {/* Left upper wing */}
-                <g style={{ transformOrigin:"48px 30px", animation:`flap-left-${i} 0.38s ease-in-out infinite` }}>
-                  <path d="M48 30 Q20 8 8 22 Q2 38 18 48 Q34 54 48 44 Z" fill={`url(#bg-left-${i})`} stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
-                </g>
-                {/* Left lower wing */}
-                <g style={{ transformOrigin:"48px 44px", animation:`flap-left-${i} 0.38s ease-in-out infinite 0.05s` }}>
-                  <path d="M48 44 Q28 52 22 64 Q32 72 44 66 Q52 60 48 52 Z" fill={`url(#bg-left-${i})`} opacity="0.85" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5"/>
-                </g>
-                {/* Right upper wing */}
-                <g style={{ transformOrigin:"48px 30px", animation:`flap-right-${i} 0.38s ease-in-out infinite` }}>
-                  <path d="M48 30 Q76 8 88 22 Q94 38 78 48 Q62 54 48 44 Z" fill={`url(#bg-right-${i})`} stroke="rgba(255,255,255,0.2)" strokeWidth="0.5"/>
-                </g>
-                {/* Right lower wing */}
-                <g style={{ transformOrigin:"48px 44px", animation:`flap-right-${i} 0.38s ease-in-out infinite 0.05s` }}>
-                  <path d="M48 44 Q68 52 74 64 Q64 72 52 66 Q44 60 48 52 Z" fill={`url(#bg-right-${i})`} opacity="0.85" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5"/>
-                </g>
-              </svg>
-            </div>
+              {t==="image"?"⬛ Image":t==="video"?"▶ Video":"♪ Audio"}
+            </button>
           ))}
-
-          {/* Pulsing rings over face area */}
-          <div style={{ position:"absolute", left:"60%", top:"50%", width:320, height:320, borderRadius:"50%", border:"1px solid rgba(200,169,81,0.5)", animation:"ring-pulse 2.5s ease-out infinite", zIndex:2, pointerEvents:"none" }} />
-          <div style={{ position:"absolute", left:"60%", top:"50%", width:320, height:320, borderRadius:"50%", border:"1px solid rgba(120,220,255,0.3)", animation:"ring-pulse-2 2.5s ease-out infinite 1.2s", zIndex:2, pointerEvents:"none" }} />
-
-          {/* Corner brackets — TL */}
-          <div style={{ position:"absolute", top:24, left:24, width:40, height:40, borderTop:"2px solid #c8a951", borderLeft:"2px solid #c8a951", animation:"corner-pulse 2s ease-in-out infinite", zIndex:4 }} />
-          {/* TR */}
-          <div style={{ position:"absolute", top:24, right:24, width:40, height:40, borderTop:"2px solid #c8a951", borderRight:"2px solid #c8a951", animation:"corner-pulse 2s ease-in-out infinite 0.5s", zIndex:4 }} />
-          {/* BL */}
-          <div style={{ position:"absolute", bottom:24, left:24, width:40, height:40, borderBottom:"2px solid #c8a951", borderLeft:"2px solid #c8a951", animation:"corner-pulse 2s ease-in-out infinite 1s", zIndex:4 }} />
-          {/* BR */}
-          <div style={{ position:"absolute", bottom:24, right:24, width:40, height:40, borderBottom:"2px solid #c8a951", borderRight:"2px solid #c8a951", animation:"corner-pulse 2s ease-in-out infinite 1.5s", zIndex:4 }} />
-
-          {/* Scrolling data readout — right edge */}
-          <div style={{ position:"absolute", right:72, top:40, bottom:40, width:140, overflow:"hidden", zIndex:4, opacity:0.55 }}>
-            <div style={{ animation:"data-scroll 8s linear infinite", display:"flex", flexDirection:"column", gap:6 }}>
-              {[
-                "FACE_MESH: ACTIVE","LATENCY: 142ms","EMOTION: NEUTRAL","LIP_SYNC: LOCKED",
-                "RESOLUTION: 4096×4096","TOKENS: 847B","INFERENCE: LIVE","IDENTITY: STABLE",
-                "VOICE_SYNC: ON","FRAME: 00841","MODEL: BERYL_V0.8","STATUS: REALTIME",
-                "FACE_MESH: ACTIVE","LATENCY: 142ms","EMOTION: NEUTRAL","LIP_SYNC: LOCKED",
-                "RESOLUTION: 4096×4096","TOKENS: 847B","INFERENCE: LIVE","IDENTITY: STABLE",
-                "VOICE_SYNC: ON","FRAME: 00842","MODEL: BERYL_V0.8","STATUS: REALTIME",
-              ].map((line, i) => (
-                <div key={i} style={{ fontFamily:"monospace", fontSize:9, letterSpacing:1, color: i%4===2 ? "#4CAF50" : i%4===0 ? "#c8a951" : "rgba(200,220,255,0.7)", whiteSpace:"nowrap" }}>{line}</div>
-              ))}
-            </div>
-          </div>
-
-          {/* Left: main messaging */}
-          <div style={{ position:"relative", zIndex:5, padding:"60px 48px", maxWidth:580, animation:"banner-text-in 1.2s ease-out both" }}>
-
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
-              <div style={{ width:6, height:6, borderRadius:"50%", background:"#4CAF50", boxShadow:"0 0 8px #4CAF50", animation:"corner-pulse 1.5s ease-in-out infinite" }} />
-              <span style={{ fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:4, textTransform:"uppercase", color:"#4CAF50" }}>Neural Synthesis · Live Inference Active</span>
-            </div>
-
-            <h2 style={{ fontFamily:"'Cinzel',serif", fontSize:"clamp(32px,4.5vw,58px)", fontWeight:700, color:"#fff", lineHeight:1.1, marginBottom:20, animation:"glitch-1 8s ease-in-out infinite" }}>
-              This face<br />
-              <span style={{ background:"linear-gradient(90deg,#c8a951,#f5e070,#4CAF50,#1a9fff,#c8a951)", backgroundSize:"300% 300%", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text", animation:"holo-shift 4s ease infinite" }}>
-                does not exist.
-              </span>
-            </h2>
-
-            <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:18, lineHeight:1.85, color:"rgba(232,220,200,0.8)", marginBottom:28 }}>
-              Every pixel. Every expression. Every strand of hair. Generated in a single inference pass by Beryl LLM — our proprietary foundation model. No photography. No staging. No artist.
-            </p>
-
-            <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:18, lineHeight:1.85, color:"rgba(232,220,200,0.65)", marginBottom:36 }}>
-              This is the same model that powers every live avatar on Beryl Live — running at sub-165ms latency, in real-time, while your user is watching.
-            </p>
-
-            <div style={{ display:"flex", gap:24, alignItems:"center" }}>
-              <div style={{ fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:3, textTransform:"uppercase", color:"rgba(200,169,81,0.6)", borderLeft:"2px solid rgba(200,169,81,0.3)", paddingLeft:12 }}>
-                Beryl LLM v0.8<br />
-                <span style={{ color:"#4CAF50" }}>Proprietary · 100% owned IP</span>
-              </div>
-              <div style={{ fontFamily:"monospace", fontSize:11, color:"rgba(100,220,255,0.7)", letterSpacing:1 }}>
-                <span style={{ animation:"blink-cursor 1s step-end infinite" }}>▮</span> RENDERING...
-              </div>
-            </div>
-          </div>
         </div>
-      </section>
 
-      {/* ── IMAGE GALLERY ── */}
-      <section style={{ padding: "0 0 100px", overflow: "hidden" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px" }}>
-          <div style={{ textAlign: "center", marginBottom: 56 }}>
-            <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 4, textTransform: "uppercase", color: "#c8a951", marginBottom: 14 }}>Model Outputs</div>
-            <h2 style={{ fontFamily: "'Cinzel',serif", fontSize: "clamp(28px,4vw,48px)", fontWeight: 700, color: "#fff", marginBottom: 16 }}>
-              Every image created by <span className="logo-live">Beryl LLM</span>
-            </h2>
-            <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, color: "rgba(232,220,200,0.55)", maxWidth: 540, margin: "0 auto" }}>
-              No stock photos. No third-party generators. Every face you see on this platform was synthesized by our proprietary model.
-            </p>
+        <div style={{flex:1}}/>
+
+        <button className="bd" style={{background:"none",color:"#666",fontSize:18,padding:4}}>🔔</button>
+        <div style={{display:"flex",alignItems:"center",gap:8,background:"#1a1a24",borderRadius:8,padding:"5px 12px"}}>
+          <span style={{fontSize:11,color:"#666"}}>Credits</span>
+          <span style={{fontSize:13,fontWeight:600,color:"#c8a951"}}>{credits.toLocaleString()}</span>
+          <button className="bd" style={{background:"#3b82f6",color:"#fff",borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:600,marginLeft:4}}>+ Buy</button>
+        </div>
+        <div style={{width:30,height:30,borderRadius:"50%",background:"linear-gradient(135deg,#c8a951,#8B6914)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#0c0c0f"}}>B</div>
+      </div>
+
+      {/* ── BODY ── */}
+      <div style={{display:"flex",flex:1,overflow:"hidden"}}>
+
+        {/* ── ICON SIDEBAR ── */}
+        <div style={{width:60,background:"#0e0e16",borderRight:"1px solid #1e1e2a",display:"flex",flexDirection:"column",alignItems:"center",padding:"12px 0",gap:4,flexShrink:0}}>
+          {NAV_ICONS.map(n => (
+            <button key={n.id} className="bd bd-nav" onClick={() => setActiveNav(n.id)} title={n.label} style={{
+              width:44,height:44,borderRadius:10,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,
+              background:activeNav===n.id?"rgba(59,130,246,.18)":"transparent",
+              border:activeNav===n.id?"1px solid rgba(59,130,246,.4)":"1px solid transparent",
+              color:activeNav===n.id?"#3b82f6":"#444",
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <path d={n.d}/>
+              </svg>
+              <span style={{fontSize:7,letterSpacing:.3}}>{n.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* ── PROMPT PANEL ── */}
+        <div style={{width:300,background:"#111118",borderRight:"1px solid #1e1e2a",display:"flex",flexDirection:"column",overflow:"hidden",flexShrink:0}}>
+
+          {/* Reference */}
+          <div style={{padding:"14px 14px 0"}}>
+            <div style={{fontSize:11,color:"#555",letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Reference Image</div>
+            <div style={{display:"flex",gap:8}}>
+              <div onClick={() => fileRef.current?.click()} style={{
+                width:78,height:78,borderRadius:8,border:"1px dashed #2a2a3a",background:refImage?"transparent":"#151520",
+                display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                cursor:"pointer",overflow:"hidden",flexShrink:0,
+              }}>
+                {refImage
+                  ? <img src={refImage} alt="ref" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                  : <><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="1.5"><path d="M12 5v14M5 12h14"/></svg><span style={{fontSize:9,color:"#333",marginTop:4}}>Image 1</span></>
+                }
+              </div>
+              <button className="bd" style={{flex:1,borderRadius:8,border:"1px dashed #222",background:"#151520",color:"#444",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+                Reference
+              </button>
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e => {
+              const f = e.target.files?.[0];
+              if (f) { const r = new FileReader(); r.onload = ev => setRefImage(ev.target?.result as string); r.readAsDataURL(f); }
+            }}/>
           </div>
 
-          {/* Featured large + grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginBottom: 4 }}>
-            {/* Large featured */}
-            <div style={{ position: "relative", overflow: "hidden", aspectRatio: "4/5", cursor: "pointer" }} onClick={() => setActiveGallery(0)}>
-              <img src={GALLERY[activeGallery].src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center", transition: "transform 0.8s ease" }} />
-              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(8,5,3,0.9) 0%, transparent 50%)" }} />
-              <div style={{ position: "absolute", bottom: 24, left: 24, right: 24 }}>
-                <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#c8a951", marginBottom: 6 }}>{GALLERY[activeGallery].label}</div>
-                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, color: "rgba(232,220,200,0.8)", fontStyle: "italic" }}>{GALLERY[activeGallery].caption}</div>
+          {/* Scrollable controls */}
+          <div style={{padding:"12px 14px",flex:1,display:"flex",flexDirection:"column",gap:10,overflow:"auto"}}>
+            {/* Prompt */}
+            <div>
+              <div style={{fontSize:11,color:"#555",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Prompt</div>
+              <textarea className="bd-inp" value={prompt}
+                onChange={e => { setPrompt(e.target.value); setTokenCount(Math.min(117+Math.floor(e.target.value.length/4),4900)); }}
+                placeholder="Describe your scene — lighting, composition, character, style..."
+                style={{width:"100%",minHeight:120,maxHeight:180,background:"#151520",border:"1px solid #222",borderRadius:8,color:"#d8d8d8",fontSize:12,lineHeight:1.6,padding:"10px 12px",resize:"vertical",fontFamily:"inherit"}}
+              />
+              <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
+                <button className="bd" onClick={() => setShowNeg(!showNeg)} style={{fontSize:10,color:"#444",background:"none",padding:0,textDecoration:"underline"}}>
+                  {showNeg?"Hide":"+ Negative"} prompt
+                </button>
+                <span style={{fontSize:10,color:tokenCount>4500?"#ef4444":"#444"}}>{tokenCount}/5000</span>
               </div>
             </div>
 
-            {/* 2×3 thumbnail grid */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr 1fr", gap: 4 }}>
-              {GALLERY.map((g, i) => (
-                <div key={i} onClick={() => setActiveGallery(i)} style={{ position: "relative", overflow: "hidden", cursor: "pointer", outline: activeGallery === i ? "2px solid #c8a951" : undefined, outlineOffset: -2 }}>
-                  <img src={g.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center", transition: "transform .4s", transform: activeGallery === i ? "scale(1.04)" : "scale(1)" }} />
-                  <div style={{ position: "absolute", inset: 0, background: activeGallery === i ? "rgba(200,169,81,0.12)" : "rgba(8,5,3,0.35)", transition: "background .3s" }} />
-                </div>
-              ))}
-            </div>
-          </div>
+            {showNeg && (
+              <textarea className="bd-inp" value={negPrompt} onChange={e=>setNegPrompt(e.target.value)}
+                placeholder="Avoid: blurry, distorted, low quality, watermark..."
+                style={{width:"100%",minHeight:70,background:"#151520",border:"1px solid #222",borderRadius:8,color:"#d8d8d8",fontSize:12,lineHeight:1.6,padding:"10px 12px",resize:"vertical",fontFamily:"inherit"}}
+              />
+            )}
 
-          {/* Dot indicators */}
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 20 }}>
-            {GALLERY.map((_, i) => (
-              <button key={i} onClick={() => setActiveGallery(i)} style={{ width: i === activeGallery ? 24 : 6, height: 6, borderRadius: 3, background: i === activeGallery ? "#c8a951" : "rgba(200,169,81,0.25)", border: "none", cursor: "pointer", transition: "all .3s", padding: 0 }} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FOUR PILLARS ── */}
-      <section style={{ background: "#0a0604", padding: "100px 32px", borderTop: "1px solid rgba(200,169,81,0.08)" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 72 }}>
-            <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 4, textTransform: "uppercase", color: "#4CAF50", marginBottom: 14 }}>Architecture</div>
-            <h2 style={{ fontFamily: "'Cinzel',serif", fontSize: "clamp(26px,3.5vw,44px)", fontWeight: 700, color: "#fff" }}>
-              What makes Beryl LLM different
-            </h2>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 2 }}>
-            {PILLARS.map((p, i) => (
-              <div key={i} style={{ padding: "48px 44px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(200,169,81,0.08)", position: "relative", overflow: "hidden" }}>
-                <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: i % 2 === 0 ? "#4CAF50" : "#c8a951" }} />
-                <div style={{ fontSize: 28, marginBottom: 20, color: i % 2 === 0 ? "#4CAF50" : "#c8a951" }}>{p.icon}</div>
-                <h3 style={{ fontFamily: "'Cinzel',serif", fontSize: 16, fontWeight: 600, color: "#fff", marginBottom: 16, letterSpacing: "0.02em" }}>{p.title}</h3>
-                <p style={{ fontSize: 16, lineHeight: 1.85, color: "rgba(232,220,200,0.6)" }}>{p.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── HOW IT POWERS BERYL LIVE ── */}
-      <section style={{ padding: "100px 32px" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
-          <div>
-            <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 4, textTransform: "uppercase", color: "#4CAF50", marginBottom: 20 }}>The Stack</div>
-            <h2 style={{ fontFamily: "'Cinzel',serif", fontSize: "clamp(26px,3vw,40px)", fontWeight: 700, color: "#fff", lineHeight: 1.2, marginBottom: 24 }}>
-              Beryl LLM is the engine.<br />
-              <span style={{ color: "#1a5f7a" }}>Beryl Live</span> is the vehicle.
-            </h2>
-            <p style={{ fontSize: 17, lineHeight: 1.85, color: "rgba(232,220,200,0.65)", marginBottom: 32 }}>
-              Most AI avatar companies license their visual generation from third parties. This means they pay per frame, have no control over quality, and cannot innovate on the core capability.
-            </p>
-            <p style={{ fontSize: 17, lineHeight: 1.85, color: "rgba(232,220,200,0.65)", marginBottom: 40 }}>
-              Beryl owns the full stack. Beryl LLM generates the faces. Beryl Live delivers them in real-time. This vertical integration is what lets us offer 10× more session minutes at half the price — and improve both simultaneously.
-            </p>
-            {[
-              "Avatar generation — Beryl LLM",
-              "Voice synthesis — Beryl LLM",
-              "Emotion encoding — Beryl LLM",
-              "Real-time delivery — Beryl Live",
-              "Session infrastructure — Beryl Live",
-            ].map(item => (
-              <div key={item} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#4CAF50", flexShrink: 0 }} />
-                <span style={{ fontSize: 15, color: "rgba(232,220,200,0.75)", fontFamily: "'Cormorant Garamond',serif" }}>{item}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Eve card */}
-          <div style={{ position: "relative" }}>
-            <div style={{ position: "absolute", inset: -2, background: "linear-gradient(135deg,#4CAF50,#1a5f7a,#c8a951)", borderRadius: 0, zIndex: 0 }} />
-            <div style={{ position: "relative", zIndex: 1, background: "#080503", padding: 2 }}>
-              <div style={{ position: "relative", overflow: "hidden", aspectRatio: "3/4" }}>
-                <img src="/beryl-llm/eve-shield.png" alt="Eve — created by Beryl LLM" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }} />
-                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(8,5,3,0.95) 0%, transparent 55%)" }} />
-                <div style={{ position: "absolute", bottom: 28, left: 28, right: 28 }}>
-                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 3, textTransform: "uppercase", color: "#c8a951", marginBottom: 6 }}>Created by Beryl LLM</div>
-                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 4 }}>Eve</div>
-                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 14, color: "rgba(232,220,200,0.6)", fontStyle: "italic" }}>AI Architect · Beryl Live Character</div>
-                  <div style={{ display: "inline-block", marginTop: 12, padding: "4px 12px", background: "rgba(26,95,122,0.5)", border: "1px solid #1a5f7a", fontFamily: "'Cinzel',serif", fontSize: 8, letterSpacing: 2, textTransform: "uppercase", color: "#4CAF50" }}>In Session</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── YC / ROADMAP ── */}
-      <section style={{ background: "#0a0604", padding: "100px 32px", borderTop: "1px solid rgba(200,169,81,0.08)", borderBottom: "1px solid rgba(200,169,81,0.08)" }}>
-        <div style={{ maxWidth: 860, margin: "0 auto", textAlign: "center" }}>
-          <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 4, textTransform: "uppercase", color: "#c8a951", marginBottom: 24 }}>Deployment Roadmap</div>
-          <h2 style={{ fontFamily: "'Cinzel',serif", fontSize: "clamp(28px,4vw,48px)", fontWeight: 700, color: "#fff", marginBottom: 28, lineHeight: 1.2 }}>
-            Full model deployment<br />at scale — <span style={{ color: "#4CAF50" }}>coming in 2026</span>
-          </h2>
-          <p style={{ fontSize: 18, lineHeight: 1.85, color: "rgba(232,220,200,0.65)", marginBottom: 60 }}>
-            Beryl LLM is currently powering Beryl Live in a constrained deployment while we scale GPU infrastructure. The full model — including multi-character generation, real-time 4K streaming, and on-premise enterprise deployment — will launch following our Series A.
-          </p>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 1 }}>
-            {[
-              { phase:"Phase I", label:"Now", items:["10 characters live","720p–1080p streaming","Beryl LLM v0.8","Constrained inference"] },
-              { phase:"Phase II", label:"Q3 2026", items:["Full Squad deployment","4K Ultra HD","Beryl LLM v1.0","Custom avatar pipeline"] },
-              { phase:"Phase III", label:"2027", items:["On-premise enterprise","White-label LLM API","Beryl LLM v2.0","Unlimited characters"] },
-            ].map((ph, i) => (
-              <div key={ph.phase} style={{ padding: "40px 32px", background: i === 0 ? "rgba(76,175,80,0.08)" : "rgba(255,255,255,0.02)", border: `1px solid ${i === 0 ? "rgba(76,175,80,0.3)" : "rgba(200,169,81,0.08)"}`, textAlign: "left" }}>
-                <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 3, textTransform: "uppercase", color: i === 0 ? "#4CAF50" : "#c8a951", marginBottom: 6 }}>{ph.phase}</div>
-                <div style={{ fontFamily: "'Cinzel',serif", fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 20 }}>{ph.label}</div>
-                {ph.items.map(item => (
-                  <div key={item} style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
-                    <span style={{ color: i === 0 ? "#4CAF50" : "#c8a951", fontSize: 10, marginTop: 2, flexShrink: 0 }}>✦</span>
-                    <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, color: "rgba(232,220,200,0.7)" }}>{item}</span>
-                  </div>
+            {/* Aspect */}
+            <div>
+              <div style={{fontSize:11,color:"#555",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Aspect Ratio</div>
+              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                {ASPECTS.map(a => (
+                  <button key={a} className="bd" onClick={()=>setAspect(a)} style={{
+                    padding:"5px 11px",borderRadius:6,fontSize:11,fontWeight:500,
+                    background:aspect===a?"#3b82f6":"#1a1a24",color:aspect===a?"#fff":"#555",
+                    border:aspect===a?"1px solid #3b82f6":"1px solid #222",
+                  }}>{a}</button>
+                ))}
+                {["1K","4K"].map(r=>(
+                  <button key={r} className="bd" style={{padding:"5px 11px",borderRadius:6,fontSize:11,background:"#1a1a24",color:"#555",border:"1px solid #222"}}>{r}</button>
                 ))}
               </div>
-            ))}
+            </div>
+
+            {/* CFG + Steps */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                  <span style={{fontSize:10,color:"#555",textTransform:"uppercase",letterSpacing:.8}}>CFG</span>
+                  <span style={{fontSize:11,color:"#d8d8d8",fontWeight:500}}>{cfgScale}</span>
+                </div>
+                <input type="range" min={1} max={20} value={cfgScale} onChange={e=>setCfgScale(+e.target.value)} className="bd-slider"/>
+              </div>
+              <div>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                  <span style={{fontSize:10,color:"#555",textTransform:"uppercase",letterSpacing:.8}}>Steps</span>
+                  <span style={{fontSize:11,color:"#d8d8d8",fontWeight:500}}>{steps}</span>
+                </div>
+                <input type="range" min={10} max={60} value={steps} onChange={e=>setSteps(+e.target.value)} className="bd-slider"/>
+              </div>
+            </div>
+
+            {/* Ref strength */}
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                <span style={{fontSize:10,color:"#555",textTransform:"uppercase",letterSpacing:.8}}>Ref Strength</span>
+                <span style={{fontSize:11,color:"#d8d8d8",fontWeight:500}}>{refStrength.toFixed(2)}</span>
+              </div>
+              <input type="range" min={0} max={1} step={0.01} value={refStrength} onChange={e=>setRefStrength(+e.target.value)} className="bd-slider"/>
+            </div>
+
+            {/* Video tab extras */}
+            {activeTab==="video" && (
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                <div>
+                  <div style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Duration</div>
+                  <div style={{display:"flex",gap:6}}>
+                    {[4,8,16].map(d=>(
+                      <button key={d} className="bd" onClick={()=>setVideoDuration(d)} style={{
+                        padding:"5px 14px",borderRadius:6,fontSize:11,
+                        background:videoDuration===d?"#3b82f6":"#1a1a24",color:videoDuration===d?"#fff":"#555",
+                        border:`1px solid ${videoDuration===d?"#3b82f6":"#222"}`,
+                      }}>{d}s</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div style={{fontSize:10,color:"#555",textTransform:"uppercase",letterSpacing:.8,marginBottom:5}}>Camera Move</div>
+                  <select className="bd-inp" style={{width:"100%",background:"#151520",border:"1px solid #222",borderRadius:6,color:"#d8d8d8",fontSize:12,padding:"7px 10px"}}>
+                    <option>Static</option><option>Dolly In</option><option>Dolly Out</option>
+                    <option>Pan Left</option><option>Pan Right</option><option>Orbit</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Audio tab extras */}
+            {activeTab==="audio" && (
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                <div>
+                  <div style={{fontSize:10,color:"#555",textTransform:"uppercase",letterSpacing:.8,marginBottom:5}}>Voice</div>
+                  <select className="bd-inp" style={{width:"100%",background:"#151520",border:"1px solid #222",borderRadius:6,color:"#d8d8d8",fontSize:12,padding:"7px 10px"}}>
+                    <option>Kizzy — Warm & Confident</option>
+                    <option>Eve — Sharp & Clear</option>
+                    <option>Amanda — Professional</option>
+                    <option>Custom Upload</option>
+                  </select>
+                </div>
+                <div>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                    <span style={{fontSize:10,color:"#555",textTransform:"uppercase",letterSpacing:.8}}>Emotion</span>
+                    <span style={{fontSize:11,color:"#d8d8d8"}}>7</span>
+                  </div>
+                  <input type="range" min={1} max={10} defaultValue={7} className="bd-slider"/>
+                </div>
+                <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}>
+                  <input type="checkbox" style={{accentColor:"#3b82f6"}}/>
+                  <span style={{fontSize:11,color:"#777"}}>Lip-sync with video</span>
+                </label>
+              </div>
+            )}
+
+            <button className="bd" style={{padding:"8px 12px",borderRadius:8,border:"1px dashed #222",background:"transparent",color:"#444",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
+              <span style={{fontSize:16,lineHeight:1}}>+</span> Add References
+            </button>
+          </div>
+
+          {/* Generate footer */}
+          <div style={{padding:"12px 14px",borderTop:"1px solid #1e1e2a",background:"#0e0e16"}}>
+            <select value={model} onChange={e=>setModel(e.target.value)} className="bd-inp"
+              style={{width:"100%",background:"#151520",border:"1px solid #222",borderRadius:8,color:"#d8d8d8",fontSize:12,padding:"8px 12px",marginBottom:10,fontFamily:"inherit"}}>
+              {MODELS.map(m=><option key={m}>{m}</option>)}
+            </select>
+
+            {isGenerating && (
+              <div style={{marginBottom:8}}>
+                <div style={{height:3,background:"#1a1a24",borderRadius:2,overflow:"hidden"}}>
+                  <div className="bd-prog" style={{height:"100%",background:"linear-gradient(90deg,#3b82f6,#60a5fa)",width:`${genProgress}%`}}/>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",marginTop:3}}>
+                  <span style={{fontSize:10,color:"#3b82f6"}}>Generating...</span>
+                  <span style={{fontSize:10,color:"#444"}}>{Math.round(genProgress)}%</span>
+                </div>
+              </div>
+            )}
+            {genStatus==="done" && <div style={{marginBottom:8,fontSize:11,color:"#22c55e",textAlign:"center"}}>✓ Complete</div>}
+
+            <button className={`bd${isGenerating?" pulse":""}`} onClick={handleGenerate} disabled={isGenerating} style={{
+              width:"100%",padding:"12px",borderRadius:10,
+              background:isGenerating?"linear-gradient(135deg,#1e3a5f,#2563eb)":"linear-gradient(135deg,#2563eb,#3b82f6)",
+              color:"#fff",fontSize:14,fontWeight:600,letterSpacing:.5,
+              boxShadow:"0 4px 20px rgba(59,130,246,.35)",opacity:isGenerating?.8:1,
+            }}>
+              {genStatus==="queued"?"⏳ Queued...":genStatus==="generating"?"⚡ Generating...":"⚡ Generate"}
+            </button>
+            <div style={{fontSize:10,color:"#333",textAlign:"center",marginTop:5}}>{tokenCount}/5000 tokens</div>
           </div>
         </div>
-      </section>
 
-      {/* ── CTA ── */}
-      <section style={{ padding: "120px 32px", textAlign: "center" }}>
-        <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 4, textTransform: "uppercase", color: "#4CAF50", marginBottom: 24 }}>Get Early Access</div>
-        <h2 style={{ fontFamily: "'Cinzel',serif", fontSize: "clamp(32px,5vw,64px)", fontWeight: 700, color: "#fff", marginBottom: 24, lineHeight: 1.1 }}>
-          Built for believers.<br />
-          <span className="logo-live">Forged in code.</span>
-        </h2>
-        <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: "rgba(232,220,200,0.6)", maxWidth: 560, margin: "0 auto 48px", lineHeight: 1.7 }}>
-          Experience Beryl LLM live. Three minutes with Eve will show you what is possible when an AI has a face, a voice, and a presence.
-        </p>
-        <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-          <Link href="/demo" style={{ textDecoration: "none", fontFamily: "'Cinzel',serif", fontSize: 11, letterSpacing: 2, textTransform: "uppercase", padding: "16px 48px", background: "linear-gradient(135deg,#c8a951,#f5e070,#c8a951)", color: "#080503", fontWeight: 700 }}>
-            Start Live Demo
-          </Link>
-          <Link href="/#pricing" style={{ textDecoration: "none", fontFamily: "'Cinzel',serif", fontSize: 11, letterSpacing: 2, textTransform: "uppercase", padding: "16px 48px", border: "1px solid rgba(232,220,200,0.2)", color: "rgba(232,220,200,0.7)" }}>
-            View Pricing
-          </Link>
-        </div>
-      </section>
+        {/* ── GALLERY ── */}
+        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",background:"#0c0c0f"}}>
 
-      {/* ── FOOTER ── */}
-      <div style={{ borderTop: "1px solid rgba(200,169,81,0.1)", padding: "32px", textAlign: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginBottom: 12 }}>
-          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 16, fontWeight: 700, color: "#1a5f7a" }}>Beryl</span>
-          <span className="logo-live" style={{ fontFamily: "'Cinzel',serif", fontSize: 16, fontWeight: 700 }}>Live</span>
+          {/* Toolbar */}
+          <div style={{display:"flex",alignItems:"center",padding:"10px 20px",borderBottom:"1px solid #1a1a24",gap:10,flexShrink:0}}>
+            <div style={{display:"flex",gap:2,background:"#111118",borderRadius:8,padding:3}}>
+              {(["all","favorited","downloaded","4k"] as Filter[]).map(f=>(
+                <button key={f} className="bd filt" onClick={()=>setFilter(f)} style={{
+                  padding:"4px 14px",borderRadius:6,fontSize:11,fontWeight:500,
+                  background:filter===f?"#1e1e2e":"transparent",
+                  color:filter===f?"#d8d8d8":"#444",border:"none",
+                }}>{f==="4k"?"4K":f.charAt(0).toUpperCase()+f.slice(1)}</button>
+              ))}
+            </div>
+            <div style={{flex:1}}/>
+            <button className="bd" style={{background:"#111118",border:"1px solid #1e1e2a",borderRadius:6,color:"#555",padding:"6px 12px",fontSize:11}}>Filter</button>
+            <button className="bd" style={{background:"#111118",border:"1px solid #1e1e2a",borderRadius:6,color:"#555",padding:"6px 12px",fontSize:11}}>↓ Export</button>
+          </div>
+
+          {/* Grid */}
+          <div style={{flex:1,overflow:"auto",padding:20}}>
+            {filteredGallery.length===0 ? (
+              <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10}}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#222" strokeWidth="1"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
+                <span style={{color:"#333",fontSize:13}}>No generations yet</span>
+                <span style={{color:"#252525",fontSize:11}}>Write a prompt and click Generate</span>
+              </div>
+            ) : (
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:10}}>
+                {filteredGallery.map(item=>(
+                  <div key={item.id} className="bd-gallery" onClick={()=>setSelected(item)}
+                    style={{borderRadius:10,overflow:"hidden",background:"#111118",border:"1px solid #1a1a24",aspectRatio:"3/4"}}>
+                    <img src={item.src} alt={item.prompt}
+                      style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top center",display:"block"}}
+                      onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+                    <div className="bd-ov" style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.88) 0%,transparent 50%)",opacity:0,transition:"opacity .2s",display:"flex",flexDirection:"column",justifyContent:"flex-end",padding:8}}>
+                      <div style={{fontSize:9,color:"#bbb",lineHeight:1.4,marginBottom:8,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{item.prompt}</div>
+                      <div style={{display:"flex",gap:5}}>
+                        {/* Download */}
+                        <button className="bd" title="Download" onClick={e=>{e.stopPropagation();
+                          const a=document.createElement("a");a.href=item.src;a.download=`beryl-${item.id}.png`;a.click();
+                          setGallery(prev=>prev.map(g=>g.id===item.id?{...g,downloaded:true}:g));
+                        }} style={{flex:1,background:"rgba(37,99,235,.75)",border:"1px solid rgba(59,130,246,.5)",borderRadius:6,padding:"6px 0",fontSize:10,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                          Save
+                        </button>
+                        {/* Share */}
+                        <button className="bd" title="Share" onClick={e=>{e.stopPropagation();
+                          if(navigator.share){navigator.share({title:"Beryl Diffusion",text:item.prompt,url:window.location.href});}
+                          else{navigator.clipboard.writeText(window.location.href);alert("Link copied!");}
+                        }} style={{flex:1,background:"rgba(16,185,129,.65)",border:"1px solid rgba(16,185,129,.4)",borderRadius:6,padding:"6px 0",fontSize:10,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
+                          Share
+                        </button>
+                        {/* Delete */}
+                        <button className="bd" title="Delete" onClick={e=>{e.stopPropagation();
+                          setGallery(prev=>prev.filter(g=>g.id!==item.id));
+                          if(selected?.id===item.id) setSelected(null);
+                        }} style={{flex:1,background:"rgba(220,38,38,.65)",border:"1px solid rgba(239,68,68,.4)",borderRadius:6,padding:"6px 0",fontSize:10,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+                          Delete
+                        </button>
+                      </div>
+                      {/* Berylize It button */}
+                      <button className="bd" onClick={e=>{e.stopPropagation();setBerylizeTarget(item);setSelected(null);}}
+                        style={{width:"100%",marginTop:5,padding:"7px 0",borderRadius:6,fontSize:11,fontWeight:700,letterSpacing:.3,
+                          background:"linear-gradient(135deg,#78350f,#c8a951,#f5e070,#c8a951)",backgroundSize:"200% auto",
+                          color:"#0c0c0f",border:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:5,
+                        }}>
+                        ✨ Berylize It!
+                      </button>
+                    </div>
+                    <div style={{position:"absolute",top:7,left:7,display:"flex",gap:4}}>
+                      {item.is4k && <span style={{background:"rgba(200,169,81,.9)",color:"#0c0c0f",fontSize:8,fontWeight:700,padding:"2px 5px",borderRadius:3,letterSpacing:.5}}>4K</span>}
+                      {item.favorited && <span style={{background:"rgba(245,158,11,.9)",color:"#0c0c0f",fontSize:9,padding:"1px 4px",borderRadius:3}}>★</span>}
+                    </div>
+                  </div>
+                ))}
+
+                {isGenerating && (
+                  <div className="shimmer" style={{borderRadius:10,aspectRatio:"3/4",border:"1px solid #1e1e2a",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10}}>
+                    <div className="spin" style={{width:28,height:28,border:"3px solid #3b82f6",borderTopColor:"transparent",borderRadius:"50%"}}/>
+                    <span style={{fontSize:10,color:"#3b82f6"}}>{Math.round(genProgress)}%</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "rgba(232,220,200,0.3)", fontStyle: "italic" }}>
-          © 2026 Beryl AI Labs · Beryl LLM is a proprietary model · All outputs are owned IP
+
+        {/* ── THUMBNAIL STRIP ── */}
+        <div style={{width:52,background:"#0e0e16",borderLeft:"1px solid #1e1e2a",display:"flex",flexDirection:"column",alignItems:"center",padding:"10px 4px",gap:4,overflow:"auto",flexShrink:0}}>
+          {gallery.slice(0,15).map((g,i)=>(
+            <div key={g.id} onClick={()=>setSelected(g)} style={{
+              width:40,height:40,borderRadius:5,overflow:"hidden",cursor:"pointer",
+              border:`1px solid ${selected?.id===g.id?"#3b82f6":"#1e1e2a"}`,flexShrink:0,position:"relative",
+            }}>
+              <img src={g.src} alt="" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top"}}
+                onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+              <div style={{position:"absolute",top:1,right:1,fontSize:7,color:"#666",background:"rgba(0,0,0,.7)",borderRadius:2,padding:"0 2px"}}>{i+1}</div>
+            </div>
+          ))}
         </div>
       </div>
 
+      {/* ── LIGHTBOX ── */}
+      {selected && (
+        <div onClick={()=>setSelected(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:40}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#111118",borderRadius:16,border:"1px solid #1e1e2a",maxWidth:860,width:"100%",maxHeight:"90vh",overflow:"hidden",display:"flex"}}>
+            <div style={{width:"58%",background:"#0e0e16",flexShrink:0}}>
+              <img src={selected.src} alt="" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top"}}
+                onError={e=>{(e.target as HTMLImageElement).style.background="#1a1a24";}}/>
+            </div>
+            <div style={{flex:1,padding:24,display:"flex",flexDirection:"column",gap:14,overflowY:"auto"}}>
+              <button onClick={()=>setSelected(null)} style={{alignSelf:"flex-end",background:"none",border:"none",color:"#555",fontSize:20,cursor:"pointer",padding:0}}>✕</button>
+              <div>
+                <div style={{fontSize:10,color:"#444",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Prompt</div>
+                <div style={{fontSize:13,color:"#bbb",lineHeight:1.6}}>{selected.prompt}</div>
+              </div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {selected.is4k && <span style={{background:"#1a1a0e",border:"1px solid #c8a951",borderRadius:6,padding:"3px 10px",fontSize:11,color:"#c8a951"}}>4K</span>}
+                <span style={{background:"#1e1e2e",border:"1px solid #2a2a3a",borderRadius:6,padding:"3px 10px",fontSize:11,color:"#555",textTransform:"capitalize"}}>{selected.type}</span>
+              </div>
+              <div style={{display:"flex",gap:8,marginTop:"auto"}}>
+                <button className="bd" onClick={()=>toggleFavorite(selected.id)} style={{
+                  flex:1,padding:"10px",borderRadius:8,fontSize:12,fontWeight:500,
+                  background:selected.favorited?"#78350f":"#1a1a24",
+                  border:`1px solid ${selected.favorited?"#f59e0b":"#2a2a3a"}`,
+                  color:selected.favorited?"#f59e0b":"#666",
+                }}>{selected.favorited?"★ Favorited":"☆ Favorite"}</button>
+                <button className="bd" style={{flex:1,padding:"10px",borderRadius:8,fontSize:12,fontWeight:500,background:"#0a1a2f",border:"1px solid #1e3a5f",color:"#60a5fa"}}>↓ Download</button>
+              </div>
+              <button className="bd" style={{padding:"10px",borderRadius:8,fontSize:12,fontWeight:600,background:"linear-gradient(135deg,#2563eb,#3b82f6)",color:"#fff"}}
+                onClick={()=>{setPrompt(selected.prompt);setSelected(null);}}>
+                ↺ Remix this generation
+              </button>
+              <button className="bd" style={{padding:"12px",borderRadius:8,fontSize:16,fontWeight:700,letterSpacing:.3,
+                background:"linear-gradient(135deg,#8B6914,#c8a951,#f5e070,#c8a951,#8B6914)",backgroundSize:"200% auto",color:"#0c0c0f",
+                boxShadow:"0 4px 20px rgba(200,169,81,.4)",
+              }} onClick={()=>{setBerylizeTarget(selected);setSelected(null);}}>
+                ✨ Berylize It! — Add Voice & Motion
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── BERYLIZE MODAL ── */}
+      {berylizeTarget && (
+        <BerylizeModal
+          image={berylizeTarget.src}
+          prompt={berylizeTarget.prompt}
+          onClose={()=>setBerylizeTarget(null)}
+          onBerylize={handleBerylizeConfig}
+        />
+      )}
     </div>
   );
 }
+
+
