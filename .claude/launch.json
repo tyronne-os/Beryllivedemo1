@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "beryl-live-production",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "C:\\Users\\tjlsu\\beryl-live-production", "run", "dev"],
+      "port": 3000
+    }
+  ]
+}
