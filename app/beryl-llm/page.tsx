@@ -255,26 +255,42 @@ export default function BerylDiffusionPromo() {
               </div>
             ))}
 
-            {/* ── DATA STREAM — right edge ── */}
-            <div style={{position:"absolute",right:0,top:0,bottom:0,width:"18%",overflow:"hidden",zIndex:5,pointerEvents:"none"}}>
-              {Array.from({length:10}).map((_,i)=>{
-                const chars="01アイウエオカキ∑∂∆∇ΩΦΨ█▓░⬆↑⟨⟩∞≈≡≠";
-                const delay=(i*0.4).toFixed(2);
-                const dur=(3.5+(i%5)*0.8).toFixed(1);
-                const left=(i*10.5).toFixed(1);
+            {/* ── DATA STREAM — right edge, LLM weights ── */}
+            <div style={{position:"absolute",right:0,top:0,bottom:0,width:"20%",overflow:"hidden",zIndex:5,pointerEvents:"none"}}>
+              {[
+                "W[0]·0.7341·-0.2198·0.8812·0.1034·-0.5521·0.9203·0.4471",
+                "W[1]·0.0023·0.6614·-0.3392·0.7710·0.2251·-0.8831·0.5502",
+                "W[2]·-0.4401·0.9921·0.1143·-0.6653·0.3312·0.8802·-0.1123",
+                "W[3]·0.5512·-0.7743·0.2234·0.9901·-0.4423·0.6634·0.0014",
+                "W[4]·0.8823·0.3345·-0.5514·0.1125·0.7736·-0.2256·0.9947",
+                "W[5]·-0.1167·0.4478·0.9989·-0.3339·0.6650·0.2221·-0.7762",
+                "W[6]·0.6641·-0.9952·0.5523·0.0034·-0.8864·0.4495·0.3306",
+                "W[7]·0.2267·0.7778·-0.1198·0.8889·-0.5540·0.9960·0.1117",
+                "W[8]·-0.8875·0.5586·0.3397·-0.7708·0.1108·0.6619·-0.4430",
+                "W[9]·0.4441·-0.3352·0.7763·0.6574·0.9985·-0.1196·0.2207",
+                "attn·h12·d64·scale=0.125·drop=0.1·rope·bias=F",
+                "ffn·dim=16384·act=silu·gate=T·norm=rms·eps=1e-5",
+                "emb·vocab=131072·dim=4096·tie=F·init=0.02",
+                "lyr·n=48·heads=32·kv=8·ctx=131072·seq=F",
+              ].map((col,i)=>{
+                const delay=(i*0.38).toFixed(2);
+                const dur=(5+i%7*0.9).toFixed(1);
+                const left=(i*7.2).toFixed(1);
+                const color=i%4===0?"rgba(200,169,81,.85)":i%4===1?"rgba(100,200,255,.65)":i%4===2?"rgba(180,255,180,.55)":"rgba(255,150,200,.5)";
                 return(
                   <div key={i} style={{
-                    position:"absolute",left:`${left}%`,bottom:"-10%",
+                    position:"absolute",left:`${left}%`,top:"100%",
                     animation:`ds-rise ${dur}s ${delay}s linear infinite`,
-                    fontFamily:"monospace",fontSize:10+(i%3)*2,
-                    color:i%3===0?"rgba(200,169,81,.8)":i%3===1?"rgba(100,200,255,.6)":"rgba(180,255,180,.5)",
-                    writingMode:"vertical-rl",textOrientation:"mixed",lineHeight:1.4,whiteSpace:"nowrap",userSelect:"none",
+                    fontFamily:"'Courier New',monospace",fontSize:9,
+                    color,writingMode:"vertical-rl",textOrientation:"mixed",
+                    lineHeight:1.3,whiteSpace:"nowrap",userSelect:"none",letterSpacing:0.5,
                   }}>
-                    {Array.from({length:10}).map((_,j)=>chars[(i*3+j)%chars.length]).join("")}
+                    {col}
                   </div>
                 );
               })}
-              <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,rgba(8,5,3,.9) 0%,transparent 25%,transparent 75%,rgba(8,5,3,.9) 100%)"}}/>
+              {/* Only fade at very bottom — no fade at top so it reaches the top */}
+              <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,transparent 0%,transparent 85%,rgba(8,5,3,.95) 100%)"}}/>
             </div>
           </div>
 
