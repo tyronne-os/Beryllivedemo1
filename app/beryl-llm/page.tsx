@@ -324,120 +324,119 @@ export default function BerylDiffusionPromo() {
       </section>
 
       {/* ── SHOWCASE GALLERY ── */}
-      {/* ── FUTURE OF AI SALES BANNER ── */}
-      <section style={{position:"relative",width:"100%",minHeight:"80vh",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
-
-        {/* Beryl Live — full bleed */}
-        <img
-          src={cdn("beryl-llm/beryl-live-hero.png")}
-          alt=""
-          style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center top"}}
-        />
-
-        {/* Multi-layer cinematic overlay */}
-        <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,rgba(8,5,3,.92) 0%,rgba(8,5,3,.6) 45%,rgba(8,5,3,.85) 100%)"}}/>
-        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 60% 50%,rgba(200,169,81,.06) 0%,transparent 65%)"}}/>
-        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 20% 50%,rgba(26,95,122,.08) 0%,transparent 55%)"}}/>
-
-        {/* Animated scan lines */}
+      {/* ── FUTURE OF AI SALES BANNER — split layout, face unobstructed ── */}
+      <section style={{position:"relative",width:"100%",minHeight:"92vh",overflow:"hidden",background:"#060403",display:"flex"}}>
         <style>{`
-          @keyframes scan-up{0%{transform:translateY(100vh);opacity:0}5%{opacity:.06}95%{opacity:.04}100%{transform:translateY(-100vh);opacity:0}}
-          @keyframes word-reveal{0%{opacity:0;transform:translateY(30px) skewX(-3deg)}100%{opacity:1;transform:translateY(0) skewX(0deg)}}
+          @keyframes scan-up{0%{transform:translateY(100vh);opacity:0}5%{opacity:.05}95%{opacity:.03}100%{transform:translateY(-100vh);opacity:0}}
           @keyframes border-pulse{0%,100%{opacity:.3}50%{opacity:1}}
-          @keyframes glow-breathe{0%,100%{text-shadow:0 0 60px rgba(200,169,81,.2),0 0 120px rgba(200,169,81,.05)}50%{text-shadow:0 0 80px rgba(200,169,81,.5),0 0 160px rgba(200,169,81,.2)}}
+          @keyframes glow-breathe{0%,100%{text-shadow:0 0 60px rgba(200,169,81,.15)}50%{text-shadow:0 0 100px rgba(200,169,81,.45),0 0 200px rgba(200,169,81,.15)}}
+          @keyframes shine-left{0%{background-position:200% center}100%{background-position:-200% center}}
+          @media(max-width:860px){
+            .sales-split{flex-direction:column!important}
+            .sales-text{padding:52px 28px 36px!important;min-height:auto!important}
+            .sales-face{height:70vw!important;min-height:auto!important}
+          }
         `}</style>
 
-        <div style={{position:"absolute",inset:0,overflow:"hidden",pointerEvents:"none"}}>
-          {[0,1,2].map(i=>(
-            <div key={i} style={{
-              position:"absolute",left:0,right:0,height:1,
-              background:"linear-gradient(to right,transparent,rgba(200,169,81,.15),transparent)",
-              animation:`scan-up ${8+i*3}s ${i*2.5}s linear infinite`,
-            }}/>
-          ))}
-        </div>
+        {/* LEFT — text panel */}
+        <div className="sales-text" style={{
+          flex:"0 0 52%",display:"flex",flexDirection:"column",justifyContent:"center",
+          padding:"80px 64px 80px 56px",position:"relative",zIndex:10,minHeight:"92vh",
+          background:"linear-gradient(to right,#060403 70%,rgba(6,4,3,.6) 100%)",
+        }}>
 
-        {/* Content */}
-        <div style={{position:"relative",zIndex:10,textAlign:"center",padding:"80px 24px",maxWidth:1100,margin:"0 auto"}}>
+          {/* Scan lines layer */}
+          <div style={{position:"absolute",inset:0,overflow:"hidden",pointerEvents:"none"}}>
+            {[0,1,2].map(i=>(
+              <div key={i} style={{
+                position:"absolute",left:0,right:0,height:1,
+                background:"linear-gradient(to right,transparent,rgba(200,169,81,.12),transparent)",
+                animation:`scan-up ${10+i*3}s ${i*3}s linear infinite`,
+              }}/>
+            ))}
+          </div>
 
-          {/* Eyebrow */}
+          {/* Eyebrow pill */}
           <div style={{
-            display:"inline-flex",alignItems:"center",gap:12,marginBottom:36,
-            border:"1px solid rgba(200,169,81,.3)",padding:"8px 24px",borderRadius:40,
+            display:"inline-flex",alignItems:"center",gap:10,marginBottom:40,width:"fit-content",
+            border:"1px solid rgba(200,169,81,.3)",padding:"8px 20px",borderRadius:40,
             animation:"border-pulse 3s ease-in-out infinite",
           }}>
-            <div style={{width:6,height:6,borderRadius:"50%",background:"#c8a951",boxShadow:"0 0 12px #c8a951"}}/>
-            <span style={{fontFamily:"'Cinzel',serif",fontSize:11,letterSpacing:5,color:"#c8a951",textTransform:"uppercase"}}>
+            <div style={{width:6,height:6,borderRadius:"50%",background:"#c8a951",boxShadow:"0 0 10px #c8a951"}}/>
+            <span style={{fontFamily:"'Cinzel',serif",fontSize:10,letterSpacing:4,color:"#c8a951",textTransform:"uppercase"}}>
               Beryl AI Labs · The New Standard
             </span>
-            <div style={{width:6,height:6,borderRadius:"50%",background:"#c8a951",boxShadow:"0 0 12px #c8a951"}}/>
           </div>
 
-          {/* MEGA HEADLINE */}
-          <div style={{marginBottom:8}}>
+          {/* MEGA HEADLINE — stacked left-aligned */}
+          <div style={{marginBottom:48,lineHeight:1}}>
             <div style={{
               fontFamily:"'Cinzel Decorative',serif",
-              fontSize:"clamp(3rem,10vw,8rem)",
-              fontWeight:900,lineHeight:0.95,letterSpacing:"-0.01em",
-              color:"#E8DCC8",
+              fontSize:"clamp(2.4rem,5.5vw,5.2rem)",
+              fontWeight:900,color:"#E8DCC8",lineHeight:1.0,
               animation:"glow-breathe 4s ease-in-out infinite",
-              textShadow:"0 4px 60px rgba(0,0,0,.9)",
-            }}>
-              THIS IS
-            </div>
+            }}>THIS IS</div>
             <div style={{
               fontFamily:"'Cinzel Decorative',serif",
-              fontSize:"clamp(3.5rem,12vw,10rem)",
-              fontWeight:900,lineHeight:0.9,letterSpacing:"-0.02em",
-              background:"linear-gradient(135deg,#6b4f0a 0%,#c8a951 20%,#f5e070 40%,#fff8c0 50%,#f5e070 60%,#c8a951 80%,#6b4f0a 100%)",
+              fontSize:"clamp(2.8rem,6.5vw,6.4rem)",
+              fontWeight:900,lineHeight:0.92,
+              background:"linear-gradient(135deg,#6b4f0a 0%,#c8a951 20%,#f5e070 42%,#fff8c0 52%,#f5e070 62%,#c8a951 80%,#6b4f0a 100%)",
               backgroundSize:"300% auto",
               WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",
-              animation:"gold-shimmer 3s linear infinite",
-              display:"block",
-            }}>
-              HOW AI
-            </div>
+              animation:"shine-left 3s linear infinite",
+            }}>HOW AI</div>
             <div style={{
               fontFamily:"'Cinzel Decorative',serif",
-              fontSize:"clamp(3rem,10vw,8rem)",
-              fontWeight:900,lineHeight:1.0,letterSpacing:"-0.01em",
-              color:"#E8DCC8",
-              textShadow:"0 4px 60px rgba(0,0,0,.9)",
-            }}>
-              IS DONE.
-            </div>
+              fontSize:"clamp(2.4rem,5.5vw,5.2rem)",
+              fontWeight:900,color:"#E8DCC8",lineHeight:1.05,
+            }}>IS DONE.</div>
           </div>
 
-          {/* Divider line */}
-          <div style={{display:"flex",alignItems:"center",gap:16,justifyContent:"center",margin:"36px 0"}}>
-            <div style={{flex:1,maxWidth:120,height:1,background:"linear-gradient(to right,transparent,rgba(200,169,81,.5))"}}/>
-            <span style={{fontFamily:"'Cinzel',serif",fontSize:16,color:"#c8a951",letterSpacing:4}}>✦</span>
-            <div style={{flex:1,maxWidth:120,height:1,background:"linear-gradient(to left,transparent,rgba(200,169,81,.5))"}}/>
+          {/* Gold rule */}
+          <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:44}}>
+            <div style={{width:48,height:1,background:"linear-gradient(to right,rgba(200,169,81,.6),transparent)"}}/>
+            <span style={{fontFamily:"'Cinzel',serif",fontSize:14,color:"#c8a951"}}>✦</span>
+            <div style={{flex:1,height:1,background:"rgba(200,169,81,.08)"}}/>
           </div>
 
-          {/* Power statements */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:24,maxWidth:900,margin:"0 auto 52px",textAlign:"left"}}>
+          {/* Power statements — stacked vertically, left-aligned, face stays clear */}
+          <div style={{display:"flex",flexDirection:"column",gap:28,marginBottom:52}}>
             {[
-              {n:"01",t:"No Limits",    d:"Any image. Any voice. Any story. Beryl builds it."},
-              {n:"02",t:"No Wait",      d:"From prompt to cinematic video in under 30 seconds."},
-              {n:"03",t:"No Equal",     d:"No other platform comes close. This is Beryl."},
+              {n:"01",t:"No Limits",  d:"Any image. Any voice. Any story. Beryl builds it."},
+              {n:"02",t:"No Wait",    d:"From prompt to cinematic video in under 30 seconds."},
+              {n:"03",t:"No Equal",   d:"No other platform comes close. This is Beryl."},
             ].map(s=>(
-              <div key={s.n} style={{borderLeft:"2px solid rgba(200,169,81,.25)",paddingLeft:16}}>
-                <div style={{fontFamily:"'Cinzel',serif",fontSize:9,color:"#c8a951",letterSpacing:3,marginBottom:6,opacity:.6}}>{s.n}</div>
-                <div style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:700,color:"#E8DCC8",letterSpacing:1,marginBottom:6,textTransform:"uppercase"}}>{s.t}</div>
-                <div style={{fontSize:12,color:"#666",lineHeight:1.7}}>{s.d}</div>
+              <div key={s.n} style={{display:"flex",gap:20,alignItems:"flex-start"}}>
+                <div style={{
+                  fontFamily:"'Cinzel',serif",fontSize:10,color:"#c8a951",opacity:.5,
+                  letterSpacing:2,paddingTop:2,flexShrink:0,minWidth:24,
+                }}>{s.n}</div>
+                <div style={{borderLeft:"2px solid rgba(200,169,81,.2)",paddingLeft:16}}>
+                  <div style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:700,color:"#E8DCC8",letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>{s.t}</div>
+                  <div style={{fontSize:13,color:"#5a5146",lineHeight:1.75}}>{s.d}</div>
+                </div>
               </div>
             ))}
           </div>
 
-          {/* CTA */}
-          <div style={{display:"flex",gap:16,justifyContent:"center",flexWrap:"wrap"}}>
-            <Link href="/beryl-llm/studio" className="cta-launch" style={{fontSize:16,padding:"22px 80px",letterSpacing:4}}>
-              JOIN THE FUTURE →
-            </Link>
-          </div>
-
+          <Link href="/beryl-llm/studio" className="cta-launch" style={{fontSize:13,padding:"18px 56px",letterSpacing:3,width:"fit-content"}}>
+            JOIN THE FUTURE →
+          </Link>
         </div>
+
+        {/* RIGHT — portrait, fully unobstructed */}
+        <div className="sales-face" style={{flex:1,position:"relative",overflow:"hidden"}}>
+          <img
+            src={cdn("beryl-llm/beryl-live-hero.png")}
+            alt="Beryl Live"
+            style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center top",display:"block"}}
+          />
+          {/* Thin fade on left edge to blend into text panel */}
+          <div style={{position:"absolute",inset:0,background:"linear-gradient(to right,rgba(6,4,3,.85) 0%,rgba(6,4,3,.2) 20%,transparent 50%)"}}/>
+          {/* Subtle vignette bottom */}
+          <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,transparent 60%,rgba(6,4,3,.5) 100%)"}}/>
+        </div>
+
       </section>
 
       <section id="showcase" style={{padding:"80px 24px",maxWidth:1300,margin:"0 auto"}}>
