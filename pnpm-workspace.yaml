@@ -1,0 +1,8 @@
+allowBuilds:
+  sharp: set this to true or false
+  unrs-resolver: set this to true or false
+minimumReleaseAgeExclude:
+  - '@huggingface/inference@4.13.20'
+  - '@runwayml/sdk@4.3.0'
+  - framer-motion@12.42.0
+  - motion-dom@12.42.0

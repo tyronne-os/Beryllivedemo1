@@ -3,12 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node node_modules/next/dist/bin/next dev",
+    "build": "node node_modules/next/dist/bin/next build",
+    "start": "node node_modules/next/dist/bin/next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "@huggingface/hub": "^2.13.2",
+    "@huggingface/inference": "^4.13.20",
+    "@runwayml/sdk": "^4.3.0",
+    "@swc/helpers": "^0.5.23",
+    "axios": "^1.18.1",
+    "framer-motion": "^12.42.0",
+    "livekit-client": "^2.20.0",
     "next": "16.2.9",
     "react": "19.2.4",
     "react-dom": "19.2.4"
