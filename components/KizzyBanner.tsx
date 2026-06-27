@@ -5,7 +5,7 @@ export default function KizzyBanner() {
     <section style={{
       position: "relative",
       width: "100%",
-      minHeight: "50vh",
+      minHeight: "90vh",
       overflow: "hidden",
       display: "flex",
       flexDirection: "column",

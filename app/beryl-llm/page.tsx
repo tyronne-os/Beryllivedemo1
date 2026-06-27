@@ -409,6 +409,17 @@ export default function BerylDiffusion() {
             <div style={{flex:1}}/>
             <button className="bd" style={{background:"#111118",border:"1px solid #1e1e2a",borderRadius:6,color:"#555",padding:"6px 12px",fontSize:11}}>Filter</button>
             <button className="bd" style={{background:"#111118",border:"1px solid #1e1e2a",borderRadius:6,color:"#555",padding:"6px 12px",fontSize:11}}>↓ Export</button>
+            <button
+              className="bd"
+              onClick={() => {
+                if (!window.confirm(`Clear all ${activeTab} items from the viewer?`)) return;
+                setGallery(prev => prev.filter(g => g.type !== activeTab));
+                setSelected(s => s?.type === activeTab ? null : s);
+              }}
+              style={{background:"rgba(220,38,38,.1)",border:"1px solid rgba(220,38,38,.35)",borderRadius:6,color:"#ef4444",padding:"6px 14px",fontSize:11,fontWeight:600,letterSpacing:.3}}
+            >
+              ✕ Clear All
+            </button>
           </div>
 
           {/* Grid */}
