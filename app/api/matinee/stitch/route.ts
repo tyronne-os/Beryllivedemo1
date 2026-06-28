@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 interface SceneInput {
   index: number;
@@ -15,6 +12,25 @@ interface SceneInput {
   status: string;
 }
 
+async function callOpenAI(messages: { role: string; content: string }[]) {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages,
+      response_format: { type: "json_object" },
+      temperature: 0.7,
+    }),
+  });
+  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data.choices[0].message.content ?? "{}";
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { scenes, filmTitle, narrativeArc, genre, style } = await req.json();
@@ -23,8 +39,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Need at least 2 scenes to stitch" }, { status: 400 });
     }
 
-    // ── PHASE 1: Editorial Intelligence ─────────────────────────────────────
-    // GPT-4o as Oscar-level editor — analyses scenes and designs the cut
     const editorialPrompt = `You are a legendary film editor with the sensibility of Thelma Schoonmaker, Walter Murch, and Michael Kahn combined. You have been given the following scenes for "${filmTitle}".
 
 Narrative arc: ${narrativeArc}
@@ -59,34 +73,18 @@ Your task: Design the editorial assembly plan for this film. Return a JSON objec
 
 Return ONLY valid JSON, no markdown.`;
 
-    const editorialRes = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: editorialPrompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.7,
-    });
+    const content = await callOpenAI([{ role: "user", content: editorialPrompt }]);
+    const editorial = JSON.parse(content);
 
-    const editorial = JSON.parse(editorialRes.choices[0].message.content ?? "{}");
-
-    // ── PHASE 2: Bridge clip generation prompts ──────────────────────────────
-    // For any transitions that need bridge clips, generate video prompts
     const bridgeClips: { fromScene: number; toScene: number; prompt: string; duration: number }[] = [];
-
     if (editorial.transitions) {
       for (const t of editorial.transitions) {
         if (t.bridgePrompt) {
-          bridgeClips.push({
-            fromScene: t.fromScene,
-            toScene: t.toScene,
-            prompt: t.bridgePrompt,
-            duration: 3,
-          });
+          bridgeClips.push({ fromScene: t.fromScene, toScene: t.toScene, prompt: t.bridgePrompt, duration: 3 });
         }
       }
     }
 
-    // ── PHASE 3: Build the playlist ──────────────────────────────────────────
-    // Ordered scene list + transition metadata for the player
     const orderedScenes = (editorial.order ?? scenes.map((_: SceneInput, i: number) => i))
       .map((idx: number) => scenes[idx])
       .filter(Boolean);
@@ -97,10 +95,7 @@ Return ONLY valid JSON, no markdown.`;
         (t: { fromScene: number; toScene: number }) =>
           t.fromScene === scene.index && t.toScene === nextScene?.index
       );
-      return {
-        scene,
-        transition: transition ?? { type: "cut", duration_ms: 0 },
-      };
+      return { scene, transition: transition ?? { type: "cut", duration_ms: 0 } };
     });
 
     return NextResponse.json({

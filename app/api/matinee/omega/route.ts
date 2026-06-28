@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const OMEGA_SYSTEM = `You are "OMEGA" — an Academy Award-winning Director of Photography with 25+ years experience across ARRI Alexa, RED Monstro, and Panavision optics. You transform creative prompts into cinematographically perfect specifications that AI generation systems execute at Hollywood blockbuster level.
 
@@ -55,6 +52,26 @@ PASS 2 — PRODUCTION DESIGN: Futuristic materials with realistic wear, holograp
 PASS 3 — COLOR GRADING: ARRIRAW clean base, neon teal-orange split, lens aberration, deep shadow pools.`,
 };
 
+async function callOpenAI(messages: { role: string; content: string }[]) {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages,
+      response_format: { type: "json_object" },
+      temperature: 0.72,
+      max_tokens: 1200,
+    }),
+  });
+  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data.choices[0].message.content ?? "{}";
+}
+
 export async function POST(req: NextRequest) {
   try {
     const {
@@ -89,18 +106,12 @@ Return a JSON object with these exact keys:
 
 Return ONLY valid JSON, no markdown fences.`;
 
-    const res = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: OMEGA_SYSTEM },
-        { role: "user", content: userMsg },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.72,
-      max_tokens: 1200,
-    });
+    const content = await callOpenAI([
+      { role: "system", content: OMEGA_SYSTEM },
+      { role: "user", content: userMsg },
+    ]);
 
-    const enhanced = JSON.parse(res.choices[0].message.content ?? "{}");
+    const enhanced = JSON.parse(content);
 
     return NextResponse.json({
       original: prompt,
