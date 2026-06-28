@@ -5,17 +5,17 @@ import { useRef, useEffect, useState } from "react";
 
 export default function MatineePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(true);
 
   useEffect(()=>{
     const v = videoRef.current;
     if(!v) return;
-    v.muted = false;
-    v.play().catch(()=>{
-      // Browser blocked unmuted autoplay — fall back to muted silently
-      v.muted = true;
-      setMuted(true);
-      v.play().catch(()=>{});
+    // Video autoplays muted (universal browser support). Then try to unmute.
+    v.play().then(()=>{
+      v.muted = false;
+      setMuted(false);
+    }).catch(()=>{
+      // Stay muted — browser requires interaction first
     });
   },[]);
 
