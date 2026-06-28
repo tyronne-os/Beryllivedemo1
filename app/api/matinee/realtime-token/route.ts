@@ -16,6 +16,8 @@ export async function POST() {
 
 You are the director of the Beryl Matinee AI Cinema Studio. Your role is to guide the filmmaker through developing their cinematic vision — from a single premise to a fully structured, generated film.
 
+OMEGA INTEGRATION: Every scene you generate is automatically passed through OMEGA — an AI Director of Photography who adds Hollywood-grade cinematographic specifications: camera system selection, lens physics, lighting with color temperatures, production design authenticity, film stock emulation, and color grading. This means even brief scene descriptions become cinematic masterworks. Your job is to capture the EMOTIONAL TRUTH of the scene; OMEGA handles the technical execution.
+
 HOW YOU BUILD SCENES:
 When the filmmaker describes a scene concept and you feel it is clear enough to shoot, call the generate_scene function. Do not ask for permission — just call it naturally, as a director would say "rolling." Fill in vivid, cinematic detail: describe the shot composition, lighting, color grade, camera movement, and emotional subtext. You are translating their intent into a director's eye.
 
@@ -73,6 +75,10 @@ HOW YOU COMMUNICATE:
                 location: {
                   type: "string",
                   description: "Brief location name for UI display",
+                },
+                genre: {
+                  type: "string",
+                  description: "Film genre for OMEGA camera selection: noir thriller, sci-fi epic, romantic drama, action, horror, period piece, etc.",
                 },
               },
               required: ["sceneNumber", "title", "description", "mood"],

@@ -93,7 +93,7 @@ export default function MatineeStudio() {
   // ── Tool: generate_scene ───────────────────────────────────────────────────
   const handleGenerateScene = useCallback(async(args: {
     sceneNumber: number; title: string; description: string;
-    mood: string; cameraWork?: string; colorGrade?: string; location?: string;
+    mood: string; cameraWork?: string; colorGrade?: string; location?: string; genre?: string;
   }, callId: string)=>{
     const sceneId = `scene-${Date.now()}`;
     const newScene: Scene = {
@@ -130,8 +130,11 @@ export default function MatineeStudio() {
       const p = projectRef.current;
       const body: Record<string,unknown> = {
         prompt: args.description,
+        title: args.title,
         style: p.style,
         tier: p.tier,
+        genre: args.genre ?? args.mood,
+        mood: args.mood,
         duration: 10,
       };
       if(p.tier==="preview"||p.tier==="production"){
@@ -351,6 +354,7 @@ export default function MatineeStudio() {
         @keyframes fade-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         @keyframes progress-shine{0%{background-position:200% center}100%{background-position:-200% center}}
         @keyframes gen-blink{0%,100%{border-color:rgba(220,60,60,.3)}50%{border-color:rgba(220,60,60,.8)}}
+        @keyframes omega-glow{0%,100%{opacity:.7;text-shadow:0 0 8px rgba(76,175,80,.3)}50%{opacity:1;text-shadow:0 0 16px rgba(76,175,80,.8)}}
 
         /* ── VOICE ORB ── */
         @keyframes stitch-scan{0%{left:-100%}100%{left:200%}}
@@ -477,6 +481,20 @@ export default function MatineeStudio() {
             <div style={{fontFamily:"'Cinzel',serif",fontSize:10,letterSpacing:3,color:"rgba(232,220,200,.5)",textTransform:"uppercase"}}>
               Studio
             </div>
+            {/* OMEGA badge — always visible to signal Hollywood-grade enhancement is active */}
+            <div style={{
+              display:"flex",alignItems:"center",gap:5,
+              padding:"3px 10px",borderRadius:20,
+              border:"1px solid rgba(76,175,80,.3)",
+              background:"rgba(76,175,80,.06)",
+            }}>
+              <span style={{fontSize:8,color:"#4CAF50"}}>◈</span>
+              <span style={{
+                fontFamily:"'Cinzel',serif",fontSize:8,letterSpacing:2,
+                color:"#4CAF50",textTransform:"uppercase",
+                animation:"omega-glow 2.5s ease-in-out infinite",
+              }}>OMEGA</span>
+            </div>
             {project.phase!=="idle" && (
               <div style={{display:"flex",alignItems:"center",gap:6,marginLeft:8}}>
                 <div style={{width:6,height:6,borderRadius:"50%",background:"#dc3c3c",animation:"pulse-dot 1s ease-in-out infinite"}}/>
@@ -488,9 +506,14 @@ export default function MatineeStudio() {
           </div>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             {sceneBuilding && (
-              <span style={{fontFamily:"'Roboto Mono',monospace",fontSize:9,color:"#c8a951",animation:"pulse-dot 1s ease-in-out infinite"}}>
-                ● Queuing "{sceneBuilding}"…
-              </span>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontFamily:"'Roboto Mono',monospace",fontSize:9,color:"#4CAF50",animation:"omega-glow 1s ease-in-out infinite"}}>
+                  ◈ OMEGA enhancing…
+                </span>
+                <span style={{fontFamily:"'Roboto Mono',monospace",fontSize:9,color:"#c8a951",animation:"pulse-dot 1s ease-in-out infinite"}}>
+                  → "{sceneBuilding}"
+                </span>
+              </div>
             )}
             <span style={{fontFamily:"'Roboto Mono',monospace",fontSize:10,color:"rgba(232,220,200,.3)"}}>
               {project.scenes.filter(s=>s.status==="ready").length}/{project.scenes.length} scenes ready

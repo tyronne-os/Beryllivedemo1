@@ -21,13 +21,29 @@ const MODELS = {
   "ultra-i2v":  { provider:"fal", id:"bytedance/seedance-2.5/image-to-video", maxSec:30, w:1920,h:1080,note:"I2V · 30 sec" },
 } as const;
 
-const STYLE_PREFIX: Record<string, string> = {
-  photorealistic: "cinematic photorealistic, 8K, anamorphic lens, film grain —",
-  pixar:          "Pixar 3D animation, vibrant, subsurface scattering —",
-  anime:          "Studio Ghibli cinematic anime, fluid motion, painterly —",
-  noir:           "film noir, high contrast, dramatic shadows, 1940s cinema —",
-  scifi:          "sci-fi cinematic, neon-lit, futuristic city, cyberpunk —",
-};
+// ── OMEGA: cinematography director agent pre-processor ──────────────────────
+async function omegaEnhance(
+  prompt: string,
+  style: string,
+  genre: string,
+  mood: string,
+  title: string,
+  baseUrl: string,
+): Promise<string> {
+  try {
+    const res = await fetch(`${baseUrl}/api/matinee/omega`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, style, genre, mood, title,
+        contentType: style === "pixar" || style === "anime" ? style : style === "scifi" ? "scifi" : "live_action" }),
+    });
+    if (!res.ok) return prompt; // fallback to raw on error
+    const data = await res.json();
+    return data.finalPrompt ?? prompt;
+  } catch {
+    return prompt; // never block generation on OMEGA failure
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,6 +52,9 @@ export async function POST(req: NextRequest) {
       prompt,
       tier = "preview",
       style = "photorealistic",
+      genre = "cinematic drama",
+      mood = "dramatic",
+      title = "Untitled Scene",
       referenceImageUrl,  // REQUIRED for free Wan2.2-S2V tiers (image to animate)
       audioUrl,           // REQUIRED for free Wan2.2-S2V tiers (audio to sync to)
       audioBase64,        // alternative: raw audio as base64
@@ -43,12 +62,17 @@ export async function POST(req: NextRequest) {
       sceneIndex = 0,
       characterId,
       negativePrompt = "blurry, low quality, watermark, text overlay, distorted",
+      skipOmega = false,  // set true to bypass OMEGA for testing
     } = body;
 
     if (!prompt) return NextResponse.json({ error: "prompt required" }, { status: 400 });
 
     const model = MODELS[tier as keyof typeof MODELS] ?? MODELS.preview;
-    const styledPrompt = `${STYLE_PREFIX[style] ?? ""} ${prompt}`.trim();
+
+    // ── OMEGA Enhancement: raw prompt → Hollywood-grade cinematographic spec ──
+    const baseUrl = req.nextUrl.origin;
+    const omegaPrompt = skipOmega ? prompt : await omegaEnhance(prompt, style, genre, mood, title, baseUrl);
+    const styledPrompt = omegaPrompt.trim();
     const requestedSec = duration ? Math.min(Number(duration), model.maxSec) : model.maxSec;
 
     let videoUrl: string | null = null;
@@ -159,6 +183,8 @@ export async function POST(req: NextRequest) {
       sceneIndex,
       characterId: characterId ?? null,
       prompt: styledPrompt,
+      originalPrompt: prompt,
+      omegaEnhanced: !skipOmega,
     });
 
   } catch (e: unknown) {
