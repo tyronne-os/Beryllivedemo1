@@ -68,15 +68,6 @@ export default function Nav() {
         .ham.open span:nth-child(2) { opacity:0; }
         .ham.open span:nth-child(3) { transform:translateY(-7px) rotate(-45deg); }
 
-        /* Mobile menu overlay */
-        .mob-menu {
-          display:none; position:fixed; top:64px; left:0; right:0; bottom:0;
-          background:rgba(8,5,3,.97); z-index:199; padding:24px 32px 40px;
-          flex-direction:column; overflow-y:auto; animation:mob-slide .2s ease;
-          border-top:1px solid rgba(200,169,81,.2);
-        }
-        .mob-menu.open { display:flex; }
-
         @media (max-width: 768px) {
           .ham { display:flex !important; }
           .nav-links { display:none !important; }
@@ -148,45 +139,107 @@ export default function Nav() {
         </button>
       </nav>
 
-      {/* Mobile fullscreen menu */}
-      <div className={`mob-menu${menuOpen?" open":""}`}>
-        {pathname !== "/" && <Link href="/" className="nl-mob" onClick={()=>setMenuOpen(false)}>Home</Link>}
-        <a href="/#squad" className="nl-mob" onClick={()=>setMenuOpen(false)}>The Squad</a>
-        <Link href="/demo" className="nl-mob" onClick={()=>setMenuOpen(false)}>Demo</Link>
-        <a href="/#pricing" className="nl-mob" onClick={()=>setMenuOpen(false)}>Pricing</a>
-        <Link href="/desktop" className="nl-mob" onClick={()=>setMenuOpen(false)}>Desktop</Link>
-        <Link href="/matinee" className="nl-mob" onClick={()=>setMenuOpen(false)} style={{color:"#dc3c3c",WebkitTextFillColor:"#dc3c3c",display:"flex",alignItems:"center",gap:6}}>
-          <svg width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0,opacity:0.9}}>
-            <rect x="2" y="2" width="10" height="6.5" rx="1" fill="#4CAF50"/>
-            <circle cx="6" cy="5.25" r="2.4" fill="#1b5e20" stroke="#4CAF50" strokeWidth="0.7"/>
-            <circle cx="6" cy="5.25" r="1.4" fill="#0a1a0a"/>
-            <circle cx="5.3" cy="4.6" r="0.45" fill="#a8e6a8" opacity="0.8"/>
-            <rect x="5.5" y="0.5" width="4.5" height="1.8" rx="0.6" fill="#4CAF50" opacity="0.8"/>
-            <rect x="12" y="3.2" width="2.8" height="1.8" rx="0.5" fill="#4CAF50" opacity="0.75"/>
-            <line x1="12" y1="4.1" x2="14.8" y2="4.1" stroke="#1b5e20" strokeWidth="0.5"/>
-            <circle cx="11.5" cy="1.8" r="0.7" fill="#4CAF50" opacity="0.7"/>
-            <rect x="7" y="8.5" width="2" height="1.2" rx="0.3" fill="#4CAF50" opacity="0.8"/>
-            <line x1="8" y1="9.7" x2="2"  y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
-            <line x1="8" y1="9.7" x2="8"  y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
-            <line x1="8" y1="9.7" x2="14" y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
-            <line x1="3.5" y1="13.5" x2="12.5" y2="13.5" stroke="#4CAF50" strokeWidth="0.6" strokeLinecap="round" opacity="0.6"/>
-          </svg>
-          Matinee
-        </Link>
-        <Link href="/contact" className="nl-mob" onClick={()=>setMenuOpen(false)}>Contact</Link>
-        <Link href="/beryl-llm" className="nl-mob" onClick={()=>setMenuOpen(false)}>Beryl Diffusion</Link>
-        <div style={{marginTop:32}}>
-          <Link href="/demo" onClick={()=>setMenuOpen(false)} style={{
-            display:"block", textAlign:"center", padding:"16px 32px",
-            fontFamily:"'Cinzel',serif", fontSize:12, letterSpacing:"2.5px", textTransform:"uppercase",
-            textDecoration:"none", color:"#0a0604",
-            background:"linear-gradient(135deg,#8B6914,#c8a951,#f5e070,#c8a951,#8B6914)",
-            backgroundSize:"200% auto",
+      {/* ── MOBILE MENU — 100% inline-style controlled, no CSS class dependency ── */}
+      {menuOpen && (
+        <div style={{
+          position:"fixed", top:64, left:0, right:0, bottom:0,
+          background:"rgba(6,4,2,.97)",
+          zIndex:300,
+          display:"flex", flexDirection:"column",
+          overflowY:"auto",
+          borderTop:"1px solid rgba(200,169,81,.25)",
+          padding:"8px 0 40px",
+        }}>
+          {/* Close strip tap target at very top */}
+          <button onClick={()=>setMenuOpen(false)} style={{
+            background:"none", border:"none", cursor:"pointer",
+            padding:"12px 28px", textAlign:"right",
+            fontFamily:"'Cinzel',serif", fontSize:10, letterSpacing:3,
+            color:"rgba(200,169,81,.4)", textTransform:"uppercase",
+          }}>✕ Close</button>
+
+          {/* Nav links — each fully self-contained with inline styles */}
+          {([
+            { label:"Home",           href:"/",          show: pathname !== "/" },
+            { label:"The Squad",      href:"/#squad",    show: true, isAnchor: true },
+            { label:"Demo",           href:"/demo",      show: true },
+            { label:"Pricing",        href:"/#pricing",  show: true, isAnchor: true },
+            { label:"Desktop",        href:"/desktop",   show: true },
+            { label:"Contact",        href:"/contact",   show: true },
+          ] as {label:string;href:string;show:boolean;isAnchor?:boolean}[])
+            .filter(l => l.show)
+            .map(l => l.isAnchor ? (
+              <a key={l.href} href={l.href} onClick={()=>setMenuOpen(false)} style={{
+                display:"block", padding:"18px 28px",
+                fontFamily:"'Cinzel',serif", fontSize:17, fontWeight:600,
+                letterSpacing:"2px", textTransform:"uppercase", textDecoration:"none",
+                color:"#c8a951",
+                borderBottom:"1px solid rgba(200,169,81,.1)",
+              }}>{l.label}</a>
+            ) : (
+              <Link key={l.href} href={l.href} onClick={()=>setMenuOpen(false)} style={{
+                display:"block", padding:"18px 28px",
+                fontFamily:"'Cinzel',serif", fontSize:17, fontWeight:600,
+                letterSpacing:"2px", textTransform:"uppercase", textDecoration:"none",
+                color:"#c8a951",
+                borderBottom:"1px solid rgba(200,169,81,.1)",
+              }}>{l.label}</Link>
+            ))
+          }
+
+          {/* Matinee — special red with camera icon */}
+          <Link href="/matinee" onClick={()=>setMenuOpen(false)} style={{
+            display:"flex", alignItems:"center", gap:10,
+            padding:"18px 28px",
+            fontFamily:"'Cinzel',serif", fontSize:17, fontWeight:600,
+            letterSpacing:"2px", textTransform:"uppercase", textDecoration:"none",
+            color:"#dc3c3c",
+            borderBottom:"1px solid rgba(200,169,81,.1)",
           }}>
-            Live Session ›
+            <svg width="17" height="16" viewBox="0 0 17 16" fill="none" style={{flexShrink:0}}>
+              <rect x="2" y="2" width="10" height="6.5" rx="1" fill="#4CAF50"/>
+              <circle cx="6" cy="5.25" r="2.4" fill="#1b5e20" stroke="#4CAF50" strokeWidth="0.7"/>
+              <circle cx="6" cy="5.25" r="1.4" fill="#0a1a0a"/>
+              <circle cx="5.3" cy="4.6" r="0.45" fill="#a8e6a8" opacity="0.8"/>
+              <rect x="5.5" y="0.5" width="4.5" height="1.8" rx="0.6" fill="#4CAF50" opacity="0.8"/>
+              <rect x="12" y="3.2" width="2.8" height="1.8" rx="0.5" fill="#4CAF50" opacity="0.75"/>
+              <circle cx="11.5" cy="1.8" r="0.7" fill="#4CAF50" opacity="0.7"/>
+              <rect x="7" y="8.5" width="2" height="1.2" rx="0.3" fill="#4CAF50" opacity="0.8"/>
+              <line x1="8" y1="9.7" x2="2"  y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
+              <line x1="8" y1="9.7" x2="8"  y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
+              <line x1="8" y1="9.7" x2="14" y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
+              <line x1="3.5" y1="13.5" x2="12.5" y2="13.5" stroke="#4CAF50" strokeWidth="0.6" strokeLinecap="round" opacity="0.6"/>
+            </svg>
+            Matinee
           </Link>
+
+          {/* Beryl Diffusion pill */}
+          <Link href="/beryl-llm" onClick={()=>setMenuOpen(false)} style={{
+            display:"flex", alignItems:"center", gap:10,
+            padding:"18px 28px",
+            fontFamily:"'Cinzel',serif", fontSize:14, fontWeight:600,
+            letterSpacing:"2px", textTransform:"uppercase", textDecoration:"none",
+            color:"#c8a951",
+            borderBottom:"1px solid rgba(200,169,81,.1)",
+          }}>
+            <span style={{width:7,height:7,borderRadius:"50%",background:"#c8a951",boxShadow:"0 0 6px #c8a951",flexShrink:0,display:"inline-block"}}/>
+            Beryl Diffusion
+          </Link>
+
+          {/* CTA button */}
+          <div style={{padding:"32px 28px 0"}}>
+            <Link href="/demo" onClick={()=>setMenuOpen(false)} style={{
+              display:"block", textAlign:"center", padding:"18px",
+              fontFamily:"'Cinzel',serif", fontSize:12, letterSpacing:"2.5px",
+              textTransform:"uppercase", textDecoration:"none", color:"#0a0604",
+              background:"linear-gradient(135deg,#8B6914,#c8a951,#f5e070,#c8a951,#8B6914)",
+            }}>
+              Live Session ›
+            </Link>
+          </div>
         </div>
-      </div>
+      )}
+
     </>
   );
 }
