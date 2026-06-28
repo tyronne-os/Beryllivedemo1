@@ -307,6 +307,27 @@ export default function MatineeStudio() {
     return ()=>clearInterval(iv);
   },[project.phase]);
 
+  const saveToVault = useCallback(async()=>{
+    const p = projectRef.current;
+    const sr = p.stitchResult;
+    await fetch("/api/matinee/gallery", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        title: p.title,
+        filmTitle: sr?.filmTitle ?? p.title,
+        sceneCount: p.scenes.length,
+        tier: p.tier,
+        style: p.style,
+        narrativeArc: sr?.narrativeArc,
+        estimatedRuntime: sr?.estimatedRuntime,
+        colorGrade: sr?.editorial?.colorConsistency?.grade,
+        editorialNote: sr?.editorial?.filmNote,
+        videoUrl: p.scenes.find(s=>s.status==="ready")?.videoUrl,
+      }),
+    });
+  },[]);
+
   const startGeneration = ()=>{
     if(generating) return;
     setGenerating(true);
@@ -342,29 +363,29 @@ export default function MatineeStudio() {
         .orb-core{
           border-radius:50%;
           background:radial-gradient(circle at 35% 35%,
-            rgba(220,60,60,.9) 0%, rgba(139,26,26,.8) 45%, rgba(30,8,8,.95) 100%);
+            rgba(76,175,80,.9) 0%, rgba(27,94,32,.85) 45%, rgba(5,20,5,.95) 100%);
           box-shadow:
-            0 0 40px rgba(220,60,60,.35),
-            0 0 80px rgba(220,60,60,.15),
-            inset 0 1px 0 rgba(255,200,200,.2);
+            0 0 40px rgba(76,175,80,.4),
+            0 0 80px rgba(76,175,80,.15),
+            inset 0 1px 0 rgba(180,255,180,.2);
           transition:transform .1s ease-out,box-shadow .15s ease;
           position:relative;
         }
         .orb-core.speaking{
           box-shadow:
-            0 0 60px rgba(200,169,81,.5),
-            0 0 120px rgba(200,169,81,.2),
-            inset 0 1px 0 rgba(255,240,180,.3);
+            0 0 60px rgba(168,230,168,.6),
+            0 0 120px rgba(76,175,80,.3),
+            inset 0 1px 0 rgba(220,255,220,.3);
           background:radial-gradient(circle at 35% 35%,
-            rgba(245,224,112,.9) 0%, rgba(200,169,81,.8) 45%, rgba(30,20,5,.95) 100%);
+            rgba(168,230,168,.95) 0%, rgba(76,175,80,.85) 45%, rgba(10,30,10,.95) 100%);
         }
         .orb-ring{
-          position:absolute;border-radius:50%;border:1px solid rgba(220,60,60,.3);
+          position:absolute;border-radius:50%;border:1px solid rgba(76,175,80,.35);
           top:50%;left:50%;transform:translate(-50%,-50%);
           animation:ring-breathe 3s ease-in-out infinite;
         }
         .orb-ring.pulse{animation:ring-pulse 1.2s ease-out infinite;}
-        .orb-ring.speaking{border-color:rgba(200,169,81,.4);}
+        .orb-ring.speaking{border-color:rgba(168,230,168,.45);}
 
         .transcript-bubble-vera{
           background:rgba(220,60,60,.08);border:1px solid rgba(220,60,60,.15);
@@ -482,6 +503,18 @@ export default function MatineeStudio() {
             }}>
               {stitching?"◈ Assembling…":generating?"● Generating…":"⬤ Start Production"}
             </button>
+            {project.phase==="complete" && (
+              <button onClick={saveToVault} style={{
+                fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:2,textTransform:"uppercase",
+                padding:"8px 16px",background:"rgba(200,169,81,.1)",
+                border:"1px solid rgba(200,169,81,.3)",color:"#c8a951",cursor:"pointer",
+              }}>
+                ⊞ Save to Vault
+              </button>
+            )}
+            <Link href="/matinee/gallery" style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:2,color:"rgba(76,175,80,.6)",textDecoration:"none",textTransform:"uppercase"}}>
+              Gallery →
+            </Link>
             <Link href="/matinee" style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:2,color:"rgba(232,220,200,.4)",textDecoration:"none",textTransform:"uppercase"}}>
               ← Back
             </Link>
@@ -705,7 +738,7 @@ export default function MatineeStudio() {
                 flex:"0 0 auto",display:"flex",flexDirection:"column",
                 alignItems:"center",justifyContent:"center",
                 padding:"40px 20px 28px",
-                background:"radial-gradient(ellipse at 50% 60%, rgba(80,10,10,.4) 0%, transparent 70%)",
+                background:"radial-gradient(ellipse at 50% 60%, rgba(10,50,10,.45) 0%, transparent 70%)",
                 position:"relative",
               }}>
                 {/* Outer ambient glow rings */}
@@ -759,7 +792,7 @@ export default function MatineeStudio() {
                 <div style={{textAlign:"center",marginTop:20,zIndex:2}}>
                   <div style={{
                     fontFamily:"'Cinzel Decorative',serif",fontSize:15,fontWeight:700,
-                    background:"linear-gradient(135deg,#8b1a1a,#dc3c3c,#ff8080)",
+                    background:"linear-gradient(135deg,#1b5e20,#4CAF50,#a8e6a8)",
                     WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",
                     backgroundClip:"text",letterSpacing:3,
                     animation:"vera-label 3s ease-in-out infinite",
