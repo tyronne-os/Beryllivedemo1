@@ -4,6 +4,7 @@ import StatsBar from "@/components/StatsBar";
 import DifferencePanel from "@/components/DifferencePanel";
 import SquadScroller from "@/components/SquadScroller";
 import KizzyBanner from "@/components/KizzyBanner";
+import MatineeBanner from "@/components/MatineeBanner";
 import UseCases from "@/components/UseCases";
 import VoiceAgents from "@/components/VoiceAgents";
 import Pricing from "@/components/Pricing";
@@ -19,6 +20,7 @@ export default function Home() {
       <DifferencePanel />
       <div id="squad"><SquadScroller /></div>
       <KizzyBanner />
+      <MatineeBanner />
       <UseCases />
       <VoiceAgents />
       <div id="pricing"><Pricing /></div>

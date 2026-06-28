@@ -113,6 +113,7 @@ export default function Nav() {
           <Link href="/demo" className="nl">Demo</Link>
           <a href="/#pricing" className="nl">Pricing</a>
           <Link href="/desktop" className="nl">Desktop</Link>
+          <Link href="/matinee" style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:600,letterSpacing:"2.5px",textTransform:"uppercase",textDecoration:"none",color:"#dc3c3c",padding:"4px 2px 6px",textShadow:"0 0 12px rgba(220,60,60,.5)",transition:"color .2s"}}>Matinee</Link>
           <Link href="/contact" className="nl">Contact</Link>
           <Link href="/beryl-llm" className="llm-pill">
             <span className="llm-pill-dot"/>
@@ -136,6 +137,7 @@ export default function Nav() {
         <Link href="/demo" className="nl-mob" onClick={()=>setMenuOpen(false)}>Demo</Link>
         <a href="/#pricing" className="nl-mob" onClick={()=>setMenuOpen(false)}>Pricing</a>
         <Link href="/desktop" className="nl-mob" onClick={()=>setMenuOpen(false)}>Desktop</Link>
+        <Link href="/matinee" className="nl-mob" onClick={()=>setMenuOpen(false)} style={{color:"#dc3c3c",WebkitTextFillColor:"#dc3c3c"}}>Matinee</Link>
         <Link href="/contact" className="nl-mob" onClick={()=>setMenuOpen(false)}>Contact</Link>
         <Link href="/beryl-llm" className="nl-mob" onClick={()=>setMenuOpen(false)}>Beryl Diffusion</Link>
         <div style={{marginTop:32}}>

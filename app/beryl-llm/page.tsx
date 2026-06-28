@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Nav from "@/components/Nav";
+import MatineeBanner from "@/components/MatineeBanner";
 import { VIDEO, cdn } from "@/lib/cdn";
 
 // 6 showcase portraits (portrait-2 removed — duplicate redhead)
@@ -588,6 +589,9 @@ export default function BerylDiffusionPromo() {
       </section>
 
 
+
+      {/* ── MATINEE PROMO BANNER ── */}
+      <MatineeBanner />
 
       {/* ── CAPABILITIES ── */}
       <section style={{padding:"80px 24px",maxWidth:1100,margin:"0 auto"}}>
