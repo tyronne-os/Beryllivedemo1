@@ -114,18 +114,27 @@ export default function Nav() {
           <a href="/#pricing" className="nl">Pricing</a>
           <Link href="/desktop" className="nl">Desktop</Link>
           <Link href="/matinee" style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:600,letterSpacing:"2.5px",textTransform:"uppercase",textDecoration:"none",color:"#dc3c3c",padding:"4px 2px 6px",textShadow:"0 0 12px rgba(220,60,60,.5)",transition:"color .2s",display:"flex",alignItems:"center",gap:5}}>
-            <svg width="14" height="12" viewBox="0 0 14 12" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0,marginBottom:1}}>
-              {/* clapboard body */}
-              <rect x="0" y="3" width="14" height="9" rx="1" fill="#dc3c3c" opacity="0.85"/>
-              {/* clapboard top flap */}
-              <rect x="0" y="0" width="14" height="3.5" rx="1" fill="#dc3c3c"/>
-              {/* stripe marks on top flap */}
-              <line x1="2.5" y1="0" x2="1" y2="3.5" stroke="#fff" strokeWidth="1.2" opacity="0.7"/>
-              <line x1="5.5" y1="0" x2="4" y2="3.5" stroke="#fff" strokeWidth="1.2" opacity="0.7"/>
-              <line x1="8.5" y1="0" x2="7" y2="3.5" stroke="#fff" strokeWidth="1.2" opacity="0.7"/>
-              <line x1="11.5" y1="0" x2="10" y2="3.5" stroke="#fff" strokeWidth="1.2" opacity="0.7"/>
-              {/* hinge line */}
-              <line x1="0" y1="3.5" x2="14" y2="3.5" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+            {/* Clapboard: white body, clapper flap open/up at ~40° */}
+            <svg width="16" height="14" viewBox="0 0 16 14" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0}}>
+              {/* body */}
+              <rect x="0" y="4" width="16" height="10" rx="1.2" fill="white" opacity="0.92"/>
+              {/* body stripes (black on white) */}
+              <line x1="4"  y1="4" x2="4"  y2="14" stroke="rgba(0,0,0,0.15)" strokeWidth="1"/>
+              <line x1="8"  y1="4" x2="8"  y2="14" stroke="rgba(0,0,0,0.15)" strokeWidth="1"/>
+              <line x1="12" y1="4" x2="12" y2="14" stroke="rgba(0,0,0,0.15)" strokeWidth="1"/>
+              {/* hinge bar at top of body */}
+              <rect x="0" y="4" width="16" height="1.5" rx="0" fill="rgba(0,0,0,0.25)"/>
+              {/* clapper flap — rotated up ~40° from hinge at left edge */}
+              <g transform="rotate(-38, 0, 4)">
+                <rect x="0" y="1" width="16" height="3" rx="1" fill="white"/>
+                {/* diagonal stripes on flap */}
+                <line x1="2"  y1="1" x2="0.5" y2="4" stroke="rgba(0,0,0,0.4)" strokeWidth="1.1"/>
+                <line x1="5.5" y1="1" x2="4"  y2="4" stroke="rgba(0,0,0,0.4)" strokeWidth="1.1"/>
+                <line x1="9"  y1="1" x2="7.5" y2="4" stroke="rgba(0,0,0,0.4)" strokeWidth="1.1"/>
+                <line x1="12.5" y1="1" x2="11" y2="4" stroke="rgba(0,0,0,0.4)" strokeWidth="1.1"/>
+                {/* bottom edge of flap */}
+                <line x1="0" y1="4" x2="16" y2="4" stroke="rgba(0,0,0,0.3)" strokeWidth="0.8"/>
+              </g>
             </svg>
             Matinee
           </Link>
@@ -153,14 +162,20 @@ export default function Nav() {
         <a href="/#pricing" className="nl-mob" onClick={()=>setMenuOpen(false)}>Pricing</a>
         <Link href="/desktop" className="nl-mob" onClick={()=>setMenuOpen(false)}>Desktop</Link>
         <Link href="/matinee" className="nl-mob" onClick={()=>setMenuOpen(false)} style={{color:"#dc3c3c",WebkitTextFillColor:"#dc3c3c",display:"flex",alignItems:"center",gap:6}}>
-          <svg width="14" height="12" viewBox="0 0 14 12" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0}}>
-            <rect x="0" y="3" width="14" height="9" rx="1" fill="#dc3c3c" opacity="0.85"/>
-            <rect x="0" y="0" width="14" height="3.5" rx="1" fill="#dc3c3c"/>
-            <line x1="2.5" y1="0" x2="1" y2="3.5" stroke="#fff" strokeWidth="1.2" opacity="0.7"/>
-            <line x1="5.5" y1="0" x2="4" y2="3.5" stroke="#fff" strokeWidth="1.2" opacity="0.7"/>
-            <line x1="8.5" y1="0" x2="7" y2="3.5" stroke="#fff" strokeWidth="1.2" opacity="0.7"/>
-            <line x1="11.5" y1="0" x2="10" y2="3.5" stroke="#fff" strokeWidth="1.2" opacity="0.7"/>
-            <line x1="0" y1="3.5" x2="14" y2="3.5" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+          <svg width="16" height="14" viewBox="0 0 16 14" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0}}>
+            <rect x="0" y="4" width="16" height="10" rx="1.2" fill="white" opacity="0.92"/>
+            <line x1="4"  y1="4" x2="4"  y2="14" stroke="rgba(0,0,0,0.15)" strokeWidth="1"/>
+            <line x1="8"  y1="4" x2="8"  y2="14" stroke="rgba(0,0,0,0.15)" strokeWidth="1"/>
+            <line x1="12" y1="4" x2="12" y2="14" stroke="rgba(0,0,0,0.15)" strokeWidth="1"/>
+            <rect x="0" y="4" width="16" height="1.5" rx="0" fill="rgba(0,0,0,0.25)"/>
+            <g transform="rotate(-38, 0, 4)">
+              <rect x="0" y="1" width="16" height="3" rx="1" fill="white"/>
+              <line x1="2"  y1="1" x2="0.5" y2="4" stroke="rgba(0,0,0,0.4)" strokeWidth="1.1"/>
+              <line x1="5.5" y1="1" x2="4"  y2="4" stroke="rgba(0,0,0,0.4)" strokeWidth="1.1"/>
+              <line x1="9"  y1="1" x2="7.5" y2="4" stroke="rgba(0,0,0,0.4)" strokeWidth="1.1"/>
+              <line x1="12.5" y1="1" x2="11" y2="4" stroke="rgba(0,0,0,0.4)" strokeWidth="1.1"/>
+              <line x1="0" y1="4" x2="16" y2="4" stroke="rgba(0,0,0,0.3)" strokeWidth="0.8"/>
+            </g>
           </svg>
           Matinee
         </Link>

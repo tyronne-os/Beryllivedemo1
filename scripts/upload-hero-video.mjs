@@ -6,11 +6,18 @@
 import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { config } from "dotenv";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
-config({ path: join(root, ".env.local") });
+
+// Read .env.local manually (no dotenv dependency)
+const envPath = join(root, ".env.local");
+if (existsSync(envPath)) {
+  for (const line of readFileSync(envPath, "utf8").split("\n")) {
+    const m = line.match(/^([^#=]+)=(.*)$/);
+    if (m) process.env[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, "");
+  }
+}
 
 const HF_TOKEN = process.env.HUGGINGFACE_API_KEY;
 const HF_REPO  = "AIBRUH/beryl-matinee-gallery";
