@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+onlyBuiltDependencies:
+  - ffmpeg-static
+  - sharp
+  - unrs-resolver
+
 importers:
 
   .:
