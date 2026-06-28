@@ -204,7 +204,7 @@ export default function MatineePage() {
             </div>
 
             <div style={{display:"flex",gap:16,justifyContent:"center",flexWrap:"wrap"}}>
-              <a href="#pipeline" className="mat-hero-cta">View the Pipeline →</a>
+              <Link href="/matinee/studio" className="mat-hero-cta">Enter the Studio →</Link>
               <a href="#pipeline" style={{
                 display:"inline-block",padding:"18px 56px",
                 fontFamily:"'Cinzel',serif",fontSize:13,letterSpacing:3,textTransform:"uppercase",
@@ -368,9 +368,15 @@ export default function MatineePage() {
           <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,color:"rgba(232,220,200,.6)",maxWidth:560,margin:"0 auto 40px",lineHeight:1.9}}>
             Beryl Matinee opens early access to select studios and creators. Join the list and be the first to direct your AI cinema production.
           </p>
-          <Link href="/contact" className="mat-hero-cta">
-            Request Early Access →
-          </Link>
+          <div style={{display:"flex",gap:16,justifyContent:"center",flexWrap:"wrap"}}>
+            <Link href="/matinee/studio" className="mat-hero-cta">Enter the Studio →</Link>
+            <Link href="/contact" style={{
+              display:"inline-block",padding:"18px 48px",
+              fontFamily:"'Cinzel',serif",fontSize:13,letterSpacing:3,textTransform:"uppercase",
+              fontWeight:600,textDecoration:"none",color:"rgba(232,220,200,.65)",
+              border:"1px solid rgba(232,220,200,.2)",transition:"all .25s",
+            }}>Request Early Access</Link>
+          </div>
         </section>
 
       </div>

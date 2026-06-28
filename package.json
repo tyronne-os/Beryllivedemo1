@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@fal-ai/client": "^1.10.1",
     "@huggingface/hub": "^2.13.2",
     "@huggingface/inference": "^4.13.20",
     "@runwayml/sdk": "^4.3.0",
