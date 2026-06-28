@@ -59,7 +59,7 @@ export default function Nav() {
         .llm-pill-text { font-family:'Cinzel',serif; font-size:11px; font-weight:600; letter-spacing:2px; text-transform:uppercase; background:linear-gradient(135deg,#8B6914 0%,#c8a951 25%,#f5e070 50%,#c8a951 75%,#8B6914 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
 
         .logo-beryl { font-family:'Cinzel Decorative','Cinzel',serif; font-size:30px; font-weight:900; letter-spacing:3px; background:linear-gradient(110deg,#6b4f0a 0%,#c8a951 15%,#fff8c0 30%,#f5e070 40%,#fff8c0 50%,#c8a951 65%,#6b4f0a 100%); background-size:200% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation:logo-sweep 4s linear infinite,logo-glow 3s ease-in-out infinite; }
-        .logo-live  { font-family:'Cinzel',serif; font-size:21px; font-weight:400; letter-spacing:9px; background:linear-gradient(135deg,#3a8fa8 0%,#6bc8e0 40%,#1a5f7a 70%,#3a8fa8 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-left:8px; }
+        .logo-live  { font-family:'Cinzel',serif; font-size:21px; font-weight:400; letter-spacing:9px; background:linear-gradient(135deg,#1b5e20 0%,#4CAF50 40%,#a8e6a8 60%,#4CAF50 80%,#1b5e20 100%); background-size:200% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-left:8px; animation:logo-sweep 5s linear infinite; }
 
         /* Hamburger */
         .ham { display:none; flex-direction:column; justify-content:center; gap:5px; width:40px; height:40px; cursor:pointer; padding:6px; background:none; border:none; }
