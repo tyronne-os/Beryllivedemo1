@@ -58,8 +58,8 @@ export default function Nav() {
         .llm-pill:hover .llm-pill-dot { box-shadow:0 0 14px #f5e070,0 0 28px #c8a951; }
         .llm-pill-text { font-family:'Cinzel',serif; font-size:11px; font-weight:600; letter-spacing:2px; text-transform:uppercase; background:linear-gradient(135deg,#8B6914 0%,#c8a951 25%,#f5e070 50%,#c8a951 75%,#8B6914 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
 
-        .logo-beryl { font-family:'Cinzel Decorative','Cinzel',serif; font-size:30px; font-weight:900; letter-spacing:3px; background:linear-gradient(110deg,#6b4f0a 0%,#c8a951 15%,#fff8c0 30%,#f5e070 40%,#fff8c0 50%,#c8a951 65%,#6b4f0a 100%); background-size:200% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation:logo-sweep 4s linear infinite,logo-glow 3s ease-in-out infinite; }
-        .logo-live  { font-family:'Cinzel',serif; font-size:21px; font-weight:400; letter-spacing:9px; background:linear-gradient(135deg,#1b5e20 0%,#4CAF50 40%,#a8e6a8 60%,#4CAF50 80%,#1b5e20 100%); background-size:200% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-left:8px; animation:logo-sweep 5s linear infinite; }
+        .logo-beryl { font-family:'Cinzel Decorative','Cinzel',serif; font-size:35px; font-weight:900; letter-spacing:3px; background:linear-gradient(110deg,#6b4f0a 0%,#c8a951 15%,#fff8c0 30%,#f5e070 40%,#fff8c0 50%,#c8a951 65%,#6b4f0a 100%); background-size:200% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation:logo-sweep 4s linear infinite,logo-glow 3s ease-in-out infinite; }
+        .logo-live  { font-family:'Cinzel',serif; font-size:24px; font-weight:400; letter-spacing:9px; background:linear-gradient(135deg,#1b5e20 0%,#4CAF50 40%,#a8e6a8 60%,#4CAF50 80%,#1b5e20 100%); background-size:200% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-left:8px; animation:logo-sweep 5s linear infinite; }
 
         /* Hamburger */
         .ham { display:none; flex-direction:column; justify-content:center; gap:5px; width:40px; height:40px; cursor:pointer; padding:6px; background:none; border:none; }
@@ -81,12 +81,12 @@ export default function Nav() {
           .ham { display:flex !important; }
           .nav-links { display:none !important; }
           .cta-btn { display:none !important; }
-          .logo-beryl { font-size:22px !important; letter-spacing:1px !important; }
-          .logo-live  { font-size:15px !important; letter-spacing:5px !important; margin-left:5px !important; }
+          .logo-beryl { font-size:25px !important; letter-spacing:1px !important; }
+          .logo-live  { font-size:17px !important; letter-spacing:5px !important; margin-left:5px !important; }
         }
         @media (max-width: 480px) {
-          .logo-beryl { font-size:20px !important; }
-          .logo-live  { font-size:13px !important; letter-spacing:3px !important; }
+          .logo-beryl { font-size:23px !important; }
+          .logo-live  { font-size:15px !important; letter-spacing:3px !important; }
         }
       `}</style>
 
@@ -113,7 +113,22 @@ export default function Nav() {
           <Link href="/demo" className="nl">Demo</Link>
           <a href="/#pricing" className="nl">Pricing</a>
           <Link href="/desktop" className="nl">Desktop</Link>
-          <Link href="/matinee" style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:600,letterSpacing:"2.5px",textTransform:"uppercase",textDecoration:"none",color:"#dc3c3c",padding:"4px 2px 6px",textShadow:"0 0 12px rgba(220,60,60,.5)",transition:"color .2s"}}>Matinee</Link>
+          <Link href="/matinee" style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:600,letterSpacing:"2.5px",textTransform:"uppercase",textDecoration:"none",color:"#dc3c3c",padding:"4px 2px 6px",textShadow:"0 0 12px rgba(220,60,60,.5)",transition:"color .2s",display:"flex",alignItems:"center",gap:5}}>
+            <svg width="14" height="12" viewBox="0 0 14 12" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0,marginBottom:1}}>
+              {/* clapboard body */}
+              <rect x="0" y="3" width="14" height="9" rx="1" fill="#dc3c3c" opacity="0.85"/>
+              {/* clapboard top flap */}
+              <rect x="0" y="0" width="14" height="3.5" rx="1" fill="#dc3c3c"/>
+              {/* stripe marks on top flap */}
+              <line x1="2.5" y1="0" x2="1" y2="3.5" stroke="#fff" strokeWidth="1.2" opacity="0.7"/>
+              <line x1="5.5" y1="0" x2="4" y2="3.5" stroke="#fff" strokeWidth="1.2" opacity="0.7"/>
+              <line x1="8.5" y1="0" x2="7" y2="3.5" stroke="#fff" strokeWidth="1.2" opacity="0.7"/>
+              <line x1="11.5" y1="0" x2="10" y2="3.5" stroke="#fff" strokeWidth="1.2" opacity="0.7"/>
+              {/* hinge line */}
+              <line x1="0" y1="3.5" x2="14" y2="3.5" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+            </svg>
+            Matinee
+          </Link>
           <Link href="/contact" className="nl">Contact</Link>
           <Link href="/beryl-llm" className="llm-pill">
             <span className="llm-pill-dot"/>
@@ -137,7 +152,18 @@ export default function Nav() {
         <Link href="/demo" className="nl-mob" onClick={()=>setMenuOpen(false)}>Demo</Link>
         <a href="/#pricing" className="nl-mob" onClick={()=>setMenuOpen(false)}>Pricing</a>
         <Link href="/desktop" className="nl-mob" onClick={()=>setMenuOpen(false)}>Desktop</Link>
-        <Link href="/matinee" className="nl-mob" onClick={()=>setMenuOpen(false)} style={{color:"#dc3c3c",WebkitTextFillColor:"#dc3c3c"}}>Matinee</Link>
+        <Link href="/matinee" className="nl-mob" onClick={()=>setMenuOpen(false)} style={{color:"#dc3c3c",WebkitTextFillColor:"#dc3c3c",display:"flex",alignItems:"center",gap:6}}>
+          <svg width="14" height="12" viewBox="0 0 14 12" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0}}>
+            <rect x="0" y="3" width="14" height="9" rx="1" fill="#dc3c3c" opacity="0.85"/>
+            <rect x="0" y="0" width="14" height="3.5" rx="1" fill="#dc3c3c"/>
+            <line x1="2.5" y1="0" x2="1" y2="3.5" stroke="#fff" strokeWidth="1.2" opacity="0.7"/>
+            <line x1="5.5" y1="0" x2="4" y2="3.5" stroke="#fff" strokeWidth="1.2" opacity="0.7"/>
+            <line x1="8.5" y1="0" x2="7" y2="3.5" stroke="#fff" strokeWidth="1.2" opacity="0.7"/>
+            <line x1="11.5" y1="0" x2="10" y2="3.5" stroke="#fff" strokeWidth="1.2" opacity="0.7"/>
+            <line x1="0" y1="3.5" x2="14" y2="3.5" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+          </svg>
+          Matinee
+        </Link>
         <Link href="/contact" className="nl-mob" onClick={()=>setMenuOpen(false)}>Contact</Link>
         <Link href="/beryl-llm" className="nl-mob" onClick={()=>setMenuOpen(false)}>Beryl Diffusion</Link>
         <div style={{marginTop:32}}>
