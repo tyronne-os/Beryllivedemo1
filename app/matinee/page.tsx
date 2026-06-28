@@ -5,21 +5,13 @@ import { useRef, useEffect, useState } from "react";
 
 export default function MatineePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [muted, setMuted] = useState(false);
-
-  useEffect(()=>{
-    const v = videoRef.current;
-    if(!v) return;
-    // Start unmuted; browsers may block — fall back to muted then unmute on interaction
-    v.muted = false;
-    const p = v.play();
-    if(p) p.catch(()=>{ v.muted = true; setMuted(true); v.play().catch(()=>{}); });
-  },[]);
+  const [muted, setMuted] = useState(true);
 
   const toggleMute = ()=>{
     if(!videoRef.current) return;
-    videoRef.current.muted = !videoRef.current.muted;
-    setMuted(videoRef.current.muted);
+    const next = !videoRef.current.muted;
+    videoRef.current.muted = next;
+    setMuted(next);
   };
 
   return (
@@ -102,7 +94,7 @@ export default function MatineePage() {
           <video
             ref={videoRef}
             src="/videos/matinee-hero.mp4"
-            autoPlay loop playsInline
+            autoPlay loop playsInline muted={muted}
             style={{
               position:"absolute",inset:0,width:"100%",height:"100%",
               objectFit:"cover",zIndex:1,
