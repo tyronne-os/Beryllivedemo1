@@ -114,31 +114,21 @@ export default function Nav() {
           <a href="/#pricing" className="nl">Pricing</a>
           <Link href="/desktop" className="nl">Desktop</Link>
           <Link href="/matinee" style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:600,letterSpacing:"2.5px",textTransform:"uppercase",textDecoration:"none",color:"#dc3c3c",padding:"4px 2px 6px",textShadow:"0 0 12px rgba(220,60,60,.5)",transition:"color .2s",display:"flex",alignItems:"center",gap:5}}>
-            {/* Movie camera on tripod */}
+            {/* Movie camera on tripod — site green */}
             <svg width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0,opacity:0.9}}>
-              {/* camera body */}
-              <rect x="2" y="2" width="10" height="6.5" rx="1" fill="white" opacity="0.88"/>
-              {/* lens housing ring */}
-              <circle cx="6" cy="5.25" r="2.4" fill="#1a1a1a" stroke="white" strokeWidth="0.7"/>
-              {/* lens glass */}
-              <circle cx="6" cy="5.25" r="1.4" fill="#0a0a0a"/>
-              {/* lens highlight */}
-              <circle cx="5.3" cy="4.6" r="0.45" fill="white" opacity="0.6"/>
-              {/* film magazine on top */}
-              <rect x="5.5" y="0.5" width="4.5" height="1.8" rx="0.6" fill="white" opacity="0.75"/>
-              {/* eyepiece / viewfinder on right */}
-              <rect x="12" y="3.2" width="2.8" height="1.8" rx="0.5" fill="white" opacity="0.7"/>
-              <line x1="12" y1="4.1" x2="14.8" y2="4.1" stroke="rgba(0,0,0,0.3)" strokeWidth="0.5"/>
-              {/* handle knob on top right */}
-              <circle cx="11.5" cy="1.8" r="0.7" fill="white" opacity="0.6"/>
-              {/* tripod mount — center bottom of camera */}
-              <rect x="7" y="8.5" width="2" height="1.2" rx="0.3" fill="white" opacity="0.7"/>
-              {/* tripod legs */}
-              <line x1="8" y1="9.7" x2="2"  y2="15.5" stroke="white" strokeWidth="0.8" strokeLinecap="round" opacity="0.85"/>
-              <line x1="8" y1="9.7" x2="8"  y2="15.5" stroke="white" strokeWidth="0.8" strokeLinecap="round" opacity="0.85"/>
-              <line x1="8" y1="9.7" x2="14" y2="15.5" stroke="white" strokeWidth="0.8" strokeLinecap="round" opacity="0.85"/>
-              {/* spreader / cross brace */}
-              <line x1="3.5" y1="13.5" x2="12.5" y2="13.5" stroke="white" strokeWidth="0.6" strokeLinecap="round" opacity="0.5"/>
+              <rect x="2" y="2" width="10" height="6.5" rx="1" fill="#4CAF50"/>
+              <circle cx="6" cy="5.25" r="2.4" fill="#1b5e20" stroke="#4CAF50" strokeWidth="0.7"/>
+              <circle cx="6" cy="5.25" r="1.4" fill="#0a1a0a"/>
+              <circle cx="5.3" cy="4.6" r="0.45" fill="#a8e6a8" opacity="0.8"/>
+              <rect x="5.5" y="0.5" width="4.5" height="1.8" rx="0.6" fill="#4CAF50" opacity="0.8"/>
+              <rect x="12" y="3.2" width="2.8" height="1.8" rx="0.5" fill="#4CAF50" opacity="0.75"/>
+              <line x1="12" y1="4.1" x2="14.8" y2="4.1" stroke="#1b5e20" strokeWidth="0.5"/>
+              <circle cx="11.5" cy="1.8" r="0.7" fill="#4CAF50" opacity="0.7"/>
+              <rect x="7" y="8.5" width="2" height="1.2" rx="0.3" fill="#4CAF50" opacity="0.8"/>
+              <line x1="8" y1="9.7" x2="2"  y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
+              <line x1="8" y1="9.7" x2="8"  y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
+              <line x1="8" y1="9.7" x2="14" y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
+              <line x1="3.5" y1="13.5" x2="12.5" y2="13.5" stroke="#4CAF50" strokeWidth="0.6" strokeLinecap="round" opacity="0.6"/>
             </svg>
             Matinee
           </Link>
@@ -167,19 +157,19 @@ export default function Nav() {
         <Link href="/desktop" className="nl-mob" onClick={()=>setMenuOpen(false)}>Desktop</Link>
         <Link href="/matinee" className="nl-mob" onClick={()=>setMenuOpen(false)} style={{color:"#dc3c3c",WebkitTextFillColor:"#dc3c3c",display:"flex",alignItems:"center",gap:6}}>
           <svg width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0,opacity:0.9}}>
-            <rect x="2" y="2" width="10" height="6.5" rx="1" fill="white" opacity="0.88"/>
-            <circle cx="6" cy="5.25" r="2.4" fill="#1a1a1a" stroke="white" strokeWidth="0.7"/>
-            <circle cx="6" cy="5.25" r="1.4" fill="#0a0a0a"/>
-            <circle cx="5.3" cy="4.6" r="0.45" fill="white" opacity="0.6"/>
-            <rect x="5.5" y="0.5" width="4.5" height="1.8" rx="0.6" fill="white" opacity="0.75"/>
-            <rect x="12" y="3.2" width="2.8" height="1.8" rx="0.5" fill="white" opacity="0.7"/>
-            <line x1="12" y1="4.1" x2="14.8" y2="4.1" stroke="rgba(0,0,0,0.3)" strokeWidth="0.5"/>
-            <circle cx="11.5" cy="1.8" r="0.7" fill="white" opacity="0.6"/>
-            <rect x="7" y="8.5" width="2" height="1.2" rx="0.3" fill="white" opacity="0.7"/>
-            <line x1="8" y1="9.7" x2="2"  y2="15.5" stroke="white" strokeWidth="0.8" strokeLinecap="round" opacity="0.85"/>
-            <line x1="8" y1="9.7" x2="8"  y2="15.5" stroke="white" strokeWidth="0.8" strokeLinecap="round" opacity="0.85"/>
-            <line x1="8" y1="9.7" x2="14" y2="15.5" stroke="white" strokeWidth="0.8" strokeLinecap="round" opacity="0.85"/>
-            <line x1="3.5" y1="13.5" x2="12.5" y2="13.5" stroke="white" strokeWidth="0.6" strokeLinecap="round" opacity="0.5"/>
+            <rect x="2" y="2" width="10" height="6.5" rx="1" fill="#4CAF50"/>
+            <circle cx="6" cy="5.25" r="2.4" fill="#1b5e20" stroke="#4CAF50" strokeWidth="0.7"/>
+            <circle cx="6" cy="5.25" r="1.4" fill="#0a1a0a"/>
+            <circle cx="5.3" cy="4.6" r="0.45" fill="#a8e6a8" opacity="0.8"/>
+            <rect x="5.5" y="0.5" width="4.5" height="1.8" rx="0.6" fill="#4CAF50" opacity="0.8"/>
+            <rect x="12" y="3.2" width="2.8" height="1.8" rx="0.5" fill="#4CAF50" opacity="0.75"/>
+            <line x1="12" y1="4.1" x2="14.8" y2="4.1" stroke="#1b5e20" strokeWidth="0.5"/>
+            <circle cx="11.5" cy="1.8" r="0.7" fill="#4CAF50" opacity="0.7"/>
+            <rect x="7" y="8.5" width="2" height="1.2" rx="0.3" fill="#4CAF50" opacity="0.8"/>
+            <line x1="8" y1="9.7" x2="2"  y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
+            <line x1="8" y1="9.7" x2="8"  y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
+            <line x1="8" y1="9.7" x2="14" y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
+            <line x1="3.5" y1="13.5" x2="12.5" y2="13.5" stroke="#4CAF50" strokeWidth="0.6" strokeLinecap="round" opacity="0.6"/>
           </svg>
           Matinee
         </Link>
