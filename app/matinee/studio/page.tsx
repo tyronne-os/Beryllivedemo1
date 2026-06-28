@@ -4,20 +4,26 @@ import Nav from "@/components/Nav";
 import Link from "next/link";
 
 // ── Types ──────────────────────────────────────────────────────────────────
-interface Message { role: "user" | "assistant"; content: string; }
 interface Scene {
-  index: number; title: string; description: string; location: string;
-  camera: string; emotion: string; status: "pending"|"generating"|"ready"|"error";
+  id: string; index: number; title: string; description: string; location: string;
+  camera: string; emotion: string; colorGrade: string;
+  status: "pending"|"generating"|"ready"|"error";
   videoUrl?: string; thumbnail?: string;
+}
+interface StitchResult {
+  filmTitle: string; narrativeArc: string; playlist: unknown[];
+  editorial: { colorConsistency?: {grade:string;rationale:string}; pacing?: {overallTempo:string;note:string}; filmNote?: string };
+  totalScenes: number; estimatedRuntime: string; status: string;
 }
 interface ProjectState {
   title: string; style: "photorealistic"|"pixar"|"anime";
   tier: "preview"|"production"|"premium"|"ultra";
-  phase: "idle"|"screenplay"|"storyboard"|"generating"|"complete";
+  phase: "idle"|"screenplay"|"storyboard"|"generating"|"stitching"|"complete";
   scenes: Scene[]; characters: {id:string;name:string;description:string}[];
   progress: number;
-  audioUrl?: string;      // for Wan2.2-S2V free tiers
-  referenceImageUrl?: string; // for Wan2.2-S2V free tiers
+  audioUrl?: string;
+  referenceImageUrl?: string;
+  stitchResult?: StitchResult;
 }
 
 const TIER_INFO = {
@@ -48,17 +54,21 @@ export default function MatineeStudio() {
   // ── Voice agent state ──────────────────────────────────────────────────────
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState<{role:"user"|"vera";text:string}[]>([]);
-  const [orbLevel, setOrbLevel] = useState(0); // 0–1 audio amplitude
+  const [orbLevel, setOrbLevel] = useState(0);
+  const [sceneBuilding, setSceneBuilding] = useState<string|null>(null); // title of scene being queued
+  const [stitching, setStitching] = useState(false);
   const pcRef = useRef<RTCPeerConnection|null>(null);
   const dcRef = useRef<RTCDataChannel|null>(null);
   const audioElRef = useRef<HTMLAudioElement|null>(null);
   const analyserRef = useRef<AnalyserNode|null>(null);
   const animFrameRef = useRef<number>(0);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+  // Keep a ref to project so async handlers always see latest state
+  const projectRef = useRef(project);
+  useEffect(()=>{ projectRef.current = project; },[project]);
 
   useEffect(()=>{ transcriptEndRef.current?.scrollIntoView({behavior:"smooth"}); },[transcript]);
 
-  // Audio level animation loop
   const startLevelLoop = useCallback((analyser: AnalyserNode)=>{
     const buf = new Uint8Array(analyser.frequencyBinCount);
     const loop = ()=>{
@@ -80,26 +90,134 @@ export default function MatineeStudio() {
     setVoiceState("idle");
   },[]);
 
+  // ── Tool: generate_scene ───────────────────────────────────────────────────
+  const handleGenerateScene = useCallback(async(args: {
+    sceneNumber: number; title: string; description: string;
+    mood: string; cameraWork?: string; colorGrade?: string; location?: string;
+  }, callId: string)=>{
+    const sceneId = `scene-${Date.now()}`;
+    const newScene: Scene = {
+      id: sceneId,
+      index: args.sceneNumber - 1,
+      title: args.title,
+      description: args.description,
+      location: args.location ?? "Unknown",
+      camera: args.cameraWork ?? "cinematic",
+      emotion: args.mood,
+      colorGrade: args.colorGrade ?? "cinematic",
+      status: "generating",
+    };
+
+    setSceneBuilding(args.title);
+    setProject(p=>({ ...p, scenes: [...p.scenes, newScene], phase:"generating" }));
+
+    // Send function result back to Vera immediately (non-blocking)
+    const dc = dcRef.current;
+    if(dc?.readyState==="open"){
+      dc.send(JSON.stringify({
+        type:"conversation.item.create",
+        item:{
+          type:"function_call_output",
+          call_id: callId,
+          output: JSON.stringify({ success:true, sceneId, message:`Scene "${args.title}" queued for generation.` }),
+        },
+      }));
+      dc.send(JSON.stringify({ type:"response.create" }));
+    }
+
+    // Fire generation API
+    try {
+      const p = projectRef.current;
+      const body: Record<string,unknown> = {
+        prompt: args.description,
+        style: p.style,
+        tier: p.tier,
+        duration: 10,
+      };
+      if(p.tier==="preview"||p.tier==="production"){
+        body.referenceImageUrl = p.referenceImageUrl;
+        body.audioUrl = p.audioUrl;
+      }
+      const res = await fetch("/api/matinee/generate", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      setProject(p=>({
+        ...p,
+        scenes: p.scenes.map(s=>s.id===sceneId
+          ? {...s, status: data.videoUrl?"ready":"error", videoUrl: data.videoUrl}
+          : s
+        ),
+      }));
+      setActiveScene(prev=>prev); // keep selection
+    } catch {
+      setProject(p=>({
+        ...p,
+        scenes: p.scenes.map(s=>s.id===sceneId ? {...s,status:"error"} : s),
+      }));
+    }
+    setSceneBuilding(null);
+  },[]);
+
+  // ── Tool: request_stitch ───────────────────────────────────────────────────
+  const handleRequestStitch = useCallback(async(args: {
+    filmTitle: string; narrativeArc: string; genre?: string;
+  }, callId: string)=>{
+    const dc = dcRef.current;
+    if(dc?.readyState==="open"){
+      dc.send(JSON.stringify({
+        type:"conversation.item.create",
+        item:{
+          type:"function_call_output",
+          call_id: callId,
+          output: JSON.stringify({ success:true, message:"Auto-stitch agent is assembling your film now." }),
+        },
+      }));
+      dc.send(JSON.stringify({ type:"response.create" }));
+    }
+
+    setStitching(true);
+    setProject(p=>({...p, title: args.filmTitle, phase:"stitching"}));
+
+    try {
+      const p = projectRef.current;
+      const res = await fetch("/api/matinee/stitch", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          scenes: p.scenes,
+          filmTitle: args.filmTitle,
+          narrativeArc: args.narrativeArc,
+          genre: args.genre,
+          style: p.style,
+        }),
+      });
+      const data = await res.json();
+      setProject(prev=>({...prev, stitchResult: data, phase:"complete"}));
+    } catch {
+      setProject(p=>({...p, phase:"complete"}));
+    }
+    setStitching(false);
+  },[]);
+
   const startSession = useCallback(async()=>{
     if(voiceState!=="idle") { stopSession(); return; }
     setVoiceState("connecting");
     try {
-      // 1. Get ephemeral token
       const tokenRes = await fetch("/api/matinee/realtime-token", { method:"POST" });
       if(!tokenRes.ok) throw new Error("token fetch failed");
       const { token } = await tokenRes.json();
 
-      // 2. Set up WebRTC peer connection
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
 
-      // 3. Remote audio → <audio> element
       const audioEl = document.createElement("audio");
       audioEl.autoplay = true;
       audioElRef.current = audioEl;
       pc.ontrack = (e)=>{
         audioEl.srcObject = e.streams[0];
-        // Tap audio stream for orb level
         const ctx = new AudioContext();
         const src = ctx.createMediaStreamSource(e.streams[0]);
         const analyser = ctx.createAnalyser();
@@ -110,31 +228,50 @@ export default function MatineeStudio() {
         setVoiceState("speaking");
       };
 
-      // 4. Microphone → peer connection
       const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
       stream.getTracks().forEach(t=>pc.addTrack(t,stream));
 
-      // 5. Data channel for events
       const dc = pc.createDataChannel("oai-events");
       dcRef.current = dc;
+
+      // Accumulate function call args across streaming deltas
+      const pendingCalls: Record<string,{name:string;args:string}> = {};
+
       dc.onmessage = (e)=>{
         try {
           const ev = JSON.parse(e.data);
-          if(ev.type==="conversation.item.input_audio_transcription.completed") {
+
+          if(ev.type==="conversation.item.input_audio_transcription.completed")
             setTranscript(t=>[...t,{role:"user",text:ev.transcript}]);
-            setVoiceState("listening");
-          }
-          if(ev.type==="response.audio_transcript.done") {
+          if(ev.type==="response.audio_transcript.done")
             setTranscript(t=>[...t,{role:"vera",text:ev.transcript}]);
-            setVoiceState("listening");
-          }
           if(ev.type==="input_audio_buffer.speech_started") setVoiceState("listening");
           if(ev.type==="response.audio.started") setVoiceState("speaking");
+          if(ev.type==="response.audio.done") setVoiceState("listening");
+
+          // Tool call accumulation
+          if(ev.type==="response.output_item.added" && ev.item?.type==="function_call"){
+            pendingCalls[ev.item.call_id] = { name: ev.item.name, args:"" };
+          }
+          if(ev.type==="response.function_call_arguments.delta" && ev.call_id){
+            if(pendingCalls[ev.call_id]) pendingCalls[ev.call_id].args += ev.delta;
+          }
+          if(ev.type==="response.function_call_arguments.done" && ev.call_id){
+            const call = pendingCalls[ev.call_id];
+            if(!call) return;
+            let args: Record<string,unknown> = {};
+            try { args = JSON.parse(ev.arguments ?? call.args); } catch {}
+            delete pendingCalls[ev.call_id];
+
+            if(call.name==="generate_scene")
+              handleGenerateScene(args as Parameters<typeof handleGenerateScene>[0], ev.call_id);
+            if(call.name==="request_stitch")
+              handleRequestStitch(args as Parameters<typeof handleRequestStitch>[0], ev.call_id);
+          }
         } catch {}
       };
       dc.onopen = ()=>setVoiceState("listening");
 
-      // 6. SDP offer → OpenAI Realtime
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       const sdpRes = await fetch(
@@ -146,17 +283,15 @@ export default function MatineeStudio() {
         }
       );
       if(!sdpRes.ok) throw new Error("SDP exchange failed");
-      const answer: RTCSessionDescriptionInit = { type:"answer", sdp: await sdpRes.text() };
-      await pc.setRemoteDescription(answer);
+      await pc.setRemoteDescription({ type:"answer", sdp: await sdpRes.text() });
 
     } catch(err) {
       console.error("Realtime session error:", err);
       setVoiceState("error");
       stopSession();
     }
-  },[voiceState,stopSession,startLevelLoop]);
+  },[voiceState,stopSession,startLevelLoop,handleGenerateScene,handleRequestStitch]);
 
-  // Cleanup on unmount
   useEffect(()=>()=>stopSession(),[stopSession]);
 
   // Generation progress simulator
@@ -197,6 +332,7 @@ export default function MatineeStudio() {
         @keyframes gen-blink{0%,100%{border-color:rgba(220,60,60,.3)}50%{border-color:rgba(220,60,60,.8)}}
 
         /* ── VOICE ORB ── */
+        @keyframes stitch-scan{0%{left:-100%}100%{left:200%}}
         @keyframes orb-idle{0%,100%{transform:scale(1);opacity:.7}50%{transform:scale(1.06);opacity:1}}
         @keyframes ring-breathe{0%,100%{transform:scale(1);opacity:.25}50%{transform:scale(1.18);opacity:.08}}
         @keyframes ring-pulse{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.2);opacity:0}}
@@ -330,16 +466,21 @@ export default function MatineeStudio() {
             )}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
+            {sceneBuilding && (
+              <span style={{fontFamily:"'Roboto Mono',monospace",fontSize:9,color:"#c8a951",animation:"pulse-dot 1s ease-in-out infinite"}}>
+                ● Queuing "{sceneBuilding}"…
+              </span>
+            )}
             <span style={{fontFamily:"'Roboto Mono',monospace",fontSize:10,color:"rgba(232,220,200,.3)"}}>
               {project.scenes.filter(s=>s.status==="ready").length}/{project.scenes.length} scenes ready
             </span>
-            <button onClick={startGeneration} disabled={generating} style={{
+            <button onClick={startGeneration} disabled={generating||stitching} style={{
               fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:2,textTransform:"uppercase",
-              padding:"8px 20px",background:generating?"#333":"linear-gradient(135deg,#6b0a0a,#dc3c3c,#ff6060)",
-              color:generating?"#666":"#fff",border:"none",cursor:generating?"default":"pointer",
+              padding:"8px 20px",background:(generating||stitching)?"#333":"linear-gradient(135deg,#1a4a1a,#2d7a2d,#4CAF50)",
+              color:(generating||stitching)?"#666":"#fff",border:"none",cursor:(generating||stitching)?"default":"pointer",
               transition:"opacity .2s",animation:generating?"gen-blink 1s ease-in-out infinite":"none",
             }}>
-              {generating?"● Generating…":"⬤ Start Production"}
+              {stitching?"◈ Assembling…":generating?"● Generating…":"⬤ Start Production"}
             </button>
             <Link href="/matinee" style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:2,color:"rgba(232,220,200,.4)",textDecoration:"none",textTransform:"uppercase"}}>
               ← Back
@@ -347,12 +488,15 @@ export default function MatineeStudio() {
           </div>
         </div>
 
-        {/* ── PROGRESS BAR (when generating) ── */}
-        {project.phase==="generating" && (
-          <div style={{height:2,background:"rgba(255,255,255,.05)",position:"relative"}}>
+        {/* ── PROGRESS BAR ── */}
+        {(project.phase==="generating"||project.phase==="stitching") && (
+          <div style={{height:2,background:"rgba(255,255,255,.05)",position:"relative",overflow:"hidden"}}>
             <div style={{
-              position:"absolute",left:0,top:0,height:"100%",width:`${project.progress}%`,
-              background:"linear-gradient(to right,#6b0a0a,#dc3c3c,#ff8080,#dc3c3c)",
+              position:"absolute",left:0,top:0,height:"100%",
+              width: project.phase==="stitching"?"100%":`${project.progress}%`,
+              background: project.phase==="stitching"
+                ? "linear-gradient(to right,#1a4a1a,#4CAF50,#a8e6a8,#4CAF50)"
+                : "linear-gradient(to right,#1a4a1a,#2d7a2d,#4CAF50,#2d7a2d)",
               backgroundSize:"300% auto",animation:"progress-shine 1.5s linear infinite",
               transition:"width .3s",
             }}/>
@@ -747,11 +891,26 @@ export default function MatineeStudio() {
                       Generating with {TIER_INFO[project.tier]?.model} · {TIER_INFO[project.tier]?.maxLabel} max…
                     </div>
                   </div>
+                ) : project.phase==="stitching" ? (
+                  <div style={{textAlign:"center",padding:"40px"}}>
+                    <div style={{width:48,height:48,borderRadius:"50%",border:"2px solid rgba(76,175,80,.3)",
+                      borderTopColor:"#4CAF50",margin:"0 auto 20px",
+                      animation:"scan-v 1s linear infinite"}}/>
+                    <div style={{fontFamily:"'Cinzel',serif",fontSize:13,color:"#4CAF50",letterSpacing:2,marginBottom:8}}>
+                      Auto-Stitch Agent Running
+                    </div>
+                    <div style={{fontFamily:"'Roboto Mono',monospace",fontSize:9,color:"rgba(232,220,200,.4)",letterSpacing:1,lineHeight:2}}>
+                      Analysing scenes · Designing editorial cuts<br/>
+                      Calculating transitions · Building film playlist
+                    </div>
+                  </div>
                 ) : (
                   <div style={{textAlign:"center",padding:"40px"}}>
                     <div style={{fontSize:32,marginBottom:16,opacity:.3}}>🎬</div>
                     <div style={{fontFamily:"'Cinzel',serif",fontSize:11,color:"rgba(232,220,200,.3)",letterSpacing:2,lineHeight:1.8}}>
-                      Awaiting generation.<br/>Press "Start Production" to begin.
+                      {voiceState==="idle"
+                        ? <>Connect to Vera and describe<br/>your first scene to begin.</>
+                        : <>Tell Vera what you want to film —<br/>she'll build it automatically.</>}
                     </div>
                   </div>
                 )}
@@ -778,6 +937,47 @@ export default function MatineeStudio() {
                   </div>
                 ))}
               </div>
+
+              {/* ── STITCH RESULT ── */}
+              {project.stitchResult && (
+                <div style={{
+                  borderTop:"1px solid rgba(76,175,80,.2)",
+                  background:"rgba(20,40,20,.6)",
+                  padding:"12px 16px",
+                  maxHeight:160,overflowY:"auto",
+                }}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                    <div style={{fontFamily:"'Cinzel Decorative',serif",fontSize:11,
+                      background:"linear-gradient(135deg,#2d7a2d,#4CAF50,#a8e6a8)",
+                      WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",
+                      letterSpacing:2}}>
+                      ◈ FILM ASSEMBLED · {project.stitchResult.totalScenes} SCENES
+                    </div>
+                    <span style={{fontFamily:"'Roboto Mono',monospace",fontSize:8,color:"rgba(76,175,80,.6)"}}>
+                      {project.stitchResult.estimatedRuntime}
+                    </span>
+                  </div>
+                  {project.stitchResult.editorial?.colorConsistency && (
+                    <div style={{fontFamily:"'Roboto Mono',monospace",fontSize:8,color:"rgba(232,220,200,.45)",lineHeight:1.7,marginBottom:6}}>
+                      <span style={{color:"rgba(76,175,80,.7)"}}>COLOR GRADE</span>{" "}
+                      {project.stitchResult.editorial.colorConsistency.grade}
+                    </div>
+                  )}
+                  {project.stitchResult.editorial?.pacing && (
+                    <div style={{fontFamily:"'Roboto Mono',monospace",fontSize:8,color:"rgba(232,220,200,.45)",lineHeight:1.7,marginBottom:6}}>
+                      <span style={{color:"rgba(76,175,80,.7)"}}>PACING</span>{" "}
+                      {project.stitchResult.editorial.pacing.overallTempo} — {project.stitchResult.editorial.pacing.note}
+                    </div>
+                  )}
+                  {project.stitchResult.editorial?.filmNote && (
+                    <div style={{fontFamily:"'Cinzel',serif",fontSize:10,color:"rgba(232,220,200,.55)",
+                      lineHeight:1.75,borderTop:"1px solid rgba(76,175,80,.1)",paddingTop:8,marginTop:4,
+                      fontStyle:"italic"}}>
+                      "{project.stitchResult.editorial.filmNote}"
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Playback controls */}
               <div style={{
