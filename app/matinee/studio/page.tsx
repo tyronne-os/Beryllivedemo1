@@ -27,40 +27,139 @@ const TIER_INFO = {
   ultra:      { model:"Seedance 2.5 T2V",  maxSec:30,   maxLabel:"30 sec",  free:false, audio:"Native audio+video (text-to-video)" },
 };
 
-// ── Demo scenes (shown before user generates) ──────────────────────────────
-const DEMO_SCENES: Scene[] = [
-  {index:0,title:"The Setup",description:"Two figures face off on a rain-slicked rooftop, city lights blurring below.",location:"Rooftop · Night",camera:"Wide establishing, slow push in",emotion:"Tension",status:"ready"},
-  {index:1,title:"The Chase Begins",description:"A black sedan tears through a crowded market, scattering vendors.",location:"Night Market · Dusk",camera:"Low tracking shot, handheld",emotion:"Urgency",status:"ready"},
-  {index:2,title:"Near Miss",description:"Cars collide at an intersection — one spins, sparks flying, pedestrians scatter.",location:"Downtown Intersection",camera:"Dutch angle, crash cam",emotion:"Shock",status:"ready"},
-  {index:3,title:"The Alley",description:"On foot now. Protagonist sprints through a narrow alley, breathing hard.",location:"Back Alley · Night",camera:"POV chase cam, extreme close-up",emotion:"Fear / Determination",status:"generating"},
-  {index:4,title:"Confrontation",description:"They face each other in an abandoned warehouse, harsh industrial light above.",location:"Warehouse · Interior",camera:"Slow zoom, tight two-shot",emotion:"Reckoning",status:"pending"},
-  {index:5,title:"The Reveal",description:"A hand opens to reveal a photograph. Everything changes.",location:"Warehouse · Close",camera:"Extreme close-up → pull back",emotion:"Devastation",status:"pending"},
-];
-
 const EMOTION_COLORS: Record<string,string> = {
   Tension:"#c8a951",Urgency:"#dc3c3c",Shock:"#ff6b6b",
   Fear:"#8b4513","Fear / Determination":"#dc3c3c",Reckoning:"#4a9ab5",Devastation:"#6b4f8b",
 };
 
 // ── Component ──────────────────────────────────────────────────────────────
+// ── Voice orb state ────────────────────────────────────────────────────────
+type VoiceState = "idle"|"connecting"|"listening"|"speaking"|"error";
+
 export default function MatineeStudio() {
-  const [messages, setMessages] = useState<Message[]>([
-    {role:"assistant", content:"Director online. I've preloaded a cinematic car-chase sequence to demonstrate the pipeline. Type your own story prompt to begin a new production, or adjust style and quality settings on the left."},
-  ]);
-  const [input, setInput] = useState("");
-  const [typing, setTyping] = useState(false);
   const [project, setProject] = useState<ProjectState>({
     title:"Untitled Production", style:"photorealistic", tier:"preview",
-    phase:"idle", scenes:DEMO_SCENES, characters:[], progress:0,
+    phase:"idle", scenes:[], characters:[], progress:0,
   });
   const [activeScene, setActiveScene] = useState(0);
   const [sidebarTab, setSidebarTab] = useState<"scenes"|"characters"|"settings">("scenes");
   const [generating, setGenerating] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(()=>{ chatEndRef.current?.scrollIntoView({behavior:"smooth"}); },[messages]);
+  // ── Voice agent state ──────────────────────────────────────────────────────
+  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
+  const [transcript, setTranscript] = useState<{role:"user"|"vera";text:string}[]>([]);
+  const [orbLevel, setOrbLevel] = useState(0); // 0–1 audio amplitude
+  const pcRef = useRef<RTCPeerConnection|null>(null);
+  const dcRef = useRef<RTCDataChannel|null>(null);
+  const audioElRef = useRef<HTMLAudioElement|null>(null);
+  const analyserRef = useRef<AnalyserNode|null>(null);
+  const animFrameRef = useRef<number>(0);
+  const transcriptEndRef = useRef<HTMLDivElement>(null);
 
-  // Simulate scene generation progress for demo
+  useEffect(()=>{ transcriptEndRef.current?.scrollIntoView({behavior:"smooth"}); },[transcript]);
+
+  // Audio level animation loop
+  const startLevelLoop = useCallback((analyser: AnalyserNode)=>{
+    const buf = new Uint8Array(analyser.frequencyBinCount);
+    const loop = ()=>{
+      analyser.getByteFrequencyData(buf);
+      const avg = buf.reduce((a,b)=>a+b,0)/buf.length;
+      setOrbLevel(avg/255);
+      animFrameRef.current = requestAnimationFrame(loop);
+    };
+    loop();
+  },[]);
+
+  const stopSession = useCallback(()=>{
+    cancelAnimationFrame(animFrameRef.current);
+    dcRef.current?.close();
+    pcRef.current?.close();
+    pcRef.current = null;
+    dcRef.current = null;
+    setOrbLevel(0);
+    setVoiceState("idle");
+  },[]);
+
+  const startSession = useCallback(async()=>{
+    if(voiceState!=="idle") { stopSession(); return; }
+    setVoiceState("connecting");
+    try {
+      // 1. Get ephemeral token
+      const tokenRes = await fetch("/api/matinee/realtime-token", { method:"POST" });
+      if(!tokenRes.ok) throw new Error("token fetch failed");
+      const { token } = await tokenRes.json();
+
+      // 2. Set up WebRTC peer connection
+      const pc = new RTCPeerConnection();
+      pcRef.current = pc;
+
+      // 3. Remote audio → <audio> element
+      const audioEl = document.createElement("audio");
+      audioEl.autoplay = true;
+      audioElRef.current = audioEl;
+      pc.ontrack = (e)=>{
+        audioEl.srcObject = e.streams[0];
+        // Tap audio stream for orb level
+        const ctx = new AudioContext();
+        const src = ctx.createMediaStreamSource(e.streams[0]);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        src.connect(analyser);
+        analyserRef.current = analyser;
+        startLevelLoop(analyser);
+        setVoiceState("speaking");
+      };
+
+      // 4. Microphone → peer connection
+      const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+      stream.getTracks().forEach(t=>pc.addTrack(t,stream));
+
+      // 5. Data channel for events
+      const dc = pc.createDataChannel("oai-events");
+      dcRef.current = dc;
+      dc.onmessage = (e)=>{
+        try {
+          const ev = JSON.parse(e.data);
+          if(ev.type==="conversation.item.input_audio_transcription.completed") {
+            setTranscript(t=>[...t,{role:"user",text:ev.transcript}]);
+            setVoiceState("listening");
+          }
+          if(ev.type==="response.audio_transcript.done") {
+            setTranscript(t=>[...t,{role:"vera",text:ev.transcript}]);
+            setVoiceState("listening");
+          }
+          if(ev.type==="input_audio_buffer.speech_started") setVoiceState("listening");
+          if(ev.type==="response.audio.started") setVoiceState("speaking");
+        } catch {}
+      };
+      dc.onopen = ()=>setVoiceState("listening");
+
+      // 6. SDP offer → OpenAI Realtime
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      const sdpRes = await fetch(
+        `https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17`,
+        {
+          method:"POST",
+          headers:{ Authorization:`Bearer ${token}`, "Content-Type":"application/sdp" },
+          body: offer.sdp,
+        }
+      );
+      if(!sdpRes.ok) throw new Error("SDP exchange failed");
+      const answer: RTCSessionDescriptionInit = { type:"answer", sdp: await sdpRes.text() };
+      await pc.setRemoteDescription(answer);
+
+    } catch(err) {
+      console.error("Realtime session error:", err);
+      setVoiceState("error");
+      stopSession();
+    }
+  },[voiceState,stopSession,startLevelLoop]);
+
+  // Cleanup on unmount
+  useEffect(()=>()=>stopSession(),[stopSession]);
+
+  // Generation progress simulator
   useEffect(()=>{
     const iv = setInterval(()=>{
       setProject(p=>{
@@ -73,68 +172,10 @@ export default function MatineeStudio() {
     return ()=>clearInterval(iv);
   },[project.phase]);
 
-  const sendMessage = useCallback(async()=>{
-    if(!input.trim()||typing) return;
-    const userMsg: Message = {role:"user",content:input.trim()};
-    setMessages(m=>[...m,userMsg]);
-    setInput("");
-    setTyping(true);
-
-    // Detect if it's a generation request
-    const isGenerate = /generate|create|make|start|produce|shoot|film|render/i.test(input);
-    if(isGenerate){
-      setProject(p=>({...p,phase:"screenplay",progress:5}));
-      await new Promise(r=>setTimeout(r,800));
-      setMessages(m=>[...m,{role:"assistant",content:`Cut! Beginning production on "${input.slice(0,40)}…". Running screenplay agent through Llama 4 Maverick. Storyboard drops next.`}]);
-      setProject(p=>({...p,phase:"storyboard",progress:20}));
-      await new Promise(r=>setTimeout(r,1200));
-      setMessages(m=>[...m,{role:"assistant",content:"Storyboard locked. 6 scenes mapped. Character consistency sheets generated. Sending to video generation tier now."}]);
-      setProject(p=>({...p,phase:"generating",progress:30}));
-      setTyping(false);
-      return;
-    }
-
-    // Director chat via API
-    try {
-      const res = await fetch("/api/matinee/chat",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({messages:[...messages,userMsg], projectState:{phase:project.phase,title:project.title,style:project.style,tier:project.tier}}),
-      });
-      if(!res.ok||!res.body){throw new Error("stream failed");}
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let assistantText="";
-      setMessages(m=>[...m,{role:"assistant",content:""}]);
-      while(true){
-        const {done,value}=await reader.read();
-        if(done) break;
-        const chunk=decoder.decode(value);
-        const lines=chunk.split("\n").filter(l=>l.startsWith("data:"));
-        for(const line of lines){
-          const data=line.slice(5).trim();
-          if(data==="[DONE]") break;
-          try{
-            const parsed=JSON.parse(data);
-            const delta=parsed.choices?.[0]?.delta?.content??"";
-            assistantText+=delta;
-            setMessages(m=>[...m.slice(0,-1),{role:"assistant",content:assistantText}]);
-          }catch{}
-        }
-      }
-    } catch {
-      setMessages(m=>[...m,{role:"assistant",content:"Director connection momentarily interrupted. Try again or use a generation command."}]);
-    }
-    setTyping(false);
-  },[input,typing,messages,project]);
-
-  const handleKey = (e: React.KeyboardEvent)=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} };
-
   const startGeneration = ()=>{
     if(generating) return;
     setGenerating(true);
     setProject(p=>({...p,phase:"generating",progress:0}));
-    setMessages(m=>[...m,{role:"assistant",content:`Production rolling. ${project.tier.toUpperCase()} tier · ${project.style} style. Generating all ${project.scenes.length} scenes in parallel via Celery workers.`}]);
     setTimeout(()=>setGenerating(false),8000);
   };
 
@@ -155,20 +196,54 @@ export default function MatineeStudio() {
         @keyframes progress-shine{0%{background-position:200% center}100%{background-position:-200% center}}
         @keyframes gen-blink{0%,100%{border-color:rgba(220,60,60,.3)}50%{border-color:rgba(220,60,60,.8)}}
 
+        /* ── VOICE ORB ── */
+        @keyframes orb-idle{0%,100%{transform:scale(1);opacity:.7}50%{transform:scale(1.06);opacity:1}}
+        @keyframes ring-breathe{0%,100%{transform:scale(1);opacity:.25}50%{transform:scale(1.18);opacity:.08}}
+        @keyframes ring-pulse{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.2);opacity:0}}
+        @keyframes vera-label{0%,100%{opacity:.4}50%{opacity:.9}}
+        @keyframes transcript-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+        .orb-core{
+          border-radius:50%;
+          background:radial-gradient(circle at 35% 35%,
+            rgba(220,60,60,.9) 0%, rgba(139,26,26,.8) 45%, rgba(30,8,8,.95) 100%);
+          box-shadow:
+            0 0 40px rgba(220,60,60,.35),
+            0 0 80px rgba(220,60,60,.15),
+            inset 0 1px 0 rgba(255,200,200,.2);
+          transition:transform .1s ease-out,box-shadow .15s ease;
+          position:relative;
+        }
+        .orb-core.speaking{
+          box-shadow:
+            0 0 60px rgba(200,169,81,.5),
+            0 0 120px rgba(200,169,81,.2),
+            inset 0 1px 0 rgba(255,240,180,.3);
+          background:radial-gradient(circle at 35% 35%,
+            rgba(245,224,112,.9) 0%, rgba(200,169,81,.8) 45%, rgba(30,20,5,.95) 100%);
+        }
+        .orb-ring{
+          position:absolute;border-radius:50%;border:1px solid rgba(220,60,60,.3);
+          top:50%;left:50%;transform:translate(-50%,-50%);
+          animation:ring-breathe 3s ease-in-out infinite;
+        }
+        .orb-ring.pulse{animation:ring-pulse 1.2s ease-out infinite;}
+        .orb-ring.speaking{border-color:rgba(200,169,81,.4);}
+
+        .transcript-bubble-vera{
+          background:rgba(220,60,60,.08);border:1px solid rgba(220,60,60,.15);
+          padding:8px 12px;border-radius:12px 12px 12px 2px;margin-right:15%;
+          animation:transcript-in .3s ease;
+        }
+        .transcript-bubble-user{
+          background:rgba(200,169,81,.08);border:1px solid rgba(200,169,81,.15);
+          padding:8px 12px;border-radius:12px 12px 2px 12px;margin-left:15%;
+          animation:transcript-in .3s ease;
+        }
+
         ::-webkit-scrollbar{width:4px;height:4px}
         ::-webkit-scrollbar-track{background:rgba(255,255,255,.03)}
         ::-webkit-scrollbar-thumb{background:rgba(200,169,81,.3);border-radius:2px}
-
-        .send-btn{
-          background:linear-gradient(135deg,#8B6914,#c8a951,#f5e070,#c8a951,#8B6914);
-          background-size:300% auto; border:none; color:#090b0f;
-          font-family:'Cinzel',serif; font-size:10px; letter-spacing:2px;
-          text-transform:uppercase; font-weight:700; padding:10px 20px;
-          cursor:pointer; transition:opacity .2s; white-space:nowrap;
-          animation:gold-shimmer 3s linear infinite;
-        }
-        .send-btn:hover{opacity:.85;}
-        .send-btn:disabled{background:#333;color:#666;animation:none;cursor:default;}
 
         .scene-thumb{
           border:1px solid rgba(200,169,81,.12); cursor:pointer;
@@ -445,16 +520,16 @@ export default function MatineeStudio() {
           {/* ── MAIN DUAL PANELS ── */}
           <div className="main-panels" style={{display:"grid",gridTemplateColumns:"1fr 1fr",minHeight:0}}>
 
-            {/* ── SIDE A: DIRECTOR AVATAR ── */}
+            {/* ── SIDE A: VERA — VOICE DIRECTOR ── */}
             <div style={{
               borderRight:"1px solid rgba(255,255,255,.06)",
-              display:"flex",flexDirection:"column",background:"rgba(8,10,14,.8)",
+              display:"flex",flexDirection:"column",background:"rgba(6,4,10,.95)",
             }}>
               {/* Panel header */}
               <div style={{
                 padding:"10px 16px",borderBottom:"1px solid rgba(255,255,255,.06)",
                 display:"flex",alignItems:"center",justifyContent:"space-between",
-                background:"rgba(6,8,12,.9)",
+                background:"rgba(4,3,8,.98)",
               }}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <div style={{display:"flex",gap:5}}>
@@ -463,60 +538,140 @@ export default function MatineeStudio() {
                     <div style={{width:10,height:10,borderRadius:"50%",background:"#28c840"}}/>
                   </div>
                   <span style={{fontFamily:"'Cinzel',serif",fontSize:10,letterSpacing:3,color:"rgba(232,220,200,.6)",textTransform:"uppercase",marginLeft:4}}>
-                    Live Director · Side A
+                    Vera · Director · Side A
                   </span>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <div style={{width:6,height:6,borderRadius:"50%",background:"#28c840",boxShadow:"0 0 8px #28c840",animation:"pulse-dot 2s ease-in-out infinite"}}/>
-                  <span style={{fontFamily:"'Roboto Mono',monospace",fontSize:8,color:"#28c840"}}>GPT-4o · Online</span>
+                  <div style={{
+                    width:6,height:6,borderRadius:"50%",
+                    background:voiceState==="error"?"#ff4444":voiceState==="idle"?"rgba(255,255,255,.2)":"#28c840",
+                    boxShadow:voiceState==="listening"||voiceState==="speaking"?"0 0 8px #28c840":"none",
+                    animation:voiceState==="connecting"?"pulse-dot 0.6s ease-in-out infinite":"none",
+                  }}/>
+                  <span style={{fontFamily:"'Roboto Mono',monospace",fontSize:8,
+                    color:voiceState==="error"?"#ff4444":voiceState==="idle"?"rgba(255,255,255,.3)":voiceState==="connecting"?"#c8a951":"#28c840"}}>
+                    GPT-4o Realtime ·{" "}
+                    {voiceState==="idle"?"Offline":voiceState==="connecting"?"Connecting…":voiceState==="listening"?"Listening":voiceState==="speaking"?"Vera Speaking":"Error"}
+                  </span>
                 </div>
               </div>
 
-              {/* Chat window */}
-              <div style={{flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:12,minHeight:0}}>
-                {messages.map((m,i)=>(
-                  <div key={i} className={m.role==="user"?"chat-bubble-user":"chat-bubble-ai"}>
-                    <div style={{fontFamily:"'Roboto Mono',monospace",fontSize:9,letterSpacing:1,
-                      color:m.role==="user"?"rgba(200,169,81,.6)":"rgba(220,60,60,.6)",marginBottom:5,textTransform:"uppercase"}}>
-                      {m.role==="user"?"You":"Director"}
+              {/* ── ORB AREA ── */}
+              <div style={{
+                flex:"0 0 auto",display:"flex",flexDirection:"column",
+                alignItems:"center",justifyContent:"center",
+                padding:"40px 20px 28px",
+                background:"radial-gradient(ellipse at 50% 60%, rgba(80,10,10,.4) 0%, transparent 70%)",
+                position:"relative",
+              }}>
+                {/* Outer ambient glow rings */}
+                {[180,148,116].map((sz,i)=>(
+                  <div key={i} className={`orb-ring${voiceState==="speaking"?" speaking":""}`} style={{
+                    width:sz+orbLevel*60,height:sz+orbLevel*60,
+                    animationDelay:`${i*0.8}s`,
+                    animationDuration:`${3+i*0.4}s`,
+                    opacity: voiceState==="idle"?0.08:0.18-i*0.04,
+                  }}/>
+                ))}
+
+                {/* Pulse ring — fires when speaking */}
+                {voiceState==="speaking" && [0,1].map(i=>(
+                  <div key={i} className="orb-ring pulse speaking" style={{
+                    width:94,height:94,
+                    animationDelay:`${i*0.6}s`,
+                    animationDuration:"1.4s",
+                  }}/>
+                ))}
+
+                {/* ── THE ORB ── */}
+                <button
+                  onClick={startSession}
+                  className={`orb-core${voiceState==="speaking"?" speaking":""}`}
+                  style={{
+                    width:90,height:90,
+                    transform:`scale(${1+orbLevel*0.18})`,
+                    animation:voiceState==="idle"?"orb-idle 4s ease-in-out infinite":"none",
+                    cursor:"pointer",border:"none",outline:"none",flexShrink:0,
+                    zIndex:2,position:"relative",
+                  }}
+                >
+                  {/* Inner highlight */}
+                  <div style={{
+                    position:"absolute",top:"18%",left:"22%",
+                    width:"30%",height:"22%",borderRadius:"50%",
+                    background:"rgba(255,255,255,.25)",filter:"blur(4px)",
+                  }}/>
+                  {/* State icon */}
+                  <div style={{
+                    position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",
+                    fontSize:voiceState==="idle"?20:18,
+                    color:"rgba(255,255,255,.85)",
+                  }}>
+                    {voiceState==="idle"?"▶":voiceState==="connecting"?"…":voiceState==="listening"?"◉":voiceState==="speaking"?"♪":"✕"}
+                  </div>
+                </button>
+
+                {/* Name + state label */}
+                <div style={{textAlign:"center",marginTop:20,zIndex:2}}>
+                  <div style={{
+                    fontFamily:"'Cinzel Decorative',serif",fontSize:15,fontWeight:700,
+                    background:"linear-gradient(135deg,#8b1a1a,#dc3c3c,#ff8080)",
+                    WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",
+                    backgroundClip:"text",letterSpacing:3,
+                    animation:"vera-label 3s ease-in-out infinite",
+                  }}>VERA</div>
+                  <div style={{fontFamily:"'Cinzel',serif",fontSize:8,letterSpacing:3,
+                    color:"rgba(232,220,200,.35)",textTransform:"uppercase",marginTop:4}}>
+                    Award-Winning Cinematographer
+                  </div>
+                  <div style={{fontFamily:"'Roboto Mono',monospace",fontSize:8,
+                    color:"rgba(232,220,200,.2)",marginTop:6,letterSpacing:1}}>
+                    {voiceState==="idle"?"Click orb to connect":
+                     voiceState==="connecting"?"Opening secure channel…":
+                     voiceState==="listening"?"She's listening…":
+                     voiceState==="speaking"?"Vera is speaking…":
+                     "Tap to reconnect"}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── TRANSCRIPT scroll ── */}
+              <div style={{
+                flex:1,overflowY:"auto",padding:"12px 16px",
+                display:"flex",flexDirection:"column",gap:8,minHeight:0,
+                borderTop:"1px solid rgba(255,255,255,.04)",
+              }}>
+                {transcript.length===0 && (
+                  <div style={{
+                    flex:1,display:"flex",alignItems:"center",justifyContent:"center",
+                    fontFamily:"'Cinzel',serif",fontSize:10,letterSpacing:2,
+                    color:"rgba(232,220,200,.15)",textAlign:"center",lineHeight:2,
+                    textTransform:"uppercase",
+                  }}>
+                    Conversation transcript<br/>appears here
+                  </div>
+                )}
+                {transcript.map((t,i)=>(
+                  <div key={i} className={t.role==="vera"?"transcript-bubble-vera":"transcript-bubble-user"}>
+                    <div style={{fontFamily:"'Roboto Mono',monospace",fontSize:8,letterSpacing:1,
+                      color:t.role==="vera"?"rgba(220,60,60,.6)":"rgba(200,169,81,.5)",
+                      marginBottom:4,textTransform:"uppercase"}}>
+                      {t.role==="vera"?"Vera":"You"}
                     </div>
-                    <div style={{fontFamily:"'Cinzel',serif",fontSize:12,color:"rgba(232,220,200,.85)",lineHeight:1.75}}>
-                      {m.content || <span style={{opacity:.3}}>▌</span>}
+                    <div style={{fontFamily:"'Cinzel',serif",fontSize:12,color:"rgba(232,220,200,.8)",lineHeight:1.7}}>
+                      {t.text}
                     </div>
                   </div>
                 ))}
-                {typing && (
-                  <div className="chat-bubble-ai">
-                    <div style={{fontFamily:"'Roboto Mono',monospace",fontSize:9,color:"rgba(220,60,60,.6)",marginBottom:5}}>DIRECTOR</div>
-                    <div style={{display:"flex",gap:4,padding:"4px 0"}}>
-                      {[0,1,2].map(i=>(
-                        <div key={i} style={{width:5,height:5,borderRadius:"50%",background:"#dc3c3c",opacity:.6,
-                          animation:`pulse-dot 1s ${i*0.2}s ease-in-out infinite`}}/>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div ref={chatEndRef}/>
+                <div ref={transcriptEndRef}/>
               </div>
 
-              {/* Input */}
-              <div style={{padding:"12px 16px",borderTop:"1px solid rgba(255,255,255,.06)",background:"rgba(6,8,12,.9)"}}>
-                <div style={{fontFamily:"'Roboto Mono',monospace",fontSize:8,color:"rgba(200,169,81,.4)",marginBottom:6,letterSpacing:1}}>
-                  TRY: "Generate a noir heist film" · "Switch to anime style" · "What's the project status?"
-                </div>
-                <div style={{display:"flex",gap:8}}>
-                  <textarea
-                    value={input} onChange={e=>setInput(e.target.value)} onKeyDown={handleKey}
-                    placeholder="Direct your production…"
-                    rows={2} style={{
-                      flex:1,background:"rgba(255,255,255,.04)",border:"1px solid rgba(200,169,81,.2)",
-                      color:"#E8DCC8",fontSize:12,fontFamily:"'Cinzel',serif",padding:"8px 12px",
-                      resize:"none",outline:"none",lineHeight:1.6,
-                    }}
-                  />
-                  <button className="send-btn" onClick={sendMessage} disabled={!input.trim()||typing}>
-                    CUT →
-                  </button>
+              {/* Footer — voice hint */}
+              <div style={{padding:"10px 16px",borderTop:"1px solid rgba(255,255,255,.05)",background:"rgba(4,3,8,.98)"}}>
+                <div style={{fontFamily:"'Roboto Mono',monospace",fontSize:8,color:"rgba(232,220,200,.2)",letterSpacing:1,textAlign:"center"}}>
+                  {voiceState==="idle"
+                    ?"Voice-powered · GPT-4o Realtime · Click orb to start"
+                    :"Speak naturally — Vera will guide your production"}
                 </div>
               </div>
             </div>
