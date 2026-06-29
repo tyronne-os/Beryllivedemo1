@@ -80,6 +80,13 @@ the keyboard and the text-input box dissolve into gold light — replaced by fac
 >
 > **Protagonist = "MARCUS":** man, early 30s, warm brown skin, short cropped dark hair, neat light-beard
 > stubble, charcoal-gray henley. Relatable, intelligent, everyman founder/developer.
+>
+> **THE AGENTS' LOOK (Scenes 5, 6, 7) — IMPORTANT:** Every agent wears a **matching navy-blue branded
+> blazer** (this is the Clique uniform / brand identity — consistency across the team). But each one is
+> calling in from a **different real-world remote-work location**, like an authentic work-from-home team:
+> one in a cozy living room, one in a home office with bookshelves, one on a sunny apartment balcony, one
+> in a stylish hotel room, one in a bright kitchen, one in a modern co-working loft. Same blazer, different
+> worlds — it reads instantly as *real people on a real video call.*
 
 ---
 
@@ -151,11 +158,13 @@ film grain. Mood: a quiet turning point. 16:9, photorealistic.
 Cinematic shot of the same early-30s man bathed in growing warm golden light. On the desk before him, the
 computer keyboard and a floating on-screen text chat box slowly dissolve into drifting particles of gold
 light and vanish. As they disappear, the cold code on his screen melts away and reorganizes into an elegant
-grid of warm, living human faces — a team of diverse, smiling professional people in a sleek dark-and-gold
-interface. He lifts his hands off the vanished keyboard, sits upright in quiet awe, the reflection of the
-smiling faces glowing in his eyes. Gold particles drift through the warming room. Camera gently arcs from the
-empty desk up to his awestruck face. Warm gold-and-amber color grade, soft bokeh, 50mm lens, cinematic film
-grain, dreamlike. Mood: liberation and wonder — the keyboard is gone, replaced by people. 16:9, photorealistic.
+grid of warm, living human faces — a team of diverse, smiling professional people, each wearing a matching
+navy-blue branded blazer but clearly calling in from a different real-world location: one from a cozy living
+room, one from a home office with bookshelves, one from a sunny apartment balcony, one from a stylish hotel
+room. He lifts his hands off the vanished keyboard, sits upright in quiet awe, the reflection of the smiling
+faces glowing in his eyes. Gold particles drift through the warming room. Camera gently arcs from the empty
+desk up to his awestruck face. Warm gold-and-amber color grade, soft bokeh, 50mm lens, cinematic film grain,
+dreamlike. Mood: liberation and wonder — the keyboard is gone, replaced by people. 16:9, photorealistic.
 ```
 
 ---
@@ -166,12 +175,16 @@ grain, dreamlike. Mood: liberation and wonder — the keyboard is gone, replaced
 ```
 Cinematic wide shot of the same early-30s man sitting back comfortably and relaxed in a warm modern space —
 no keyboard, no devices in sight — surrounded by a floating semicircle of glowing video panels, each showing
-a different diverse, professional AI co-worker: smiling, laughing, gesturing, leaning in, genuinely engaged
-like close friends catching up. He is animated and at ease, talking with his hands, laughing along, fully in
-his element among friends. Warm golden ambient light, real human warmth and chemistry, subtle floating gold
-particles, premium dark-and-gold production design. Slow elegant camera move that drifts around the circle of
-friendly faces. Rich amber color grade, anamorphic lens flares, shallow depth of field, cinematic film grain.
-Mood: friendship, ease, belonging — co-workers who became friends. 16:9, photorealistic, ultra-detailed.
+a different diverse, professional AI co-worker. Every co-worker wears the same matching navy-blue branded
+blazer, but each is calling in from a distinctly different real-world remote-work setting: one from a cozy
+living room sofa, one from a home office lined with bookshelves, one from a sunlit apartment balcony with
+plants, one from a stylish hotel room, one from a bright modern kitchen, one from a co-working loft. They are
+smiling, laughing, gesturing, leaning in, genuinely engaged like close friends catching up. He is animated
+and at ease, talking with his hands, laughing along, fully in his element among friends. Warm golden ambient
+light, real human warmth and chemistry, subtle floating gold particles, premium dark-and-gold production
+design. Slow elegant camera move drifting around the circle of friendly faces in their different worlds. Rich
+amber color grade, anamorphic lens flares, shallow depth of field, cinematic film grain. Mood: friendship,
+ease, belonging — a remote team of co-workers who became friends. 16:9, photorealistic, ultra-detailed.
 ```
 
 ---
@@ -181,7 +194,9 @@ Mood: friendship, ease, belonging — co-workers who became friends. 16:9, photo
 
 ```
 Cinematic shot pulling back further to reveal the entire warm glowing room and the full circle of friendly AI
-co-worker panels orbiting the man like a constellation, settling into an elegant grid. Golden light intensifies.
+co-worker panels orbiting the man like a constellation — each agent in a matching navy-blue branded blazer,
+each in their own different remote location (living rooms, home offices, balconies, hotel rooms) — settling
+into an elegant grid. Golden light intensifies.
 A refined gold heraldic shield emblem with the letters "B · O · S" elegantly forms and glows at the center of
 the frame above the team, with subtle royal-gold particle effects. Deep luxurious black-and-gold palette,
 volumetric god rays, slow majestic camera, cinematic film grain, premium and aspirational. Mood: revelation,
