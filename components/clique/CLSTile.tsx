@@ -27,11 +27,19 @@ interface Props {
   isCSA?: boolean;
   onReady?: () => void;
   onStateComplete?: (state: CLSRouterState) => void;
+  /**
+   * Live Runway video URL — when set, instantly crossfades from CLS loop
+   * to the live clip. Clear to null to return to CLS loop.
+   */
+  liveVideoUrl?: string | null;
+  /** Called when the live Runway clip finishes playing — parent should returnToLoop() */
+  onLiveEnded?: () => void;
 }
 
 export default function CLSTile({
   agent, clsState = "listen", variant: variantOverride,
   size, borderRadius = 8, isCSA, onReady, onStateComplete,
+  liveVideoUrl, onLiveEnded,
 }: Props) {
   const { currentVariant, nextVariant, transitioning } = useCLSLoopRouter(
     agent.id,
@@ -61,7 +69,9 @@ export default function CLSTile({
     bRef.current?.load();
   }, [bVariant]);
 
-  const FADE = "opacity 0.6s ease-in-out";
+  const FADE      = "opacity 0.6s ease-in-out";
+  const LIVE_FADE = "opacity 0.2s ease-in-out"; // live switch is faster — near-instant
+  const showLive  = !!liveVideoUrl;
 
   return (
     <div style={{
@@ -168,6 +178,48 @@ export default function CLSTile({
           )}
         </>
       )}
+
+      {/* ── LAYER C: LIVE RUNWAY VIDEO ─────────────────────────────────────
+          Sits on top of everything. Fades in instantly when liveVideoUrl is
+          set, fades out when cleared. The CLS loop keeps playing underneath
+          so the return transition is seamless.
+      ──────────────────────────────────────────────────────────────────── */}
+      {liveVideoUrl && (
+        <video
+          key={liveVideoUrl}
+          src={liveVideoUrl}
+          autoPlay
+          muted
+          playsInline
+          onEnded={onLiveEnded}
+          style={{
+            position: "absolute", inset: 0,
+            width: "100%", height: "100%",
+            objectFit: "cover", objectPosition: "top center",
+            opacity: showLive ? 1 : 0,
+            transition: LIVE_FADE,
+            zIndex: 10,
+          }}
+        />
+      )}
+
+      {/* Gold LIVE pulse ring — shows while Runway layer is active */}
+      {showLive && (
+        <div style={{
+          position: "absolute", inset: 0,
+          borderRadius,
+          boxShadow: "inset 0 0 0 2px rgba(200,169,81,0.6), 0 0 20px rgba(200,169,81,0.3)",
+          zIndex: 11,
+          pointerEvents: "none",
+          animation: "live-pulse 1.5s ease-in-out infinite",
+        }} />
+      )}
+      <style>{`
+        @keyframes live-pulse {
+          0%,100% { box-shadow: inset 0 0 0 2px rgba(200,169,81,0.4), 0 0 14px rgba(200,169,81,0.2); }
+          50%      { box-shadow: inset 0 0 0 3px rgba(200,169,81,0.9), 0 0 28px rgba(200,169,81,0.5); }
+        }
+      `}</style>
     </div>
   );
 }

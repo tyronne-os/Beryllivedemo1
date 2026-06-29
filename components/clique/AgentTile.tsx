@@ -1,10 +1,11 @@
 "use client";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { CliqueAgent } from "@/lib/clique-roster";
 import { QCRProfile, rapportColor, rapportLabel } from "@/lib/qcr";
 import CLSTile from "./CLSTile";
 import { CLSVariant } from "@/lib/clique-cls";
 import { CLSRouterState } from "@/lib/cls-loop-router";
+import { useCLSRunner } from "@/lib/use-cls-runner";
 
 interface Props {
   agent: CliqueAgent;
@@ -38,6 +39,28 @@ export default function AgentTile({ agent, state, size = "md", qcr, onClick, cls
   const desire    = qcr?.desireLevel ?? 0.5;
   const moodColor = MOOD_COLOR[qcr?.moodRead ?? "neutral"];
   const showDesire = desire > 0.75 && !isLive;
+
+  // CLS ↔ Live Runway switcher for this specific agent
+  const { liveVideoUrl, goLive, returnToLoop, prewarm } = useCLSRunner(agent.id);
+
+  // Trigger goLive when parent sets state to "live", clean up when leaving
+  useEffect(() => {
+    if (isLive) {
+      goLive("speak");
+    } else {
+      returnToLoop();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLive]);
+
+  // Pre-warm "speak" clip as soon as agent enters listening state
+  useEffect(() => {
+    if (!isLive && !isOff) {
+      const t = setTimeout(() => prewarm("speak"), 2_000);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLive, isOff]);
 
   // Stable variant override per mount — only used when router is bypassed
   const variantOverride = useMemo(
@@ -101,7 +124,7 @@ export default function AgentTile({ agent, state, size = "md", qcr, onClick, cls
         flexShrink: 0,
         animation: isLive ? `live-ring-${agent.id} 1.2s ease-out infinite` : "none",
       }}>
-        {/* CLS animated loop — always alive, never a frozen image */}
+        {/* CLS animated loop + live Runway layer */}
         <CLSTile
           agent={agent}
           clsState={routerState}
@@ -109,6 +132,8 @@ export default function AgentTile({ agent, state, size = "md", qcr, onClick, cls
           size={dim}
           borderRadius={borderRadius}
           isCSA={agent.isCSA}
+          liveVideoUrl={liveVideoUrl}
+          onLiveEnded={returnToLoop}
         />
 
         {/* LIVE gradient overlay */}
