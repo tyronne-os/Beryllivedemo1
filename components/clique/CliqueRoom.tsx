@@ -7,6 +7,7 @@ import { detectIntent, SessionIntent } from "@/lib/clique-intent";
 import { CLSVariant } from "@/lib/clique-cls";
 import { CLSRouterState } from "@/lib/cls-loop-router";
 import { useAmandaVoice } from "@/lib/use-amanda-voice";
+import { useCLSRunner } from "@/lib/use-cls-runner";
 import AgentTile from "./AgentTile";
 import CLSTile from "./CLSTile";
 import HumanTile from "./HumanTile";
@@ -82,10 +83,23 @@ export default function CliqueRoom() {
   const inputRef                        = useRef<HTMLInputElement>(null);
   const chatEndRef                      = useRef<HTMLDivElement>(null);
 
+  // CLS ↔ Live Runway runner for Amanda (intro phase uses this directly;
+  // meeting phase AgentTile has its own instance — both key off "amanda")
+  const amandaRunner = useCLSRunner("amanda");
+
   // OpenAI Realtime voice — Amanda speaks through WebRTC, never Web Speech API
   const amanda = useAmandaVoice(
-    () => setAmandaCLS("live"),    // onSpeakStart → go live
-    () => setAmandaCLS("listen"),  // onSpeakEnd   → back to listen loop
+    () => {
+      setAmandaCLS("live");
+      // Flip agentStates so meeting-phase AgentTile also goes live
+      setStates(prev => ({ ...prev, amanda: "live" }));
+      amandaRunner.goLive("speak");
+    },
+    () => {
+      setAmandaCLS("listen");
+      setStates(prev => ({ ...prev, amanda: "listening" }));
+      amandaRunner.returnToLoop();
+    },
   );
 
   const handleGRI = useCallback((clip: GRIClip, cat: GRICategory) => {
@@ -263,10 +277,14 @@ export default function CliqueRoom() {
                 size={240}
                 borderRadius="50%"
                 isCSA
+                liveVideoUrl={amandaRunner.liveVideoUrl}
+                onLiveEnded={() => {
+                  amandaRunner.returnToLoop();
+                  setAmandaCLS("listen");
+                  setStates(prev => ({ ...prev, amanda: "listening" }));
+                }}
                 onStateComplete={(completed) => {
-                  // Wave auto-transitions to listen after it plays
                   if (completed === "wave") setAmandaCLS("listen");
-                  // Confirm auto-transitions back to listen after nod
                   if (completed === "confirm") setAmandaCLS("listen");
                 }}
               />
