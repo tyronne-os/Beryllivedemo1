@@ -3,7 +3,8 @@ import { useMemo } from "react";
 import { CliqueAgent } from "@/lib/clique-roster";
 import { QCRProfile, rapportColor, rapportLabel } from "@/lib/qcr";
 import CLSTile from "./CLSTile";
-import { randomListenVariant, introVariant, CLSVariant } from "@/lib/clique-cls";
+import { CLSVariant } from "@/lib/clique-cls";
+import { CLSRouterState } from "@/lib/cls-loop-router";
 
 interface Props {
   agent: CliqueAgent;
@@ -13,6 +14,8 @@ interface Props {
   onClick?: () => void;
   /** Override the CLS variant (e.g. "wave" for first entry) */
   clsVariant?: CLSVariant;
+  /** CLS router state — drives the loop router inside CLSTile */
+  clsState?: CLSRouterState;
 }
 
 const MOOD_COLOR: Record<string, string> = {
@@ -24,7 +27,7 @@ const MOOD_COLOR: Record<string, string> = {
   neutral:   "#888",
 };
 
-export default function AgentTile({ agent, state, size = "md", qcr, onClick, clsVariant }: Props) {
+export default function AgentTile({ agent, state, size = "md", qcr, onClick, clsVariant, clsState }: Props) {
   const dim      = size === "lg" ? 180 : size === "sm" ? 100 : 136;
   const isLive   = state === "live";
   const isOff    = state === "offline";
@@ -36,12 +39,15 @@ export default function AgentTile({ agent, state, size = "md", qcr, onClick, cls
   const moodColor = MOOD_COLOR[qcr?.moodRead ?? "neutral"];
   const showDesire = desire > 0.75 && !isLive;
 
-  // Pick a stable random CLS variant per mount (changes each time agent enters)
-  const variant = useMemo(
-    () => clsVariant ?? (agent.isCSA ? introVariant() : randomListenVariant()),
+  // Stable variant override per mount — only used when router is bypassed
+  const variantOverride = useMemo(
+    () => clsVariant ?? undefined,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [agent.id]
   );
+
+  // Router state: live agents go "live", CSA follows parent state, others listen
+  const routerState: CLSRouterState = clsState ?? (isLive ? "live" : agent.isCSA ? "wave" : "listen");
 
   const borderRadius = agent.isCSA ? "50%" : 6;
 
@@ -98,7 +104,8 @@ export default function AgentTile({ agent, state, size = "md", qcr, onClick, cls
         {/* CLS animated loop — always alive, never a frozen image */}
         <CLSTile
           agent={agent}
-          variant={variant}
+          clsState={routerState}
+          variant={variantOverride}
           size={dim}
           borderRadius={borderRadius}
           isCSA={agent.isCSA}

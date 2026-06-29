@@ -2,35 +2,66 @@
 /**
  * CLSTile — Clique Listening State tile
  *
- * Every agent renders as an animated presence — never a frozen 2D image.
- * Priority:
- *   1. HF data lake CLS video loop (mp4, loops silently)
- *   2. CSS "alive" breathing animation on the portrait (fallback while videos load)
+ * Renders an agent as an always-animated presence.
+ * Uses the CLS Loop Router to crossfade between variants seamlessly.
  *
- * The parent switches from CLSTile → live Runway stream when the agent goes LIVE.
+ * Priority stack:
+ *   1. HF data lake CLS video (mp4 loop) — two video elements, A/B crossfade
+ *   2. CSS breathing animation on portrait — fallback while videos generate
+ *
+ * The parent switches to Runway live stream when state === "live".
  */
 import { useEffect, useRef, useState } from "react";
 import { CliqueAgent } from "@/lib/clique-roster";
 import { clsUrl, CLSVariant } from "@/lib/clique-cls";
+import { useCLSLoopRouter, CLSRouterState } from "@/lib/cls-loop-router";
 
 interface Props {
   agent: CliqueAgent;
-  variant: CLSVariant;
-  size: number;           // pixel dimension (square)
+  /** CLS state from parent — drives the loop router */
+  clsState?: CLSRouterState;
+  /** Optional variant override (bypasses router) */
+  variant?: CLSVariant;
+  size: number;
   borderRadius?: number | string;
   isCSA?: boolean;
-  onReady?: () => void;   // fires when video starts playing
+  onReady?: () => void;
+  onStateComplete?: (state: CLSRouterState) => void;
 }
 
-export default function CLSTile({ agent, variant, size, borderRadius = 8, isCSA, onReady }: Props) {
-  const videoRef  = useRef<HTMLVideoElement>(null);
-  const [videoOk, setVideoOk] = useState(true); // optimistically try video first
+export default function CLSTile({
+  agent, clsState = "listen", variant: variantOverride,
+  size, borderRadius = 8, isCSA, onReady, onStateComplete,
+}: Props) {
+  const { currentVariant, nextVariant, transitioning } = useCLSLoopRouter(
+    agent.id,
+    variantOverride ? "listen" : clsState, // router manages state unless override
+    onStateComplete,
+  );
 
-  const src = clsUrl(agent.id, variant);
+  // If override is provided, use it directly; otherwise let router decide
+  const aVariant = variantOverride ?? currentVariant;
+  const bVariant = variantOverride ?? nextVariant;
 
+  // Track which video elements can actually play
+  const [aOk, setAOk] = useState(true);
+  const [bOk, setBOk] = useState(true);
+  const aRef = useRef<HTMLVideoElement>(null);
+  const bRef = useRef<HTMLVideoElement>(null);
+
+  // When both fail → CSS fallback
+  const videoFails = !aOk && !bOk;
+
+  // When variant changes, reset error state optimistically
+  useEffect(() => { setAOk(true); }, [aVariant]);
+  useEffect(() => { setBOk(true); }, [bVariant]);
+
+  // Ensure video B preloads before the crossfade hits
   useEffect(() => {
-    setVideoOk(true); // reset on variant change
-  }, [src]);
+    bRef.current?.load();
+  }, [bVariant]);
+
+  const FADE = "opacity 0.6s ease-in-out";
 
   return (
     <div style={{
@@ -41,28 +72,48 @@ export default function CLSTile({ agent, variant, size, borderRadius = 8, isCSA,
       flexShrink: 0,
       background: "#0a0c12",
     }}>
-      {/* ── CLS VIDEO LOOP ── */}
-      {videoOk && (
-        <video
-          ref={videoRef}
-          src={src}
-          autoPlay
-          loop
-          muted
-          playsInline
-          onCanPlay={() => { onReady?.(); }}
-          onError={() => setVideoOk(false)}
-          style={{
-            position: "absolute", inset: 0,
-            width: "100%", height: "100%",
-            objectFit: "cover",
-            objectPosition: "top center",
-          }}
-        />
+
+      {!videoFails && (
+        <>
+          {/* ── VIDEO A — current/base layer ── */}
+          <video
+            ref={aRef}
+            key={`a-${aVariant}`}
+            src={clsUrl(agent.id, aVariant)}
+            autoPlay loop muted playsInline
+            onCanPlay={() => { onReady?.(); }}
+            onError={() => setAOk(false)}
+            style={{
+              position: "absolute", inset: 0,
+              width: "100%", height: "100%",
+              objectFit: "cover", objectPosition: "top center",
+              opacity: transitioning ? 0 : 1,
+              transition: FADE,
+              display: aOk ? "block" : "none",
+            }}
+          />
+
+          {/* ── VIDEO B — crossfade target layer ── */}
+          <video
+            ref={bRef}
+            key={`b-${bVariant}`}
+            src={clsUrl(agent.id, bVariant)}
+            autoPlay loop muted playsInline
+            onError={() => setBOk(false)}
+            style={{
+              position: "absolute", inset: 0,
+              width: "100%", height: "100%",
+              objectFit: "cover", objectPosition: "top center",
+              opacity: transitioning ? 1 : 0,
+              transition: FADE,
+              display: bOk ? "block" : "none",
+            }}
+          />
+        </>
       )}
 
-      {/* ── CSS FALLBACK — portrait + breathing animation ── */}
-      {!videoOk && (
+      {/* ── CSS FALLBACK — portrait + alive micro-animations ── */}
+      {videoFails && (
         <>
           <style>{`
             @keyframes cls-breathe-${agent.id} {
@@ -74,42 +125,47 @@ export default function CLSTile({ agent, variant, size, borderRadius = 8, isCSA,
               0%,94%,100% { opacity: 1; }
               96%,98%     { opacity: 0.15; }
             }
-            @keyframes cls-glow-${agent.id} {
-              0%,100% { box-shadow: inset 0 0 0 0 rgba(200,169,81,0); }
-              50%     { box-shadow: inset 0 0 18px 0 rgba(200,169,81,0.06); }
+            @keyframes cls-glow-scan-${agent.id} {
+              0%   { transform: translateY(-100%); opacity: 0; }
+              10%  { opacity: 1; }
+              90%  { opacity: 1; }
+              100% { transform: translateY(200%); opacity: 0; }
             }
           `}</style>
-          <div style={{
-            position: "absolute", inset: 0,
-            animation: `cls-glow-${agent.id} 4s ease-in-out infinite`,
-          }}>
-            <img
-              src={agent.portrait}
-              alt={agent.name}
-              style={{
-                width: "100%", height: "100%",
-                objectFit: "cover",
-                objectPosition: "top center",
-                animation: `cls-breathe-${agent.id} 4.2s ease-in-out infinite,
-                             cls-blink-${agent.id} 5.5s ease-in-out infinite`,
-                transformOrigin: "50% 30%",
-              }}
-            />
-          </div>
 
-          {/* Subtle shimmer scan line — signals "alive" */}
+          {/* Portrait with breathing + blink */}
+          <img
+            src={agent.portrait}
+            alt={agent.name}
+            style={{
+              position: "absolute", inset: 0,
+              width: "100%", height: "100%",
+              objectFit: "cover",
+              objectPosition: "top center",
+              animation: `cls-breathe-${agent.id} 4.2s ease-in-out infinite,
+                           cls-blink-${agent.id} 5.5s ease-in-out infinite`,
+              transformOrigin: "50% 30%",
+            }}
+          />
+
+          {/* Gold shimmer scan — signals "alive" even without video */}
           <div style={{
             position: "absolute", inset: 0,
-            background: "linear-gradient(180deg, transparent 40%, rgba(200,169,81,0.03) 50%, transparent 60%)",
-            animation: `cls-shimmer-scan 6s linear infinite`,
+            background: "linear-gradient(180deg, transparent 35%, rgba(200,169,81,0.04) 50%, transparent 65%)",
+            animation: `cls-glow-scan-${agent.id} 6s linear infinite`,
             pointerEvents: "none",
           }} />
-          <style>{`
-            @keyframes cls-shimmer-scan {
-              0%   { transform: translateY(-100%); }
-              100% { transform: translateY(200%); }
-            }
-          `}</style>
+
+          {/* Subtle CSA glow pulse */}
+          {isCSA && (
+            <div style={{
+              position: "absolute", inset: 0,
+              boxShadow: "inset 0 0 28px rgba(200,169,81,0.06)",
+              animation: "pulse-ring 3s ease-in-out infinite",
+              pointerEvents: "none",
+              borderRadius,
+            }} />
+          )}
         </>
       )}
     </div>

@@ -5,6 +5,8 @@ import { QCRProfile, getQCRProfile } from "@/lib/qcr";
 import { HumanParticipant, seedHumans, makeRoomCode } from "@/lib/clique-participants";
 import { detectIntent, SessionIntent } from "@/lib/clique-intent";
 import { CLSVariant } from "@/lib/clique-cls";
+import { CLSRouterState } from "@/lib/cls-loop-router";
+import { useAmandaVoice } from "@/lib/use-amanda-voice";
 import AgentTile from "./AgentTile";
 import CLSTile from "./CLSTile";
 import HumanTile from "./HumanTile";
@@ -75,10 +77,16 @@ export default function CliqueRoom() {
   const [intent, setIntent]             = useState<SessionIntent>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [buildUrl, setBuildUrl]         = useState<string | null>(null);
-  // CLS state: "wave" = intro greeting loop, "listen" = active waiting, "confirm" = nodding
-  const [amandaCLS, setAmandaCLS]       = useState<"wave"|"listen"|"confirm"|"live">("wave");
+  // CLS state: "wave" = intro greeting loop, "listen" = active waiting, "confirm" = nodding, "live" = Runway stream
+  const [amandaCLS, setAmandaCLS]       = useState<CLSRouterState>("wave");
   const inputRef                        = useRef<HTMLInputElement>(null);
   const chatEndRef                      = useRef<HTMLDivElement>(null);
+
+  // OpenAI Realtime voice — Amanda speaks through WebRTC, never Web Speech API
+  const amanda = useAmandaVoice(
+    () => setAmandaCLS("live"),    // onSpeakStart → go live
+    () => setAmandaCLS("listen"),  // onSpeakEnd   → back to listen loop
+  );
 
   const handleGRI = useCallback((clip: GRIClip, cat: GRICategory) => {
     setGriClip(clip); setGriCat(cat);
@@ -89,33 +97,6 @@ export default function CliqueRoom() {
       const param = new URLSearchParams(window.location.search).get("room");
       setRoomCode(param?.toUpperCase() || makeRoomCode());
     }
-  }, []);
-
-  // Amanda speaks her greeting on load — Beryl Live OS voice (Web Speech API now,
-  // replace with Realtime voice stream when full OS integration is wired)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const t = setTimeout(() => {
-      try {
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(
-          "Good day. I'm Amanda, your Clique Supervisor. What are we working on today?"
-        );
-        u.rate    = 0.88;
-        u.pitch   = 1.08;
-        u.volume  = 1;
-        // Prefer a female voice if available
-        const voices = window.speechSynthesis.getVoices();
-        const preferred = voices.find(v =>
-          /female|woman|samantha|karen|moira|fiona|victoria|zira/i.test(v.name)
-        ) ?? voices.find(v => v.lang.startsWith("en")) ?? null;
-        if (preferred) u.voice = preferred;
-        // After greeting, shift to active listening loop
-        u.onend = () => setAmandaCLS("listen");
-        window.speechSynthesis.speak(u);
-      } catch { /* browser blocked autoplay voice — silently continue */ }
-    }, 900);
-    return () => clearTimeout(t);
   }, []);
 
   // Sync webcam stream into local human tile
@@ -133,18 +114,13 @@ export default function CliqueRoom() {
         !!a && a.id !== "amanda" && !joinedAgents.find(j => j.id === a.id)
       );
 
-    // Amanda confirms the request — shifts CLS from listen → confirm (nod)
+    // Amanda confirms the request — CLS shifts to confirm (nod), then she speaks
     setAmandaCLS("confirm");
-    window.speechSynthesis?.cancel();
-    try {
-      const u = new SpeechSynthesisUtterance(
-        toAdd.length
-          ? `Got it. Let me bring in the right people.`
-          : `Your team is ready.`
-      );
-      u.rate = 0.88; u.pitch = 1.08;
-      window.speechSynthesis?.speak(u);
-    } catch { /* silent */ }
+    amanda.speak(
+      toAdd.length
+        ? `Got it. Let me bring in the right people.`
+        : `Your team is ready.`
+    );
 
     await new Promise(r => setTimeout(r, 1200));
     setPhase("meeting");
@@ -283,10 +259,16 @@ export default function CliqueRoom() {
             }}>
               <CLSTile
                 agent={AMANDA}
-                variant={amandaCLS === "wave" ? "wave" : amandaCLS === "confirm" ? "nod" : "idle_a"}
+                clsState={amandaCLS}
                 size={240}
                 borderRadius="50%"
                 isCSA
+                onStateComplete={(completed) => {
+                  // Wave auto-transitions to listen after it plays
+                  if (completed === "wave") setAmandaCLS("listen");
+                  // Confirm auto-transitions back to listen after nod
+                  if (completed === "confirm") setAmandaCLS("listen");
+                }}
               />
             </div>
 
@@ -294,16 +276,20 @@ export default function CliqueRoom() {
               <div style={{ fontFamily:"'Cinzel',serif", fontSize:16, fontWeight:700, color:"#c8a951", letterSpacing:2 }}>Amanda</div>
               <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:13, color:"rgba(255,255,255,.45)", fontStyle:"italic", marginTop:3 }}>Clique Supervisor · CSA</div>
 
-              {/* Voice indicator — shows Amanda is speaking / listening */}
+              {/* Voice indicator — live Realtime speaking state */}
               <div style={{ display:"flex", alignItems:"center", gap:6, justifyContent:"center", marginTop:10 }}>
-                {amandaCLS === "wave" ? (
-                  // Speaking — animated voice bars
+                {amanda.isSpeaking ? (
                   <VoiceBars />
                 ) : (
-                  // Listening
                   <>
-                    <span style={{ width:7, height:7, borderRadius:"50%", background:"#4CAF50", display:"inline-block", boxShadow:"0 0 6px #4CAF50" }} />
-                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:2, color:"rgba(255,255,255,.3)", textTransform:"uppercase" }}>Listening</span>
+                    <span style={{
+                      width:7, height:7, borderRadius:"50%", display:"inline-block",
+                      background: amanda.isConnected ? "#4CAF50" : "#888",
+                      boxShadow: amanda.isConnected ? "0 0 6px #4CAF50" : "none",
+                    }} />
+                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:2, color:"rgba(255,255,255,.3)", textTransform:"uppercase" }}>
+                      {amanda.isConnected ? "Listening" : "Connecting…"}
+                    </span>
                   </>
                 )}
               </div>
@@ -313,18 +299,20 @@ export default function CliqueRoom() {
 
         {/* ── Actions panel ── (no text bubble — Amanda speaks, not types) */}
         <div style={{ background:"#0a0604", borderTop:"1px solid rgba(200,169,81,.12)", padding:"18px 28px 26px", animation:"fade-up .5s .2s ease both" }}>
-          {/* Subtitle — what Amanda just said (caption-style, not a chat bubble) */}
+          {/* Subtitle — live Realtime speaking state */}
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
-            <VoiceBars small />
+            {amanda.isSpeaking && <VoiceBars small />}
             <span style={{
               fontFamily:"'Cormorant Garamond',serif", fontSize:14,
               color:"rgba(255,255,255,.4)", fontStyle:"italic",
             }}>
-              {amandaCLS === "wave"
+              {amanda.isSpeaking
                 ? "Amanda is speaking…"
                 : amandaCLS === "confirm"
                   ? "Amanda is confirming your request…"
-                  : "Amanda is listening — tell her what you need, or pick an option below"}
+                  : amanda.isConnected
+                    ? "Amanda is listening — tell her what you need, or pick an option below"
+                    : "Amanda is connecting via Beryl Live OS…"}
             </span>
           </div>
 
