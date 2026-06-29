@@ -67,22 +67,13 @@ export function initialsOf(name: string): string {
  * the room, alongside the AI agents. Real teammates join via the invite link
  * (LiveKit) and replace/augment these.
  */
+/** Every session starts with just the local user — Amanda CSA joins first, then staff. */
 export function seedHumans(): HumanParticipant[] {
   return [
     {
       kind: "human", id: "local", name: "You", role: "Host",
       isLocal: true, isHost: true, micOn: true, camOn: false,
       stream: null, connection: "camera-off", initials: "YOU", color: "#c8a951",
-    },
-    {
-      kind: "human", id: "tyronne", name: "Tyronne", role: "Engineer",
-      isLocal: false, isHost: false, micOn: true, camOn: false,
-      stream: null, connection: "camera-off", initials: "TY", color: "#1a5f7a",
-    },
-    {
-      kind: "human", id: "connie", name: "Connie", role: "Engineer",
-      isLocal: false, isHost: false, micOn: false, camOn: false,
-      stream: null, connection: "camera-off", initials: "CO", color: "#9c27b0",
     },
   ];
 }

@@ -133,6 +133,23 @@ export default function AgentTile({ agent, state, size = "md", qcr, onClick }: P
           }} />
         )}
 
+        {/* BOS Shield — always visible in every agent tile, core brand */}
+        <div style={{ position:"absolute", bottom:6, left:6, pointerEvents:"none", zIndex:5 }}>
+          <svg width={dim * 0.22} height={dim * 0.24} viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id={`sg-${agent.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#8B6914" />
+                <stop offset="50%" stopColor="#f5e070" />
+                <stop offset="100%" stopColor="#8B6914" />
+              </linearGradient>
+            </defs>
+            <path d="M20 2 L37 8 L37 24 C37 35 20 42 20 42 C20 42 3 35 3 24 L3 8 Z"
+              fill={`url(#sg-${agent.id})`} stroke="rgba(245,224,112,0.7)" strokeWidth="1.2" />
+            <text x="20" y="19" textAnchor="middle" fontFamily="'Cinzel',Georgia,serif" fontSize="8.5" fontWeight="bold" fill="#0a0604" letterSpacing="1">B·O·S</text>
+            <text x="20" y="29" textAnchor="middle" fontFamily="'Cinzel',Georgia,serif" fontSize="4" fill="#0a0604" letterSpacing="0.5">BERYL OS</text>
+          </svg>
+        </div>
+
         {/* CSA crown */}
         {agent.isCSA && (
           <div style={{

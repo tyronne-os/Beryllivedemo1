@@ -1,84 +1,121 @@
 "use client";
-import { useState, useCallback, useEffect, type CSSProperties } from "react";
-import { CliqueAgent, getDefaultTeam } from "@/lib/clique-roster";
+import { useState, useCallback, useEffect, useRef, type CSSProperties } from "react";
+import { CliqueAgent, CLIQUE_ROSTER } from "@/lib/clique-roster";
 import { QCRProfile, getQCRProfile } from "@/lib/qcr";
-import {
-  HumanParticipant, seedHumans, makeRoomCode,
-} from "@/lib/clique-participants";
+import { HumanParticipant, seedHumans, makeRoomCode } from "@/lib/clique-participants";
 import AgentTile from "./AgentTile";
 import HumanTile from "./HumanTile";
 import CallControls from "./CallControls";
 import CameraPanel from "./CameraPanel";
-import AccessGrantPanel, { AccessGrants } from "./AccessGrantPanel";
 import InviteModal from "./InviteModal";
 import GroupListener from "./GroupListener";
 import GroupResponseBanner from "./GroupResponseBanner";
 import { GRIClip, GRICategory } from "@/lib/gri";
 
+type Phase = "intro" | "meeting";
 type AgentState = "listening" | "live" | "offline";
 type AgentStateMap = Record<string, AgentState>;
 
 const USER_ID = "beryl_user_default";
+const AMANDA = CLIQUE_ROSTER.find(a => a.id === "amanda")!;
 
-function buildInitialStates(members: CliqueAgent[]): AgentStateMap {
-  const map: AgentStateMap = {};
-  members.forEach(a => { map[a.id] = "listening"; });
-  return map;
-}
+// Smart invite sets for quick-action chips
+const QUICK_ACTIONS = [
+  { label: "Build Something",      ids: ["eve","jamarr","brice"],              emoji: "🛠" },
+  { label: "Strategy Session",     ids: ["jessica","nu","naomi"],              emoji: "🎯" },
+  { label: "Research & Analyze",   ids: ["bri","terrell","india"],             emoji: "🔍" },
+  { label: "Design Review",        ids: ["lacara","jamarr","eve"],             emoji: "🎨" },
+  { label: "Full Clique",          ids: ["eve","jamarr","jessica","jeff","india","lacara","terrell","brice","bri","naomi","cleo","kizzy"], emoji: "⚡" },
+];
 
-function loadQCRProfiles(members: CliqueAgent[]): Record<string, QCRProfile> {
-  const profiles: Record<string, QCRProfile> = {};
-  members.forEach(a => {
-    try { profiles[a.id] = getQCRProfile(USER_ID, a.id); } catch { /* no seed */ }
-  });
-  return profiles;
+function inferAgentsFromText(text: string): string[] {
+  const t = text.toLowerCase();
+  const ids: string[] = [];
+  if (/build|code|develop|engineer|implement|feature|ship/.test(t))  ids.push("eve","jamarr","brice");
+  if (/design|ui|ux|visual|layout|brand|look/.test(t))               ids.push("lacara","jamarr");
+  if (/strategy|plan|pitch|investor|market|roadmap/.test(t))         ids.push("jessica","nu","naomi");
+  if (/data|analytics|metric|report|number|dashboard/.test(t))       ids.push("terrell","bri");
+  if (/growth|launch|user|funnel|traffic|retention/.test(t))         ids.push("india","kizzy");
+  if (/research|study|find|investigate|explore/.test(t))             ids.push("bri","terrell");
+  if (/content|write|copy|post|message/.test(t))                     ids.push("india","shelly");
+  return [...new Set(ids)];
 }
 
 export default function CliqueRoom() {
-  const [members]                  = useState<CliqueAgent[]>(getDefaultTeam);
-  const [agentStates, setStates]   = useState<AgentStateMap>(() => buildInitialStates(getDefaultTeam()));
-  const [qcrProfiles, setQCR]      = useState<Record<string, QCRProfile>>({});
-  const [humans, setHumans]        = useState<HumanParticipant[]>(seedHumans);
-  const [roomCode, setRoomCode]    = useState("CLIQUE");
-  const [mic, setMic]              = useState(true);
-  const [cam, setCam]              = useState(false);
-  const [stream, setStream]        = useState<MediaStream | null>(null);
-  const [scribeActive, setScribe]  = useState(true);
-  const [notesOpen, setNotesOpen]  = useState(false);
-  const [accessOpen, setAccess]    = useState(false);
-  const [callMeOpen, setCallMe]    = useState(false);
-  const [inviteOpen, setInvite]    = useState(false);
-  const [activeAgent, setActive]   = useState<string | null>(null);
-  const [grants, setGrants]        = useState<AccessGrants>({
-    email: false, linkedin: false, phone: null, phoneCallEnabled: false,
-  });
-  const [griClip, setGriClip]      = useState<GRIClip | null>(null);
-  const [griCat, setGriCat]        = useState<GRICategory | null>(null);
-  const [transcript]               = useState("");
+  const [phase, setPhase]               = useState<Phase>("intro");
+  const [localHuman, setLocalHuman]     = useState<HumanParticipant>(seedHumans()[0]);
+  const [joinedAgents, setJoinedAgents] = useState<CliqueAgent[]>([]);
+  const [agentStates, setStates]        = useState<AgentStateMap>({ amanda: "listening" });
+  const [qcrProfiles, setQCR]           = useState<Record<string, QCRProfile>>({});
+  const [roomCode, setRoomCode]         = useState("CLIQUE");
+  const [mic, setMic]                   = useState(true);
+  const [cam, setCam]                   = useState(false);
+  const [stream, setStream]             = useState<MediaStream | null>(null);
+  const [inviteOpen, setInvite]         = useState(false);
+  const [activeAgent, setActive]        = useState<string | null>(null);
+  const [inviting, setInviting]         = useState<string | null>(null);
+  const [userGoal, setUserGoal]         = useState("");
+  const [amandaMsg, setAmandaMsg]       = useState(
+    "Good day! I'm Amanda, your Clique Supervisor. What are we working on today?"
+  );
+  const [griClip, setGriClip]           = useState<GRIClip | null>(null);
+  const [griCat, setGriCat]             = useState<GRICategory | null>(null);
+  const [transcript]                    = useState("");
+  const inputRef                        = useRef<HTMLInputElement>(null);
 
-  const handleGRI = useCallback((clip: GRIClip, category: GRICategory) => {
-    setGriClip(clip);
-    setGriCat(category);
+  const handleGRI = useCallback((clip: GRIClip, cat: GRICategory) => {
+    setGriClip(clip); setGriCat(cat);
   }, []);
 
   useEffect(() => {
-    setQCR(loadQCRProfiles(getDefaultTeam()));
-    // Room code from ?room= or a fresh one
     if (typeof window !== "undefined") {
       const param = new URLSearchParams(window.location.search).get("room");
       setRoomCode(param?.toUpperCase() || makeRoomCode());
     }
   }, []);
 
-  // Bind local webcam stream + mic/cam state into the local human participant
+  // Sync webcam stream into local human tile
   useEffect(() => {
-    setHumans(prev => prev.map(h =>
-      h.isLocal
-        ? { ...h, stream, camOn: cam && !!stream, micOn: mic,
-            connection: cam && stream ? "connected" : "camera-off" }
-        : h
-    ));
+    setLocalHuman(prev => ({
+      ...prev, stream, camOn: cam && !!stream, micOn: mic,
+      connection: cam && !!stream ? "connected" : "camera-off",
+    }));
   }, [stream, cam, mic]);
+
+  const inviteAgents = useCallback(async (ids: string[]) => {
+    const toAdd = ids
+      .map(id => CLIQUE_ROSTER.find(a => a.id === id))
+      .filter((a): a is CliqueAgent =>
+        !!a && a.id !== "amanda" && !joinedAgents.find(j => j.id === a.id)
+      );
+
+    setPhase("meeting");
+    if (toAdd.length === 0) return;
+
+    for (const agent of toAdd) {
+      setInviting(agent.name);
+      setAmandaMsg(`Bringing in ${agent.name}…`);
+      await new Promise(r => setTimeout(r, 900));
+      setJoinedAgents(prev => [...prev, agent]);
+      setStates(prev => ({ ...prev, [agent.id]: "listening" }));
+      try {
+        setQCR(prev => ({ ...prev, [agent.id]: getQCRProfile(USER_ID, agent.id) }));
+      } catch { /* no seed profile yet */ }
+      await new Promise(r => setTimeout(r, 350));
+    }
+
+    setInviting(null);
+    const names = toAdd.map(a => a.name).join(", ");
+    setAmandaMsg(`${names} ${toAdd.length === 1 ? "is" : "are"} in the room. Just talk — they're listening.`);
+  }, [joinedAgents]);
+
+  const handleGoalSubmit = useCallback(() => {
+    const goal = userGoal.trim();
+    if (!goal) return;
+    const ids = inferAgentsFromText(goal);
+    inviteAgents(ids.length ? ids : ["eve", "jessica", "bri"]);
+    setUserGoal("");
+  }, [userGoal, inviteAgents]);
 
   const wakeAgent = useCallback((id: string) => {
     setStates(prev => {
@@ -91,298 +128,381 @@ export default function CliqueRoom() {
   }, []);
 
   const returnToListening = useCallback(() => {
-    setStates(buildInitialStates(getDefaultTeam()));
+    setStates(prev => Object.fromEntries(Object.keys(prev).map(k => [k, "listening"])));
     setActive(null);
   }, []);
 
-  const humanCount = humans.length;
-  const totalCount = humanCount + members.length;
+  const addMoreStaff = useCallback(() => {
+    const remaining = CLIQUE_ROSTER.filter(
+      a => a.id !== "amanda" && !joinedAgents.find(j => j.id === a.id)
+    );
+    if (remaining.length > 0) inviteAgents([remaining[0].id]);
+  }, [joinedAgents, inviteAgents]);
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "calc(100vh - 64px)", background: "#FDFAF6", position: "relative" }}>
-      <style>{`
-        @keyframes scribe-blink { 0%,100%{opacity:1} 50%{opacity:.25} }
-        @keyframes room-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes live-pip { 0%,100%{opacity:1} 50%{opacity:.4} }
-      `}</style>
+  // ── INTRO PHASE ──────────────────────────────────────────────────────────
+  if (phase === "intro") {
+    return (
+      <div style={introWrap}>
+        <style>{`
+          @keyframes fade-up { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+          @keyframes amanda-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(200,169,81,0),0 0 60px rgba(200,169,81,.15)} 50%{box-shadow:0 0 0 8px rgba(200,169,81,.08),0 0 60px rgba(200,169,81,.25)} }
+          @keyframes chip-in { from{opacity:0;transform:scale(.88)} to{opacity:1;transform:scale(1)} }
+          @keyframes intro-cam-border { 0%,100%{border-color:rgba(200,169,81,.3)} 50%{border-color:rgba(200,169,81,.65)} }
+        `}</style>
 
-      {/* ── HEADER ── */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "12px 24px",
-        borderBottom: "1px solid rgba(200,169,81,.18)",
-        background: "#fff", flexShrink: 0,
-        flexWrap: "wrap", gap: 10,
-      }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-          <span style={{
-            fontFamily: "'Cinzel',serif", fontSize: 20, fontWeight: 700, letterSpacing: 3,
-            background: "linear-gradient(110deg,#8B6914 0%,#c8a951 30%,#f5e070 50%,#c8a951 70%,#8B6914 100%)",
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-          }}>CLIQUE</span>
-          <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "#999", fontStyle: "italic" }}>
-            Video Conferencing with AI · Real Time
+        {/* Header */}
+        <div style={headerStyle}>
+          <span style={logoStyle}>CLIQUE</span>
+          <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:13, color:"rgba(255,255,255,.3)", fontStyle:"italic" }}>
+            Video Conferencing · AI · Real Time
           </span>
+          <button onClick={() => setInvite(true)} style={roomCodeBtn}>
+            Room {roomCode} · Invite ➕
+          </button>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          {/* Participant count */}
-          <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "#aaa", fontStyle: "italic" }}>
-            👤 {humanCount} human{humanCount === 1 ? "" : "s"} · ✦ {members.length} agents
-          </span>
-
-          {/* Room code */}
-          <button onClick={() => setInvite(true)} title="Invite people" style={{
-            fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 2, fontWeight: 700,
-            textTransform: "uppercase", color: "#8B6914", cursor: "pointer",
-            padding: "5px 12px", borderRadius: 20,
-            border: "1px solid rgba(200,169,81,.4)", background: "rgba(200,169,81,.07)",
-          }}>Room {roomCode} · Invite ➕</button>
-
-          {/* QCR indicator */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#9c27b0", display: "inline-block", boxShadow: "0 0 6px #9c27b0" }} />
-            <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#aaa" }}>QCR</span>
-          </div>
-
-          {/* Scribe indicator */}
-          {scribeActive && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#dc3c3c", display: "inline-block", animation: "scribe-blink 1.4s ease-in-out infinite", boxShadow: "0 0 6px rgba(220,60,60,.7)" }} />
-              <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#aaa" }}>Scribe</span>
+        {/* ── Two-panel ── */}
+        <div style={twoPanelGrid}>
+          {/* USER — left */}
+          <div style={{ ...panelBase, animation:"fade-up .5s ease both" }}>
+            <div style={{
+              width: 240, height: 240, borderRadius: 12,
+              background: "linear-gradient(135deg,#111827,#1a1a2e)",
+              border: "2px solid rgba(200,169,81,.35)",
+              boxShadow: "0 0 40px rgba(0,0,0,.6)",
+              position: "relative", overflow: "hidden",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              animation: "intro-cam-border 3s ease-in-out infinite",
+              flexShrink: 0,
+            }}>
+              {cam && stream ? (
+                <video
+                  autoPlay playsInline muted
+                  ref={el => { if (el) { el.srcObject = stream; el.play().catch(() => {}); } }}
+                  style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", transform:"scaleX(-1)" }}
+                />
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}>
+                  <div style={{
+                    width:88, height:88, borderRadius:"50%",
+                    background:"linear-gradient(135deg,#c8a951cc,#c8a95166)",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    fontFamily:"'Cinzel',serif", fontSize:22, fontWeight:700, color:"#0a0604",
+                    boxShadow:"0 0 28px rgba(200,169,81,.3)",
+                  }}>YOU</div>
+                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:2, color:"rgba(255,255,255,.25)", textTransform:"uppercase" }}>Camera off</span>
+                </div>
+              )}
+              {/* HOST badge */}
+              <div style={{ position:"absolute", top:10, left:10, background:"rgba(200,169,81,.15)", backdropFilter:"blur(6px)", borderRadius:4, padding:"3px 9px", border:"1px solid rgba(200,169,81,.3)" }}>
+                <span style={{ fontFamily:"'Cinzel',serif", fontSize:8, letterSpacing:2, color:"rgba(200,169,81,.9)", textTransform:"uppercase" }}>👤 Host</span>
+              </div>
             </div>
-          )}
-
-          {grants.email && <span title="Email connected" style={{ fontSize: 14 }}>📧</span>}
-          {grants.linkedin && <span title="LinkedIn connected" style={{ fontSize: 14 }}>💼</span>}
-          {grants.phone && <span title={`Phone: ${grants.phone}`} style={{ fontSize: 14 }}>📱</span>}
-        </div>
-      </div>
-
-      {/* ── ROOM — unified gallery of humans + agents ── */}
-      <div style={{
-        flex: 1, padding: "26px 20px 16px",
-        display: "flex", flexDirection: "column", gap: 26,
-        overflowY: "auto", animation: "room-in .45s ease both",
-      }}>
-        {/* PEOPLE row */}
-        <section>
-          <div style={{ ...sectionLabel, color: "#1a5f7a" }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#1a5f7a", display: "inline-block" }} />
-            In the Room · People
+            <div style={{ textAlign:"center" }}>
+              <div style={{ fontFamily:"'Cinzel',serif", fontSize:16, fontWeight:700, color:"#fff", letterSpacing:2 }}>You</div>
+              <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:13, color:"rgba(255,255,255,.4)", fontStyle:"italic", marginTop:3 }}>Meeting Organizer</div>
+            </div>
+            <button onClick={() => setCam(c => !c)} style={camToggleBtn(cam)}>
+              {cam ? "📹 Camera On" : "📷 Enable Camera"}
+            </button>
+            {cam && <div style={{ display:"none" }}><CameraPanel active={cam} onStream={setStream} /></div>}
           </div>
-          <div style={galleryRow}>
-            {humans.map(h => (
-              <HumanTile key={h.id} human={h} size={h.isLocal ? "lg" : "md"} />
+
+          {/* DIVIDER */}
+          <div style={{ width:1, background:"linear-gradient(to bottom,transparent,rgba(200,169,81,.25),transparent)", alignSelf:"stretch", margin:"40px 0" }} />
+
+          {/* AMANDA — right */}
+          <div style={{ ...panelBase, animation:"fade-up .5s .1s ease both" }}>
+            <div style={{
+              width: 240, height: 240, borderRadius: "50%", overflow: "hidden",
+              border: "3px solid #c8a951",
+              boxShadow: "0 0 0 8px rgba(200,169,81,.1), 0 0 60px rgba(200,169,81,.2)",
+              animation: "amanda-pulse 3.5s ease-in-out infinite",
+              flexShrink: 0, position:"relative",
+            }}>
+              <img src={AMANDA.portrait} alt="Amanda" style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"top center" }} />
+              {/* BOS shield overlay */}
+              <div style={{ position:"absolute", bottom:14, left:14, pointerEvents:"none" }}>
+                <BOSShield size={46} />
+              </div>
+            </div>
+            <div style={{ textAlign:"center" }}>
+              <div style={{ fontFamily:"'Cinzel',serif", fontSize:16, fontWeight:700, color:"#c8a951", letterSpacing:2 }}>Amanda</div>
+              <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:13, color:"rgba(255,255,255,.45)", fontStyle:"italic", marginTop:3 }}>Clique Supervisor · CSA</div>
+              <div style={{ display:"flex", alignItems:"center", gap:6, justifyContent:"center", marginTop:8 }}>
+                <span style={{ width:7, height:7, borderRadius:"50%", background:"#4CAF50", display:"inline-block", boxShadow:"0 0 6px #4CAF50" }} />
+                <span style={{ fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:2, color:"rgba(255,255,255,.3)", textTransform:"uppercase" }}>Live</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Amanda's greeting + actions ── */}
+        <div style={{ background:"#0a0604", borderTop:"1px solid rgba(200,169,81,.12)", padding:"22px 28px 28px", animation:"fade-up .5s .2s ease both" }}>
+          {/* Message bubble */}
+          <div style={{ display:"flex", alignItems:"flex-start", gap:12, marginBottom:20 }}>
+            <img src={AMANDA.portrait} alt="" style={{ width:34, height:34, borderRadius:"50%", objectFit:"cover", objectPosition:"top", border:"1px solid rgba(200,169,81,.4)", flexShrink:0 }} />
+            <div style={{
+              background:"rgba(200,169,81,.07)", border:"1px solid rgba(200,169,81,.15)",
+              borderRadius:"0 12px 12px 12px", padding:"11px 18px",
+              fontFamily:"'Cormorant Garamond',serif", fontSize:16, color:"rgba(255,255,255,.8)",
+              fontStyle:"italic", lineHeight:1.65, maxWidth:580,
+            }}>
+              {amandaMsg}
+            </div>
+          </div>
+
+          {/* Quick-action chips */}
+          <div style={{ display:"flex", flexWrap:"wrap", gap:9, marginBottom:18 }}>
+            {QUICK_ACTIONS.map((qa, i) => (
+              <button
+                key={qa.label}
+                onClick={() => inviteAgents(qa.ids)}
+                style={{
+                  fontFamily:"'Cinzel',serif", fontSize:10, fontWeight:600, letterSpacing:1.5,
+                  color:"#c8a951", padding:"7px 18px", borderRadius:22,
+                  border:"1px solid rgba(200,169,81,.3)", background:"rgba(200,169,81,.06)",
+                  cursor:"pointer", transition:"background .18s",
+                  animation:`chip-in .3s ${i * 0.06}s ease both`,
+                }}
+                onMouseOver={e => (e.currentTarget.style.background = "rgba(200,169,81,.14)")}
+                onMouseOut={e => (e.currentTarget.style.background = "rgba(200,169,81,.06)")}
+              >
+                {qa.emoji} {qa.label}
+              </button>
             ))}
           </div>
-        </section>
 
-        {/* AGENTS row */}
-        <section>
-          <div style={{ ...sectionLabel, color: "#c8a951" }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#c8a951", display: "inline-block" }} />
-            In the Room · Your Clique
+          {/* Goal input */}
+          <div style={{ display:"flex", gap:10 }}>
+            <input
+              ref={inputRef}
+              value={userGoal}
+              onChange={e => setUserGoal(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleGoalSubmit(); }}
+              placeholder="Or tell Amanda what you're working on…"
+              style={{
+                flex:1, padding:"11px 18px",
+                background:"rgba(255,255,255,.04)", border:"1px solid rgba(200,169,81,.2)",
+                borderRadius:6, color:"rgba(255,255,255,.85)",
+                fontFamily:"'Cormorant Garamond',serif", fontSize:15,
+                outline:"none",
+              }}
+            />
+            <button onClick={handleGoalSubmit} style={startBtn}>
+              Start →
+            </button>
           </div>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(144px, 1fr))",
-            gap: 20, width: "100%", maxWidth: 1040, margin: "0 auto", justifyItems: "center",
-          }}>
-            {members.map(a => (
+        </div>
+
+        {inviteOpen && <InviteModal roomCode={roomCode} onClose={() => setInvite(false)} />}
+      </div>
+    );
+  }
+
+  // ── MEETING PHASE ─────────────────────────────────────────────────────────
+  const allAgents = [AMANDA, ...joinedAgents];
+
+  return (
+    <div style={meetingWrap}>
+      <style>{`
+        @keyframes tile-in { from{opacity:0;transform:scale(.86) translateY(14px)} to{opacity:1;transform:scale(1) translateY(0)} }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+      `}</style>
+
+      {/* Header */}
+      <div style={meetingHeader}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <span style={logoStyle}>CLIQUE</span>
+          <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:12, color:"rgba(255,255,255,.3)", fontStyle:"italic" }}>
+            1 human · {allAgents.length} agent{allAgents.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+
+        {inviting && (
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ width:7, height:7, borderRadius:"50%", background:"#c8a951", display:"inline-block", animation:"blink 1s ease infinite", boxShadow:"0 0 6px #c8a951" }} />
+            <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:13, color:"rgba(200,169,81,.75)", fontStyle:"italic" }}>
+              Amanda is bringing in {inviting}…
+            </span>
+          </div>
+        )}
+
+        <button onClick={() => setInvite(true)} style={roomCodeBtn}>
+          Room {roomCode} · Invite ➕
+        </button>
+      </div>
+
+      {/* Gallery */}
+      <div style={{ flex:1, padding:"18px 16px 8px", overflowY:"auto", display:"flex", flexDirection:"column", gap:18 }}>
+        {/* Top row: User tile (prominent) + Amanda (CSA, always first agent) */}
+        <div style={{ display:"flex", flexWrap:"wrap", gap:20, justifyContent:"center", alignItems:"flex-start" }}>
+          {/* User — slightly larger */}
+          <div style={{ animation:"tile-in .4s ease both" }}>
+            <HumanTile human={localHuman} size="lg" />
+          </div>
+
+          {/* Amanda — always in meeting */}
+          <div style={{ animation:"tile-in .4s .08s ease both" }}>
+            <AgentTile
+              agent={AMANDA}
+              state={agentStates["amanda"] ?? "listening"}
+              size="lg"
+              qcr={qcrProfiles["amanda"]}
+              onClick={() => wakeAgent("amanda")}
+            />
+          </div>
+
+          {/* Joined agents — in join order */}
+          {joinedAgents.map((a, i) => (
+            <div key={a.id} style={{ animation:`tile-in .4s ${(i + 2) * 0.07}s ease both` }}>
               <AgentTile
-                key={a.id} agent={a}
+                agent={a}
                 state={agentStates[a.id] ?? "listening"}
                 size="md"
                 qcr={qcrProfiles[a.id]}
                 onClick={() => wakeAgent(a.id)}
               />
-            ))}
-          </div>
-        </section>
-
-        {/* Active agent bar */}
-        {activeAgent && (
-          <div style={{ textAlign: "center", fontFamily: "'Cormorant Garamond',serif", fontSize: 14, color: "#888", fontStyle: "italic" }}>
-            {members.find(a => a.id === activeAgent)?.name} is live —
-            <button onClick={returnToListening} style={{
-              marginLeft: 10, background: "none", border: "none", cursor: "pointer",
-              fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 2,
-              color: "#c8a951", textTransform: "uppercase", textDecoration: "underline",
-            }}>Return to listening</button>
-          </div>
-        )}
-
-        {/* Camera panel (controls the local webcam feed) */}
-        {cam && (
-          <div style={{ maxWidth: 360, margin: "0 auto", width: "100%" }}>
-            <CameraPanel active={cam} onStream={setStream} />
-          </div>
-        )}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* ── NOTES PANEL ── */}
-      {notesOpen && (
-        <aside style={{
-          position: "fixed", top: 64, right: accessOpen ? 340 : 0, bottom: 0, width: 320,
-          background: "#fff", borderLeft: "1px solid rgba(200,169,81,.25)",
-          zIndex: 150, display: "flex", flexDirection: "column",
-          boxShadow: "-6px 0 30px rgba(0,0,0,.07)",
-        }}>
-          <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(200,169,81,.12)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontFamily: "'Cinzel',serif", fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", color: "#0D1117" }}>Live Notes · Cleo</span>
-            <button onClick={() => setNotesOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#888", fontSize: 16 }}>✕</button>
-          </div>
-          <div style={{ padding: 18, flex: 1, overflowY: "auto" }}>
-            <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 14, color: "#888", fontStyle: "italic", lineHeight: 1.65 }}>
-              Cleo is always listening — to humans and agents alike. Notes, decisions, and action items appear here in real-time.
-            </p>
-            <div style={{ marginTop: 18, padding: "12px 14px", background: "#FDFAF6", border: "1px solid rgba(200,169,81,.2)", borderRadius: 4 }}>
-              <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 2, color: "#c8a951", textTransform: "uppercase", marginBottom: 8 }}>Action Items</div>
-              <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "#aaa", fontStyle: "italic" }}>None yet — start talking.</p>
-            </div>
-            <div style={{ marginTop: 14, padding: "12px 14px", background: "#FDFAF6", border: "1px solid rgba(200,169,81,.2)", borderRadius: 4 }}>
-              <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 2, color: "#c8a951", textTransform: "uppercase", marginBottom: 8 }}>Decisions</div>
-              <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "#aaa", fontStyle: "italic" }}>None recorded yet.</p>
-            </div>
-          </div>
-        </aside>
+      {/* Amanda status bar */}
+      <div style={amandaBar}>
+        <img src={AMANDA.portrait} alt="" style={{ width:26, height:26, borderRadius:"50%", objectFit:"cover", objectPosition:"top", border:"1px solid rgba(200,169,81,.4)", flexShrink:0 }} />
+        <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:13, color:"rgba(255,255,255,.55)", fontStyle:"italic", flex:1 }}>
+          {amandaMsg}
+        </span>
+        <button onClick={addMoreStaff} style={addStaffBtn}>+ Add Staff</button>
+      </div>
+
+      {activeAgent && (
+        <div style={{ textAlign:"center", padding:"5px 0", background:"rgba(10,6,4,.85)" }}>
+          <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:13, color:"rgba(255,255,255,.45)", fontStyle:"italic" }}>
+            {allAgents.find(a => a.id === activeAgent)?.name} is live —
+          </span>
+          <button onClick={returnToListening} style={{ marginLeft:10, background:"none", border:"none", cursor:"pointer", fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:2, color:"#c8a951", textTransform:"uppercase", textDecoration:"underline" }}>
+            Return to listening
+          </button>
+        </div>
       )}
 
-      {/* ── ACCESS PANEL ── */}
-      {accessOpen && (
-        <AccessGrantPanel grants={grants} onChange={setGrants} onClose={() => setAccess(false)} />
-      )}
+      <GroupListener transcript={transcript} onTrigger={handleGRI} />
+      <GroupResponseBanner clip={griClip} category={griCat} onDone={() => { setGriClip(null); setGriCat(null); }} />
 
-      {/* ── INVITE MODAL ── */}
       {inviteOpen && <InviteModal roomCode={roomCode} onClose={() => setInvite(false)} />}
 
-      {/* ── GROUP RESPONSE INTELLIGENCE ── */}
-      <GroupListener transcript={transcript} onTrigger={handleGRI} />
-      <GroupResponseBanner
-        clip={griClip}
-        category={griCat}
-        onDone={() => { setGriClip(null); setGriCat(null); }}
-      />
-
-      {/* ── CALL ME MODAL ── */}
-      {callMeOpen && (
-        <CallMeModal
-          hasPhone={!!grants.phone}
-          phone={grants.phone}
-          onRequestCall={async (agentId) => {
-            setCallMe(false);
-            await fetch("/api/clique/call-me", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ agentId, phone: grants.phone }),
-            }).catch(() => {});
-          }}
-          onClose={() => setCallMe(false)}
-          members={members}
-        />
-      )}
-
-      {/* ── CALL CONTROLS ── */}
       <CallControls
-        mic={mic}
-        cam={cam}
+        mic={mic} cam={cam}
         onMic={() => setMic(m => !m)}
         onCam={() => setCam(c => !c)}
-        onEnd={returnToListening}
-        onNotes={() => { setScribe(s => !s); setNotesOpen(o => !o); }}
+        onEnd={() => setPhase("intro")}
+        onNotes={() => {}}
         onChat={() => {}}
-        onAccess={() => setAccess(o => !o)}
-        onCallMe={() => setCallMe(o => !o)}
+        onAccess={() => {}}
+        onCallMe={() => {}}
         onInvite={() => setInvite(true)}
-        isScribeActive={scribeActive}
-        hasPhone={!!grants.phone}
+        isScribeActive={false}
+        hasPhone={false}
       />
+
+      {/* PiP webcam capture (hidden, feeds stream into HumanTile) */}
+      {cam && <div style={{ position:"fixed", width:1, height:1, opacity:0, pointerEvents:"none" }}><CameraPanel active={cam} onStream={setStream} /></div>}
     </div>
   );
 }
 
-const sectionLabel: CSSProperties = {
-  display: "flex", alignItems: "center", gap: 8,
-  fontFamily: "'Cinzel',serif", fontSize: 10, fontWeight: 600,
-  letterSpacing: 2.5, textTransform: "uppercase",
-  marginBottom: 16, justifyContent: "center",
-};
-
-const galleryRow: CSSProperties = {
-  display: "flex", flexWrap: "wrap", gap: 20,
-  justifyContent: "center", alignItems: "flex-end",
-};
-
-/* ── CALL ME MODAL ── */
-function CallMeModal({ hasPhone, phone, onRequestCall, onClose, members }: {
-  hasPhone: boolean;
-  phone: string | null;
-  onRequestCall: (agentId: string) => void;
-  onClose: () => void;
-  members: CliqueAgent[];
-}) {
-  const [selected, setSelected] = useState("amanda");
+// ── BOS Shield SVG ────────────────────────────────────────────────────────
+function BOSShield({ size = 40 }: { size?: number }) {
+  const h = size * 1.1;
   return (
-    <div style={{
-      position: "fixed", inset: 0, zIndex: 200,
-      background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center",
-      padding: 20,
-    }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{
-        background: "#fff", borderRadius: 8, padding: 28,
-        width: "100%", maxWidth: 400,
-        border: "1px solid rgba(200,169,81,.3)",
-        boxShadow: "0 20px 80px rgba(0,0,0,.3)",
-      }}>
-        <div style={{ fontFamily: "'Cinzel',serif", fontSize: 14, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", color: "#0D1117", marginBottom: 6 }}>Request a Call</div>
-        <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 14, color: "#666", fontStyle: "italic", lineHeight: 1.6, marginBottom: 20 }}>
-          {hasPhone
-            ? `Your clique will call ${phone} with an update or to continue this conversation.`
-            : "Add your phone number in Access & Integrations first."}
-        </p>
-
-        {hasPhone && (
-          <>
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#c8a951", marginBottom: 8 }}>Who should call?</div>
-              <select
-                value={selected}
-                onChange={e => setSelected(e.target.value)}
-                style={{
-                  width: "100%", padding: "10px 12px",
-                  border: "1px solid rgba(200,169,81,.3)", borderRadius: 4,
-                  fontFamily: "'Cormorant Garamond',serif", fontSize: 14, color: "#0D1117",
-                  background: "#FDFAF6",
-                }}
-              >
-                {members.map(a => (
-                  <option key={a.id} value={a.id}>{a.name} — {a.role}</option>
-                ))}
-              </select>
-            </div>
-            <button
-              onClick={() => onRequestCall(selected)}
-              style={{
-                width: "100%", padding: "13px",
-                fontFamily: "'Cinzel',serif", fontSize: 11, fontWeight: 700,
-                letterSpacing: 2.5, textTransform: "uppercase",
-                background: "linear-gradient(110deg,#8B6914,#c8a951,#f5e070,#c8a951,#8B6914)",
-                border: "none", color: "#0a0604", cursor: "pointer", borderRadius: 4,
-              }}
-            >Call Me Now</button>
-          </>
-        )}
-
-        {!hasPhone && (
-          <button onClick={onClose} style={{
-            fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 2,
-            textTransform: "uppercase", padding: "10px 20px",
-            border: "1px solid rgba(200,169,81,.4)", background: "rgba(200,169,81,.08)",
-            color: "#c8a951", cursor: "pointer", borderRadius: 4,
-          }}>Go to Access Settings</button>
-        )}
-      </div>
-    </div>
+    <svg width={size} height={h} viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="shield-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#8B6914" />
+          <stop offset="40%" stopColor="#c8a951" />
+          <stop offset="60%" stopColor="#f5e070" />
+          <stop offset="100%" stopColor="#8B6914" />
+        </linearGradient>
+      </defs>
+      {/* Shield body */}
+      <path
+        d="M20 2 L37 8 L37 24 C37 35 20 42 20 42 C20 42 3 35 3 24 L3 8 Z"
+        fill="url(#shield-gold)"
+        stroke="rgba(245,224,112,0.8)"
+        strokeWidth="1.2"
+      />
+      {/* BOS diagonal text */}
+      <text x="20" y="19" textAnchor="middle" fontFamily="'Cinzel',Georgia,serif" fontSize="8.5" fontWeight="bold" fill="#0a0604" letterSpacing="1">B·O·S</text>
+      <text x="20" y="29" textAnchor="middle" fontFamily="'Cinzel',Georgia,serif" fontSize="4" fill="#0a0604" letterSpacing="0.5">BERYL OS</text>
+    </svg>
   );
+}
+
+// ── Shared styles ─────────────────────────────────────────────────────────
+const introWrap: CSSProperties = {
+  display:"flex", flexDirection:"column", minHeight:"calc(100vh - 64px)",
+  background:"#0D1117", position:"relative",
+};
+const meetingWrap: CSSProperties = {
+  display:"flex", flexDirection:"column", minHeight:"calc(100vh - 64px)",
+  background:"#0D1117", position:"relative",
+};
+const headerStyle: CSSProperties = {
+  padding:"13px 24px", display:"flex", alignItems:"center",
+  justifyContent:"space-between", flexWrap:"wrap", gap:8,
+  borderBottom:"1px solid rgba(200,169,81,.1)",
+  background:"rgba(10,6,4,.9)", flexShrink:0,
+};
+const meetingHeader: CSSProperties = {
+  ...headerStyle,
+};
+const logoStyle: CSSProperties = {
+  fontFamily:"'Cinzel',serif", fontSize:18, fontWeight:700, letterSpacing:3,
+  background:"linear-gradient(110deg,#8B6914,#c8a951,#f5e070,#c8a951,#8B6914)",
+  WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text",
+};
+const twoPanelGrid: CSSProperties = {
+  display:"grid", gridTemplateColumns:"1fr auto 1fr", flex:1,
+  alignItems:"center", justifyItems:"center",
+  padding:"32px 20px", gap:0,
+  background:"#0D1117",
+};
+const panelBase: CSSProperties = {
+  display:"flex", flexDirection:"column", alignItems:"center",
+  justifyContent:"center", gap:18, padding:"24px",
+};
+const roomCodeBtn: CSSProperties = {
+  fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:2, fontWeight:700,
+  color:"#c8a951", padding:"5px 16px", borderRadius:20,
+  border:"1px solid rgba(200,169,81,.3)", background:"rgba(200,169,81,.06)",
+  cursor:"pointer",
+};
+const startBtn: CSSProperties = {
+  padding:"11px 26px",
+  fontFamily:"'Cinzel',serif", fontSize:11, fontWeight:700, letterSpacing:2,
+  background:"linear-gradient(110deg,#8B6914,#c8a951,#f5e070,#c8a951,#8B6914)",
+  border:"none", color:"#0a0604", cursor:"pointer", borderRadius:6,
+  whiteSpace:"nowrap",
+};
+const amandaBar: CSSProperties = {
+  display:"flex", alignItems:"center", gap:12,
+  padding:"9px 20px", borderTop:"1px solid rgba(200,169,81,.1)",
+  background:"rgba(10,6,4,.95)", flexShrink:0,
+};
+const addStaffBtn: CSSProperties = {
+  fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:1.5,
+  color:"rgba(200,169,81,.6)", padding:"4px 14px",
+  border:"1px solid rgba(200,169,81,.2)", background:"transparent",
+  cursor:"pointer", borderRadius:20, whiteSpace:"nowrap",
+};
+function camToggleBtn(active: boolean): CSSProperties {
+  return {
+    fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:2,
+    color: active ? "#f5e070" : "rgba(255,255,255,.35)",
+    padding:"5px 16px", borderRadius:20,
+    border:`1px solid ${active ? "rgba(245,224,112,.4)" : "rgba(255,255,255,.1)"}`,
+    background:"transparent", cursor:"pointer",
+  };
 }

@@ -118,11 +118,11 @@ export default function HumanTile({
       <div style={{ textAlign: "center" }}>
         <div style={{
           fontFamily: "'Cinzel',serif", fontSize: 12, fontWeight: 600,
-          color: "#0D1117", letterSpacing: 1,
+          color: "#fff", letterSpacing: 1,
         }}>{human.name}</div>
         <div style={{
           fontFamily: "'Cormorant Garamond',serif", fontSize: 11,
-          color: "#888", fontStyle: "italic", marginTop: 2,
+          color: "rgba(255,255,255,.4)", fontStyle: "italic", marginTop: 2,
         }}>{human.role}</div>
       </div>
     </div>
