@@ -6,6 +6,9 @@ import AgentTile from "./AgentTile";
 import CallControls from "./CallControls";
 import CameraPanel from "./CameraPanel";
 import AccessGrantPanel, { AccessGrants } from "./AccessGrantPanel";
+import GroupListener from "./GroupListener";
+import GroupResponseBanner from "./GroupResponseBanner";
+import { GRIClip, GRICategory } from "@/lib/gri";
 
 type AgentState = "listening" | "live" | "offline";
 type AgentStateMap = Record<string, AgentState>;
@@ -41,7 +44,15 @@ export default function CliqueRoom() {
   const [grants, setGrants]        = useState<AccessGrants>({
     email: false, linkedin: false, phone: null, phoneCallEnabled: false,
   });
+  const [griClip, setGriClip]      = useState<GRIClip | null>(null);
+  const [griCat, setGriCat]        = useState<GRICategory | null>(null);
+  const [transcript, setTranscript] = useState("");
   const userVideoRef = useRef<HTMLVideoElement>(null);
+
+  const handleGRI = useCallback((clip: GRIClip, category: GRICategory) => {
+    setGriClip(clip);
+    setGriCat(category);
+  }, []);
 
   useEffect(() => {
     setQCR(loadQCRProfiles(getDefaultTeam()));
@@ -218,6 +229,14 @@ export default function CliqueRoom() {
           onClose={() => setAccess(false)}
         />
       )}
+
+      {/* ── GROUP RESPONSE INTELLIGENCE ── */}
+      <GroupListener transcript={transcript} onTrigger={handleGRI} />
+      <GroupResponseBanner
+        clip={griClip}
+        category={griCat}
+        onDone={() => { setGriClip(null); setGriCat(null); }}
+      />
 
       {/* ── CALL ME MODAL ── */}
       {callMeOpen && (

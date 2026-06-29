@@ -2,7 +2,7 @@ import Nav from "@/components/Nav";
 import HeroVideo from "@/components/HeroVideo";
 import StatsBar from "@/components/StatsBar";
 import DifferencePanel from "@/components/DifferencePanel";
-import SquadScroller from "@/components/SquadScroller";
+import CliquePromo from "@/components/CliquePromo";
 import KizzyBanner from "@/components/KizzyBanner";
 import MatineeBanner from "@/components/MatineeBanner";
 import UseCases from "@/components/UseCases";
@@ -18,7 +18,7 @@ export default function Home() {
       <HeroVideo />
       <StatsBar />
       <DifferencePanel />
-      <div id="clique"><SquadScroller /></div>
+      <CliquePromo />
       <KizzyBanner />
       <MatineeBanner />
       <UseCases />
