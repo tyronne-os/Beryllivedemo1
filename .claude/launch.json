@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--dir", "C:\\Users\\tjlsu\\beryl-live-production", "run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "beryllivedemo1",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/next/dist/bin/next", "dev", "--no-turbopack"],
+      "port": 3001
     }
   ]
 }

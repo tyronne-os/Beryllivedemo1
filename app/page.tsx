@@ -18,7 +18,7 @@ export default function Home() {
       <HeroVideo />
       <StatsBar />
       <DifferencePanel />
-      <div id="squad"><SquadScroller /></div>
+      <div id="clique"><SquadScroller /></div>
       <KizzyBanner />
       <MatineeBanner />
       <UseCases />

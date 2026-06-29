@@ -41,9 +41,9 @@ export default function SquadScroller() {
       `}</style>
 
       <div style={{textAlign:"center",marginBottom:32,padding:"0 20px"}}>
-        <div style={{fontFamily:"'Cinzel',serif",fontSize:16,fontWeight:700,letterSpacing:3,textTransform:"uppercase",color:"#4CAF50",marginBottom:8}}>Beryl Live · Character Roster</div>
+        <div style={{fontFamily:"'Cinzel',serif",fontSize:16,fontWeight:700,letterSpacing:3,textTransform:"uppercase",color:"#4CAF50",marginBottom:8}}>Beryl Live · Your Clique</div>
         <h2 className="squad-title" style={{fontFamily:"'Cinzel',serif",fontSize:26,fontWeight:600,color:"#0D1117"}}>
-          The <span style={{color:"#1a5f7a"}}>Beryl Squad</span>
+          The <span style={{color:"#1a5f7a"}}>Beryl Clique</span>
         </h2>
         <div style={{width:40,height:2,background:"#4CAF50",margin:"12px auto 0"}}/>
       </div>
