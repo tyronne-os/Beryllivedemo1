@@ -1,6 +1,9 @@
 "use client";
+import { useMemo } from "react";
 import { CliqueAgent } from "@/lib/clique-roster";
 import { QCRProfile, rapportColor, rapportLabel } from "@/lib/qcr";
+import CLSTile from "./CLSTile";
+import { randomListenVariant, introVariant, CLSVariant } from "@/lib/clique-cls";
 
 interface Props {
   agent: CliqueAgent;
@@ -8,6 +11,8 @@ interface Props {
   size?: "sm" | "md" | "lg";
   qcr?: QCRProfile;
   onClick?: () => void;
+  /** Override the CLS variant (e.g. "wave" for first entry) */
+  clsVariant?: CLSVariant;
 }
 
 const MOOD_COLOR: Record<string, string> = {
@@ -19,17 +24,26 @@ const MOOD_COLOR: Record<string, string> = {
   neutral:   "#888",
 };
 
-export default function AgentTile({ agent, state, size = "md", qcr, onClick }: Props) {
-  const dim = size === "lg" ? 180 : size === "sm" ? 100 : 136;
-  const isLive = state === "live";
-  const isOff  = state === "offline";
+export default function AgentTile({ agent, state, size = "md", qcr, onClick, clsVariant }: Props) {
+  const dim      = size === "lg" ? 180 : size === "sm" ? 100 : 136;
+  const isLive   = state === "live";
+  const isOff    = state === "offline";
 
-  const rapport      = qcr?.rapportScore ?? 0.3;
-  const ringColor    = rapportColor(rapport);
-  const ringWidth    = 2 + Math.round(rapport * 3); // 2-5px
-  const desire       = qcr?.desireLevel ?? 0.5;
-  const moodColor    = MOOD_COLOR[qcr?.moodRead ?? "neutral"];
-  const showDesire   = desire > 0.75 && !isLive;
+  const rapport   = qcr?.rapportScore ?? 0.3;
+  const ringColor = rapportColor(rapport);
+  const ringWidth = 2 + Math.round(rapport * 3);
+  const desire    = qcr?.desireLevel ?? 0.5;
+  const moodColor = MOOD_COLOR[qcr?.moodRead ?? "neutral"];
+  const showDesire = desire > 0.75 && !isLive;
+
+  // Pick a stable random CLS variant per mount (changes each time agent enters)
+  const variant = useMemo(
+    () => clsVariant ?? (agent.isCSA ? introVariant() : randomListenVariant()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [agent.id]
+  );
+
+  const borderRadius = agent.isCSA ? "50%" : 6;
 
   return (
     <div
@@ -49,60 +63,48 @@ export default function AgentTile({ agent, state, size = "md", qcr, onClick }: P
           0%,100%{opacity:.5;transform:scale(1) rotate(0deg)}
           50%{opacity:1;transform:scale(1.12) rotate(8deg)}
         }
-        @keyframes listening-pulse-${agent.id} {
-          0%,100%{opacity:.3}
-          50%{opacity:.8}
-        }
         @keyframes live-ring-${agent.id} {
           0%{box-shadow:0 0 0 0 rgba(245,224,112,.5)}
           100%{box-shadow:0 0 0 10px rgba(245,224,112,0)}
         }
       `}</style>
 
-      {/* Desire sparkle — agent is reaching for the user's attention */}
+      {/* Desire sparkle */}
       {showDesire && (
         <div style={{
-          position: "absolute", top: -6, right: -4,
-          fontSize: 13,
+          position: "absolute", top: -6, right: -4, fontSize: 13, zIndex: 10,
           animation: `desire-sparkle-${agent.id} 2s ease-in-out infinite`,
-          zIndex: 10,
           pointerEvents: "none",
         }}>✦</div>
       )}
 
-      {/* Portrait frame */}
+      {/* Portrait / CLS frame */}
       <div style={{
         position: "relative",
         width: dim, height: dim,
-        borderRadius: agent.isCSA ? "50%" : 6,
+        borderRadius,
         overflow: "hidden",
         border: isLive
-          ? `3px solid #f5e070`
+          ? "3px solid #f5e070"
           : `${ringWidth}px solid ${ringColor}`,
         boxShadow: isLive
           ? "0 0 0 4px rgba(245,224,112,.2), 0 0 28px rgba(200,169,81,.55)"
           : agent.isCSA
-            ? `0 0 0 3px rgba(200,169,81,.15), 0 4px 20px rgba(0,0,0,.12)`
-            : `0 4px 14px rgba(0,0,0,.08)`,
-        background: "#ddd4c0",
+            ? "0 0 0 3px rgba(200,169,81,.15), 0 4px 20px rgba(0,0,0,.12)"
+            : "0 4px 14px rgba(0,0,0,.08)",
         flexShrink: 0,
         animation: isLive ? `live-ring-${agent.id} 1.2s ease-out infinite` : "none",
       }}>
-        <img
-          src={agent.portrait}
-          alt={agent.name}
-          style={{
-            width: "100%", height: "100%",
-            objectFit: "cover", objectPosition: "top center",
-            filter: isOff ? "grayscale(1)" : "none",
-            transition: "filter .4s",
-          }}
-          onError={e => {
-            (e.currentTarget as HTMLImageElement).style.opacity = "0";
-          }}
+        {/* CLS animated loop — always alive, never a frozen image */}
+        <CLSTile
+          agent={agent}
+          variant={variant}
+          size={dim}
+          borderRadius={borderRadius}
+          isCSA={agent.isCSA}
         />
 
-        {/* Live gradient overlay */}
+        {/* LIVE gradient overlay */}
         {isLive && (
           <div style={{
             position: "absolute", inset: 0,
@@ -122,35 +124,7 @@ export default function AgentTile({ agent, state, size = "md", qcr, onClick }: P
           }}>LIVE</div>
         )}
 
-        {/* Listening pulse ring */}
-        {state === "listening" && (
-          <div style={{
-            position: "absolute", inset: -3, borderRadius: "inherit",
-            border: `2px solid ${ringColor}`,
-            opacity: 0.4,
-            animation: `listening-pulse-${agent.id} 3.2s ease-in-out infinite`,
-            pointerEvents: "none",
-          }} />
-        )}
-
-        {/* BOS Shield — always visible in every agent tile, core brand */}
-        <div style={{ position:"absolute", bottom:6, left:6, pointerEvents:"none", zIndex:5 }}>
-          <svg width={dim * 0.22} height={dim * 0.24} viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id={`sg-${agent.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#8B6914" />
-                <stop offset="50%" stopColor="#f5e070" />
-                <stop offset="100%" stopColor="#8B6914" />
-              </linearGradient>
-            </defs>
-            <path d="M20 2 L37 8 L37 24 C37 35 20 42 20 42 C20 42 3 35 3 24 L3 8 Z"
-              fill={`url(#sg-${agent.id})`} stroke="rgba(245,224,112,0.7)" strokeWidth="1.2" />
-            <text x="20" y="19" textAnchor="middle" fontFamily="'Cinzel',Georgia,serif" fontSize="8.5" fontWeight="bold" fill="#0a0604" letterSpacing="1">B·O·S</text>
-            <text x="20" y="29" textAnchor="middle" fontFamily="'Cinzel',Georgia,serif" fontSize="4" fill="#0a0604" letterSpacing="0.5">BERYL OS</text>
-          </svg>
-        </div>
-
-        {/* CSA crown */}
+        {/* CSA badge */}
         {agent.isCSA && (
           <div style={{
             position: "absolute", bottom: 5, left: "50%",
@@ -167,8 +141,7 @@ export default function AgentTile({ agent, state, size = "md", qcr, onClick }: P
           <div style={{
             position: "absolute", top: 6, right: 6,
             width: 8, height: 8, borderRadius: "50%",
-            background: moodColor,
-            border: "1px solid rgba(255,255,255,.5)",
+            background: moodColor, border: "1px solid rgba(255,255,255,.5)",
             boxShadow: `0 0 6px ${moodColor}`,
           }} title={qcr.moodRead} />
         )}
@@ -180,14 +153,14 @@ export default function AgentTile({ agent, state, size = "md", qcr, onClick }: P
           fontFamily: "'Cinzel',serif",
           fontSize: size === "sm" ? 10 : 12,
           fontWeight: 600,
-          color: isLive ? "#c8a951" : "#0D1117",
+          color: isLive ? "#c8a951" : "#fff",
           letterSpacing: 1,
           transition: "color .3s",
         }}>{agent.name}</div>
         <div style={{
           fontFamily: "'Cormorant Garamond',serif",
           fontSize: size === "sm" ? 9 : 11,
-          color: "#888", fontStyle: "italic", marginTop: 2,
+          color: "rgba(255,255,255,.45)", fontStyle: "italic", marginTop: 2,
         }}>{agent.role}</div>
         {qcr && (
           <div style={{

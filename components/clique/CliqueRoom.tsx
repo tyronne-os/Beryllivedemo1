@@ -4,7 +4,9 @@ import { CliqueAgent, CLIQUE_ROSTER } from "@/lib/clique-roster";
 import { QCRProfile, getQCRProfile } from "@/lib/qcr";
 import { HumanParticipant, seedHumans, makeRoomCode } from "@/lib/clique-participants";
 import { detectIntent, SessionIntent } from "@/lib/clique-intent";
+import { CLSVariant } from "@/lib/clique-cls";
 import AgentTile from "./AgentTile";
+import CLSTile from "./CLSTile";
 import HumanTile from "./HumanTile";
 import CallControls from "./CallControls";
 import CameraPanel from "./CameraPanel";
@@ -73,6 +75,8 @@ export default function CliqueRoom() {
   const [intent, setIntent]             = useState<SessionIntent>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [buildUrl, setBuildUrl]         = useState<string | null>(null);
+  // CLS state: "wave" = intro greeting loop, "listen" = active waiting, "confirm" = nodding
+  const [amandaCLS, setAmandaCLS]       = useState<"wave"|"listen"|"confirm"|"live">("wave");
   const inputRef                        = useRef<HTMLInputElement>(null);
   const chatEndRef                      = useRef<HTMLDivElement>(null);
 
@@ -85,6 +89,33 @@ export default function CliqueRoom() {
       const param = new URLSearchParams(window.location.search).get("room");
       setRoomCode(param?.toUpperCase() || makeRoomCode());
     }
+  }, []);
+
+  // Amanda speaks her greeting on load — Beryl Live OS voice (Web Speech API now,
+  // replace with Realtime voice stream when full OS integration is wired)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const t = setTimeout(() => {
+      try {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(
+          "Good day. I'm Amanda, your Clique Supervisor. What are we working on today?"
+        );
+        u.rate    = 0.88;
+        u.pitch   = 1.08;
+        u.volume  = 1;
+        // Prefer a female voice if available
+        const voices = window.speechSynthesis.getVoices();
+        const preferred = voices.find(v =>
+          /female|woman|samantha|karen|moira|fiona|victoria|zira/i.test(v.name)
+        ) ?? voices.find(v => v.lang.startsWith("en")) ?? null;
+        if (preferred) u.voice = preferred;
+        // After greeting, shift to active listening loop
+        u.onend = () => setAmandaCLS("listen");
+        window.speechSynthesis.speak(u);
+      } catch { /* browser blocked autoplay voice — silently continue */ }
+    }, 900);
+    return () => clearTimeout(t);
   }, []);
 
   // Sync webcam stream into local human tile
@@ -102,6 +133,20 @@ export default function CliqueRoom() {
         !!a && a.id !== "amanda" && !joinedAgents.find(j => j.id === a.id)
       );
 
+    // Amanda confirms the request — shifts CLS from listen → confirm (nod)
+    setAmandaCLS("confirm");
+    window.speechSynthesis?.cancel();
+    try {
+      const u = new SpeechSynthesisUtterance(
+        toAdd.length
+          ? `Got it. Let me bring in the right people.`
+          : `Your team is ready.`
+      );
+      u.rate = 0.88; u.pitch = 1.08;
+      window.speechSynthesis?.speak(u);
+    } catch { /* silent */ }
+
+    await new Promise(r => setTimeout(r, 1200));
     setPhase("meeting");
     if (toAdd.length === 0) return;
 
@@ -226,45 +271,61 @@ export default function CliqueRoom() {
           {/* DIVIDER */}
           <div style={{ width:1, background:"linear-gradient(to bottom,transparent,rgba(200,169,81,.25),transparent)", alignSelf:"stretch", margin:"40px 0" }} />
 
-          {/* AMANDA — right */}
+          {/* AMANDA — right (CLS animated loop) */}
           <div style={{ ...panelBase, animation:"fade-up .5s .1s ease both" }}>
+            {/* CLS frame — always animated, never frozen */}
             <div style={{
               width: 240, height: 240, borderRadius: "50%", overflow: "hidden",
               border: "3px solid #c8a951",
               boxShadow: "0 0 0 8px rgba(200,169,81,.1), 0 0 60px rgba(200,169,81,.2)",
               animation: "amanda-pulse 3.5s ease-in-out infinite",
-              flexShrink: 0, position:"relative",
+              flexShrink: 0,
             }}>
-              <img src={AMANDA.portrait} alt="Amanda" style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"top center" }} />
-              {/* BOS shield overlay */}
-              <div style={{ position:"absolute", bottom:14, left:14, pointerEvents:"none" }}>
-                <BOSShield size={46} />
-              </div>
+              <CLSTile
+                agent={AMANDA}
+                variant={amandaCLS === "wave" ? "wave" : amandaCLS === "confirm" ? "nod" : "idle_a"}
+                size={240}
+                borderRadius="50%"
+                isCSA
+              />
             </div>
+
             <div style={{ textAlign:"center" }}>
               <div style={{ fontFamily:"'Cinzel',serif", fontSize:16, fontWeight:700, color:"#c8a951", letterSpacing:2 }}>Amanda</div>
               <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:13, color:"rgba(255,255,255,.45)", fontStyle:"italic", marginTop:3 }}>Clique Supervisor · CSA</div>
-              <div style={{ display:"flex", alignItems:"center", gap:6, justifyContent:"center", marginTop:8 }}>
-                <span style={{ width:7, height:7, borderRadius:"50%", background:"#4CAF50", display:"inline-block", boxShadow:"0 0 6px #4CAF50" }} />
-                <span style={{ fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:2, color:"rgba(255,255,255,.3)", textTransform:"uppercase" }}>Live</span>
+
+              {/* Voice indicator — shows Amanda is speaking / listening */}
+              <div style={{ display:"flex", alignItems:"center", gap:6, justifyContent:"center", marginTop:10 }}>
+                {amandaCLS === "wave" ? (
+                  // Speaking — animated voice bars
+                  <VoiceBars />
+                ) : (
+                  // Listening
+                  <>
+                    <span style={{ width:7, height:7, borderRadius:"50%", background:"#4CAF50", display:"inline-block", boxShadow:"0 0 6px #4CAF50" }} />
+                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:2, color:"rgba(255,255,255,.3)", textTransform:"uppercase" }}>Listening</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* ── Amanda's greeting + actions ── */}
-        <div style={{ background:"#0a0604", borderTop:"1px solid rgba(200,169,81,.12)", padding:"22px 28px 28px", animation:"fade-up .5s .2s ease both" }}>
-          {/* Message bubble */}
-          <div style={{ display:"flex", alignItems:"flex-start", gap:12, marginBottom:20 }}>
-            <img src={AMANDA.portrait} alt="" style={{ width:34, height:34, borderRadius:"50%", objectFit:"cover", objectPosition:"top", border:"1px solid rgba(200,169,81,.4)", flexShrink:0 }} />
-            <div style={{
-              background:"rgba(200,169,81,.07)", border:"1px solid rgba(200,169,81,.15)",
-              borderRadius:"0 12px 12px 12px", padding:"11px 18px",
-              fontFamily:"'Cormorant Garamond',serif", fontSize:16, color:"rgba(255,255,255,.8)",
-              fontStyle:"italic", lineHeight:1.65, maxWidth:580,
+        {/* ── Actions panel ── (no text bubble — Amanda speaks, not types) */}
+        <div style={{ background:"#0a0604", borderTop:"1px solid rgba(200,169,81,.12)", padding:"18px 28px 26px", animation:"fade-up .5s .2s ease both" }}>
+          {/* Subtitle — what Amanda just said (caption-style, not a chat bubble) */}
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
+            <VoiceBars small />
+            <span style={{
+              fontFamily:"'Cormorant Garamond',serif", fontSize:14,
+              color:"rgba(255,255,255,.4)", fontStyle:"italic",
             }}>
-              {amandaMsg}
-            </div>
+              {amandaCLS === "wave"
+                ? "Amanda is speaking…"
+                : amandaCLS === "confirm"
+                  ? "Amanda is confirming your request…"
+                  : "Amanda is listening — tell her what you need, or pick an option below"}
+            </span>
           </div>
 
           {/* Quick-action chips */}
@@ -433,15 +494,21 @@ export default function CliqueRoom() {
                 Your clique is gathering their thoughts…
               </div>
             )}
-            {chatMessages.map((msg, i) => (
+            {chatMessages.map((msg, i) => {
+              const msgAgent = CLIQUE_ROSTER.find(a => a.id === msg.agentId) ?? AMANDA;
+              return (
               <div key={msg.ts} style={{ display:"flex", gap:10, alignItems:"flex-start", animation:`tile-in .4s ${i*0.1}s ease both` }}>
-                <img src={msg.portrait} alt="" style={{ width:30, height:30, borderRadius:"50%", objectFit:"cover", objectPosition:"top", border:"1px solid rgba(200,169,81,.3)", flexShrink:0 }} />
+                {/* CLS mini loop — no static avatar ever */}
+                <div style={{ width:30, height:30, borderRadius:"50%", overflow:"hidden", border:"1px solid rgba(200,169,81,.3)", flexShrink:0 }}>
+                  <CLSTile agent={msgAgent} variant="idle_b" size={30} borderRadius="50%" />
+                </div>
                 <div style={{ background:"rgba(255,255,255,.04)", border:"1px solid rgba(255,255,255,.07)", borderRadius:"0 10px 10px 10px", padding:"8px 14px", maxWidth:480 }}>
                   <div style={{ fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:1.5, color:"#c8a951", marginBottom:4, textTransform:"uppercase" }}>{msg.agentName}</div>
                   <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:14, color:"rgba(255,255,255,.75)", lineHeight:1.6 }}>{msg.text}</div>
                 </div>
               </div>
-            ))}
+              );
+            })}
             <div ref={chatEndRef} />
           </div>
 
@@ -470,9 +537,11 @@ export default function CliqueRoom() {
         </div>
       )}
 
-      {/* Amanda status bar */}
+      {/* Amanda status bar — CLS mini loop, never static */}
       <div style={amandaBar}>
-        <img src={AMANDA.portrait} alt="" style={{ width:26, height:26, borderRadius:"50%", objectFit:"cover", objectPosition:"top", border:"1px solid rgba(200,169,81,.4)", flexShrink:0 }} />
+        <div style={{ width:26, height:26, borderRadius:"50%", overflow:"hidden", border:"1px solid rgba(200,169,81,.4)", flexShrink:0 }}>
+          <CLSTile agent={AMANDA} variant="idle_a" size={26} borderRadius="50%" isCSA />
+        </div>
         <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:13, color:"rgba(255,255,255,.55)", fontStyle:"italic", flex:1 }}>
           {amandaMsg}
         </span>
@@ -535,7 +604,13 @@ function PanelAgentRow({ agent, state, onClick }: { agent: CliqueAgent; state: A
         border:`2px solid ${isLive ? "#f5e070" : "rgba(200,169,81,.2)"}`,
         boxShadow: isLive ? "0 0 10px rgba(245,224,112,.3)" : "none",
       }}>
-        <img src={agent.portrait} alt={agent.name} style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"top" }} />
+        {/* CLS loop — never a frozen 2D image */}
+        <CLSTile
+          agent={agent}
+          variant={isLive ? "focus" : "idle_a"}
+          size={36}
+          borderRadius={agent.isCSA ? "50%" : 4}
+        />
       </div>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ fontFamily:"'Cinzel',serif", fontSize:9, fontWeight:600, color: isLive ? "#f5e070" : "#fff", letterSpacing:1, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{agent.name}</div>
@@ -547,30 +622,26 @@ function PanelAgentRow({ agent, state, onClick }: { agent: CliqueAgent; state: A
   );
 }
 
-// ── BOS Shield SVG ────────────────────────────────────────────────────────
-function BOSShield({ size = 40 }: { size?: number }) {
-  const h = size * 1.1;
+// ── Voice Bars — animated equalizer shown when Amanda is speaking ──────────
+function VoiceBars({ small }: { small?: boolean }) {
+  const h = small ? 14 : 20;
+  const w = small ? 3  : 4;
+  const gap = small ? 3 : 4;
+  const bars = [0.5, 1, 0.7, 0.9, 0.6, 0.8, 0.4];
   return (
-    <svg width={size} height={h} viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="shield-gold" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#8B6914" />
-          <stop offset="40%" stopColor="#c8a951" />
-          <stop offset="60%" stopColor="#f5e070" />
-          <stop offset="100%" stopColor="#8B6914" />
-        </linearGradient>
-      </defs>
-      {/* Shield body */}
-      <path
-        d="M20 2 L37 8 L37 24 C37 35 20 42 20 42 C20 42 3 35 3 24 L3 8 Z"
-        fill="url(#shield-gold)"
-        stroke="rgba(245,224,112,0.8)"
-        strokeWidth="1.2"
-      />
-      {/* BOS diagonal text */}
-      <text x="20" y="19" textAnchor="middle" fontFamily="'Cinzel',Georgia,serif" fontSize="8.5" fontWeight="bold" fill="#0a0604" letterSpacing="1">B·O·S</text>
-      <text x="20" y="29" textAnchor="middle" fontFamily="'Cinzel',Georgia,serif" fontSize="4" fill="#0a0604" letterSpacing="0.5">BERYL OS</text>
-    </svg>
+    <div style={{ display:"flex", alignItems:"flex-end", gap, height: h }}>
+      <style>{`
+        @keyframes vbar { 0%,100%{transform:scaleY(.2)} 50%{transform:scaleY(1)} }
+      `}</style>
+      {bars.map((delay, i) => (
+        <div key={i} style={{
+          width: w, height: "100%", borderRadius: 2,
+          background:"linear-gradient(180deg,#f5e070,#c8a951)",
+          transformOrigin:"bottom",
+          animation:`vbar ${0.6 + delay * 0.4}s ${i * 0.1}s ease-in-out infinite`,
+        }} />
+      ))}
+    </div>
   );
 }
 
