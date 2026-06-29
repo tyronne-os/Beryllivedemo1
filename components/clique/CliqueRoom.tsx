@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect, useRef, type CSSProperties } from "re
 import { CliqueAgent, CLIQUE_ROSTER } from "@/lib/clique-roster";
 import { QCRProfile, getQCRProfile } from "@/lib/qcr";
 import { HumanParticipant, seedHumans, makeRoomCode } from "@/lib/clique-participants";
+import { detectIntent, SessionIntent } from "@/lib/clique-intent";
 import AgentTile from "./AgentTile";
 import HumanTile from "./HumanTile";
 import CallControls from "./CallControls";
@@ -15,6 +16,14 @@ import { GRIClip, GRICategory } from "@/lib/gri";
 type Phase = "intro" | "meeting";
 type AgentState = "listening" | "live" | "offline";
 type AgentStateMap = Record<string, AgentState>;
+
+interface ChatMessage {
+  agentId: string;
+  agentName: string;
+  portrait: string;
+  text: string;
+  ts: number;
+}
 
 const USER_ID = "beryl_user_default";
 const AMANDA = CLIQUE_ROSTER.find(a => a.id === "amanda")!;
@@ -61,7 +70,11 @@ export default function CliqueRoom() {
   const [griClip, setGriClip]           = useState<GRIClip | null>(null);
   const [griCat, setGriCat]             = useState<GRICategory | null>(null);
   const [transcript]                    = useState("");
+  const [intent, setIntent]             = useState<SessionIntent>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [buildUrl, setBuildUrl]         = useState<string | null>(null);
   const inputRef                        = useRef<HTMLInputElement>(null);
+  const chatEndRef                      = useRef<HTMLDivElement>(null);
 
   const handleGRI = useCallback((clip: GRIClip, cat: GRICategory) => {
     setGriClip(clip); setGriCat(cat);
@@ -112,6 +125,8 @@ export default function CliqueRoom() {
   const handleGoalSubmit = useCallback(() => {
     const goal = userGoal.trim();
     if (!goal) return;
+    const detected = detectIntent(goal);
+    setIntent(detected);
     const ids = inferAgentsFromText(goal);
     inviteAgents(ids.length ? ids : ["eve", "jessica", "bri"]);
     setUserGoal("");
@@ -257,7 +272,7 @@ export default function CliqueRoom() {
             {QUICK_ACTIONS.map((qa, i) => (
               <button
                 key={qa.label}
-                onClick={() => inviteAgents(qa.ids)}
+                onClick={() => { setIntent("build"); inviteAgents(qa.ids); }}
                 style={{
                   fontFamily:"'Cinzel',serif", fontSize:10, fontWeight:600, letterSpacing:1.5,
                   color:"#c8a951", padding:"7px 18px", borderRadius:22,
@@ -333,40 +348,127 @@ export default function CliqueRoom() {
         </button>
       </div>
 
-      {/* Gallery */}
-      <div style={{ flex:1, padding:"18px 16px 8px", overflowY:"auto", display:"flex", flexDirection:"column", gap:18 }}>
-        {/* Top row: User tile (prominent) + Amanda (CSA, always first agent) */}
-        <div style={{ display:"flex", flexWrap:"wrap", gap:20, justifyContent:"center", alignItems:"flex-start" }}>
-          {/* User — slightly larger */}
-          <div style={{ animation:"tile-in .4s ease both" }}>
-            <HumanTile human={localHuman} size="lg" />
-          </div>
-
-          {/* Amanda — always in meeting */}
-          <div style={{ animation:"tile-in .4s .08s ease both" }}>
-            <AgentTile
-              agent={AMANDA}
-              state={agentStates["amanda"] ?? "listening"}
-              size="lg"
-              qcr={qcrProfiles["amanda"]}
-              onClick={() => wakeAgent("amanda")}
-            />
-          </div>
-
-          {/* Joined agents — in join order */}
-          {joinedAgents.map((a, i) => (
-            <div key={a.id} style={{ animation:`tile-in .4s ${(i + 2) * 0.07}s ease both` }}>
-              <AgentTile
-                agent={a}
-                state={agentStates[a.id] ?? "listening"}
-                size="md"
-                qcr={qcrProfiles[a.id]}
-                onClick={() => wakeAgent(a.id)}
-              />
+      {/* ── BUILD MODE: preview + vertical team panel ── */}
+      {intent === "build" ? (
+        <div style={{ flex:1, display:"flex", overflow:"hidden" }}>
+          {/* Project preview area */}
+          <div style={{ flex:1, display:"flex", flexDirection:"column", background:"#0a0c10", borderRight:"1px solid rgba(200,169,81,.1)", overflow:"hidden" }}>
+            {/* Preview header */}
+            <div style={{ padding:"10px 16px", borderBottom:"1px solid rgba(200,169,81,.1)", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+              <span style={{ width:8, height:8, borderRadius:"50%", background:"#4CAF50", display:"inline-block", boxShadow:"0 0 6px #4CAF50" }} />
+              <span style={{ fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:2, color:"rgba(255,255,255,.4)", textTransform:"uppercase" }}>Live Preview</span>
+              {buildUrl && (
+                <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:12, color:"rgba(255,255,255,.3)", fontStyle:"italic", marginLeft:8 }}>{buildUrl}</span>
+              )}
             </div>
-          ))}
+            {/* Preview pane */}
+            <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
+              {buildUrl ? (
+                <iframe src={buildUrl} style={{ width:"100%", height:"100%", border:"none" }} />
+              ) : (
+                <div style={{ textAlign:"center" }}>
+                  <div style={{ fontFamily:"'Cinzel',serif", fontSize:11, letterSpacing:3, color:"rgba(255,255,255,.18)", textTransform:"uppercase", marginBottom:12 }}>Build Preview</div>
+                  <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:15, color:"rgba(255,255,255,.3)", fontStyle:"italic", maxWidth:360 }}>
+                    Your team is working. Output will appear here as it&apos;s produced.
+                  </div>
+                  {/* Animated build indicator */}
+                  <div style={{ marginTop:28, display:"flex", gap:8, justifyContent:"center" }}>
+                    {[0,1,2].map(i => (
+                      <div key={i} style={{ width:8, height:8, borderRadius:"50%", background:"rgba(200,169,81,.4)", animation:`blink 1.2s ${i*0.3}s ease-in-out infinite` }} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Vertical team panel */}
+          <div style={{ width:220, display:"flex", flexDirection:"column", background:"#0D1117", overflowY:"auto", flexShrink:0 }}>
+            <div style={{ padding:"10px 12px", borderBottom:"1px solid rgba(200,169,81,.08)", flexShrink:0 }}>
+              <span style={{ fontFamily:"'Cinzel',serif", fontSize:8, letterSpacing:2, color:"rgba(200,169,81,.5)", textTransform:"uppercase" }}>Your Clique · Building</span>
+            </div>
+            {/* User tile — compact */}
+            <div style={{ padding:"12px 8px", borderBottom:"1px solid rgba(200,169,81,.06)", display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{ width:36, height:36, borderRadius:4, background:"linear-gradient(135deg,#c8a951cc,#c8a95144)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Cinzel',serif", fontSize:10, fontWeight:700, color:"#0a0604", flexShrink:0 }}>YOU</div>
+              <div>
+                <div style={{ fontFamily:"'Cinzel',serif", fontSize:9, fontWeight:600, color:"#fff", letterSpacing:1 }}>You</div>
+                <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:10, color:"rgba(255,255,255,.35)", fontStyle:"italic" }}>Host</div>
+              </div>
+            </div>
+            {/* Amanda */}
+            <PanelAgentRow agent={AMANDA} state={agentStates["amanda"] ?? "listening"} onClick={() => wakeAgent("amanda")} />
+            {/* Joined agents stacked vertically */}
+            {joinedAgents.map((a, i) => (
+              <div key={a.id} style={{ animation:`tile-in .35s ${i * 0.08}s ease both` }}>
+                <PanelAgentRow agent={a} state={agentStates[a.id] ?? "listening"} onClick={() => wakeAgent(a.id)} />
+              </div>
+            ))}
+            <div style={{ padding:"10px 12px", marginTop:"auto", borderTop:"1px solid rgba(200,169,81,.06)" }}>
+              <button onClick={addMoreStaff} style={{ ...addStaffBtn, width:"100%", textAlign:"center" }}>+ Add Staff</button>
+            </div>
+          </div>
         </div>
-      </div>
+      ) : intent === "chat" ? (
+        /* ── CHAT MODE: gallery + conversation cards ── */
+        <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+          {/* Compact agent gallery */}
+          <div style={{ padding:"14px 16px 10px", display:"flex", flexWrap:"wrap", gap:14, justifyContent:"center", flexShrink:0 }}>
+            <div style={{ animation:"tile-in .4s ease both" }}>
+              <HumanTile human={localHuman} size="md" />
+            </div>
+            <div style={{ animation:"tile-in .4s .08s ease both" }}>
+              <AgentTile agent={AMANDA} state={agentStates["amanda"] ?? "listening"} size="sm" qcr={qcrProfiles["amanda"]} onClick={() => wakeAgent("amanda")} />
+            </div>
+            {joinedAgents.map((a, i) => (
+              <div key={a.id} style={{ animation:`tile-in .35s ${(i+2)*0.07}s ease both` }}>
+                <AgentTile agent={a} state={agentStates[a.id] ?? "listening"} size="sm" qcr={qcrProfiles[a.id]} onClick={() => wakeAgent(a.id)} />
+              </div>
+            ))}
+          </div>
+
+          {/* Conversation thread */}
+          <div style={{ flex:1, overflowY:"auto", padding:"0 20px 12px", display:"flex", flexDirection:"column", gap:10 }}>
+            {chatMessages.length === 0 && (
+              <div style={{ textAlign:"center", padding:"24px 0", fontFamily:"'Cormorant Garamond',serif", fontSize:14, color:"rgba(255,255,255,.2)", fontStyle:"italic" }}>
+                Your clique is gathering their thoughts…
+              </div>
+            )}
+            {chatMessages.map((msg, i) => (
+              <div key={msg.ts} style={{ display:"flex", gap:10, alignItems:"flex-start", animation:`tile-in .4s ${i*0.1}s ease both` }}>
+                <img src={msg.portrait} alt="" style={{ width:30, height:30, borderRadius:"50%", objectFit:"cover", objectPosition:"top", border:"1px solid rgba(200,169,81,.3)", flexShrink:0 }} />
+                <div style={{ background:"rgba(255,255,255,.04)", border:"1px solid rgba(255,255,255,.07)", borderRadius:"0 10px 10px 10px", padding:"8px 14px", maxWidth:480 }}>
+                  <div style={{ fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:1.5, color:"#c8a951", marginBottom:4, textTransform:"uppercase" }}>{msg.agentName}</div>
+                  <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:14, color:"rgba(255,255,255,.75)", lineHeight:1.6 }}>{msg.text}</div>
+                </div>
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Mode toggle hint */}
+          <div style={{ padding:"6px 20px", borderTop:"1px solid rgba(200,169,81,.06)", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+            <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:12, color:"rgba(255,255,255,.25)", fontStyle:"italic" }}>Chat mode · agents take turns · no one talks over you</span>
+            <button onClick={() => setIntent("build")} style={{ marginLeft:"auto", fontFamily:"'Cinzel',serif", fontSize:8, letterSpacing:2, color:"rgba(200,169,81,.5)", padding:"3px 12px", border:"1px solid rgba(200,169,81,.15)", background:"transparent", cursor:"pointer", borderRadius:20 }}>Switch to Build →</button>
+          </div>
+        </div>
+      ) : (
+        /* ── DEFAULT: standard gallery ── */
+        <div style={{ flex:1, padding:"18px 16px 8px", overflowY:"auto", display:"flex", flexDirection:"column", gap:18 }}>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:20, justifyContent:"center", alignItems:"flex-start" }}>
+            <div style={{ animation:"tile-in .4s ease both" }}>
+              <HumanTile human={localHuman} size="lg" />
+            </div>
+            <div style={{ animation:"tile-in .4s .08s ease both" }}>
+              <AgentTile agent={AMANDA} state={agentStates["amanda"] ?? "listening"} size="lg" qcr={qcrProfiles["amanda"]} onClick={() => wakeAgent("amanda")} />
+            </div>
+            {joinedAgents.map((a, i) => (
+              <div key={a.id} style={{ animation:`tile-in .4s ${(i+2)*0.07}s ease both` }}>
+                <AgentTile agent={a} state={agentStates[a.id] ?? "listening"} size="md" qcr={qcrProfiles[a.id]} onClick={() => wakeAgent(a.id)} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Amanda status bar */}
       <div style={amandaBar}>
@@ -409,6 +511,38 @@ export default function CliqueRoom() {
 
       {/* PiP webcam capture (hidden, feeds stream into HumanTile) */}
       {cam && <div style={{ position:"fixed", width:1, height:1, opacity:0, pointerEvents:"none" }}><CameraPanel active={cam} onStream={setStream} /></div>}
+    </div>
+  );
+}
+
+// ── Panel Agent Row (Build Mode right panel) ──────────────────────────────
+function PanelAgentRow({ agent, state, onClick }: { agent: CliqueAgent; state: AgentState; onClick?: () => void }) {
+  const isLive = state === "live";
+  return (
+    <div onClick={onClick} style={{
+      display:"flex", alignItems:"center", gap:10,
+      padding:"10px 12px", cursor:"pointer",
+      borderBottom:"1px solid rgba(255,255,255,.04)",
+      background: isLive ? "rgba(200,169,81,.07)" : "transparent",
+      transition:"background .2s",
+    }}
+    onMouseOver={e => (e.currentTarget.style.background = "rgba(200,169,81,.05)")}
+    onMouseOut={e => (e.currentTarget.style.background = isLive ? "rgba(200,169,81,.07)" : "transparent")}
+    >
+      <div style={{
+        width:36, height:36, borderRadius: agent.isCSA ? "50%" : 4,
+        overflow:"hidden", flexShrink:0,
+        border:`2px solid ${isLive ? "#f5e070" : "rgba(200,169,81,.2)"}`,
+        boxShadow: isLive ? "0 0 10px rgba(245,224,112,.3)" : "none",
+      }}>
+        <img src={agent.portrait} alt={agent.name} style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"top" }} />
+      </div>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontFamily:"'Cinzel',serif", fontSize:9, fontWeight:600, color: isLive ? "#f5e070" : "#fff", letterSpacing:1, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{agent.name}</div>
+        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:9, color:"rgba(255,255,255,.35)", fontStyle:"italic", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{agent.role}</div>
+      </div>
+      {isLive && <span style={{ width:7, height:7, borderRadius:"50%", background:"#f5e070", display:"inline-block", boxShadow:"0 0 5px #f5e070", flexShrink:0 }} />}
+      {state === "listening" && <span style={{ width:6, height:6, borderRadius:"50%", background:"rgba(200,169,81,.3)", display:"inline-block", flexShrink:0 }} />}
     </div>
   );
 }
