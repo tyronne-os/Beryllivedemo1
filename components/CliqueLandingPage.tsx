@@ -474,7 +474,131 @@ export default function CliqueLandingPage() {
       </section>
 
       {/* ══════════════════════════════════════════════════════════════════
-          BANNER 4 · QCR SCIENCE
+          BANNER 4 · ROYAL INNOVATION STATEMENT
+      ══════════════════════════════════════════════════════════════════ */}
+      <section style={{
+        position: "relative", overflow: "hidden",
+        padding: "120px 60px", textAlign: "center",
+        minHeight: "80vh", display: "flex", alignItems: "center", justifyContent: "center",
+      }} className="banner-pad">
+
+        {/* Velvet backdrop */}
+        <div style={{
+          position: "absolute", inset: 0,
+          backgroundImage: "url('/images/royal-bg.jpg')",
+          backgroundSize: "cover", backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          /* Fallback if image not yet placed */
+          background: "url('/images/royal-bg.jpg') center/cover no-repeat, linear-gradient(135deg,#2a0a3e 0%,#1a0828 40%,#3b1260 70%,#1a0828 100%)",
+        }} />
+
+        {/* Multi-layer overlay — darkens edges, keeps center readable */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "radial-gradient(ellipse at center, rgba(10,4,18,.55) 0%, rgba(5,2,10,.82) 100%)",
+        }} />
+        {/* Gold vignette ring */}
+        <div style={{
+          position: "absolute", inset: 0,
+          boxShadow: "inset 0 0 120px rgba(200,169,81,.08)",
+          pointerEvents: "none",
+        }} />
+
+        {/* Content */}
+        <div style={{ position: "relative", zIndex: 2, maxWidth: 860, margin: "0 auto" }}>
+
+          {/* Fleur-de-lis divider */}
+          <div style={{ fontSize: 28, letterSpacing: 24, color: "rgba(200,169,81,.5)",
+            marginBottom: 28 }}>⚜ ⚜ ⚜</div>
+
+          <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 4,
+            textTransform: "uppercase", color: "rgba(200,169,81,.6)", marginBottom: 20 }}>
+            A New Standard for Intelligent Work
+          </div>
+
+          <h2 style={{ fontFamily: "'Cinzel Decorative','Cinzel',serif",
+            fontSize: 44, fontWeight: 900, lineHeight: 1.2, marginBottom: 28 }}>
+            <span className="gold-text">Every Other Agent Framework<br/>Treats You Like a Developer.</span>
+          </h2>
+
+          <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22,
+            fontStyle: "italic", color: "rgba(255,255,255,.75)", lineHeight: 1.8,
+            marginBottom: 52, maxWidth: 680, margin: "0 auto 52px" }}>
+            You wire them. You prompt them. You babysit them.<br/>
+            They execute. They forget. They reset.<br/><br/>
+            <strong style={{ color: "#f5e070", fontStyle: "normal" }}>
+              Beryl Clique treats you like royalty.
+            </strong>
+          </p>
+
+          {/* 4 innovation pillars */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))",
+            gap: 20, marginBottom: 56 }}>
+            {[
+              {
+                icon: "⚜",
+                title: "First Live Agent Room",
+                body: "No framework has ever put agents in a room with faces, voices, and cameras — live, together, responding as a team.",
+              },
+              {
+                icon: "👑",
+                title: "Relationships, Not Requests",
+                body: "QCR builds real rapport across every session. They remember you. They miss you. They compete to earn you.",
+              },
+              {
+                icon: "🏛",
+                title: "Zero Code to Orchestrate",
+                body: "What takes 300 lines of Python in CrewAI takes zero lines here. Open the room. Call a name. Done.",
+              },
+              {
+                icon: "♾",
+                title: "Collective Intelligence",
+                body: "GRI lets the whole room respond as one — celebrations, greetings, agreement — with no API call and no latency.",
+              },
+            ].map(p => (
+              <div key={p.title} style={{
+                padding: "24px 20px",
+                border: "1px solid rgba(200,169,81,.25)",
+                background: "rgba(10,4,18,.55)",
+                backdropFilter: "blur(12px)",
+                borderRadius: 8,
+                transition: "border-color .25s, background .25s",
+              }}>
+                <div style={{ fontSize: 26, marginBottom: 12 }}>{p.icon}</div>
+                <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, fontWeight: 700,
+                  letterSpacing: 2, textTransform: "uppercase", color: "#c8a951",
+                  marginBottom: 10 }}>{p.title}</div>
+                <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13,
+                  color: "rgba(255,255,255,.55)", lineHeight: 1.7, margin: 0 }}>{p.body}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Pull quote */}
+          <div style={{
+            borderTop: "1px solid rgba(200,169,81,.2)",
+            borderBottom: "1px solid rgba(200,169,81,.2)",
+            padding: "28px 40px", margin: "0 auto", maxWidth: 640,
+          }}>
+            <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20,
+              fontStyle: "italic", color: "rgba(200,169,81,.85)", lineHeight: 1.7, margin: 0 }}>
+              "The most innovative thing about Beryl Clique is not the technology —
+              it's the conviction that your AI team should know who you are."
+            </p>
+            <div style={{ fontFamily: "'Cinzel',serif", fontSize: 8, letterSpacing: 3,
+              textTransform: "uppercase", color: "rgba(200,169,81,.35)", marginTop: 16 }}>
+              Beryl Operating System · 2026
+            </div>
+          </div>
+
+          {/* Bottom fleur */}
+          <div style={{ fontSize: 22, letterSpacing: 20, color: "rgba(200,169,81,.3)",
+            marginTop: 40 }}>⚜ ⚜ ⚜</div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════════════════
+          BANNER 5 · QCR SCIENCE (was 4)
       ══════════════════════════════════════════════════════════════════ */}
       <section style={{ background:"#FDFAF6", padding:"96px 60px", position:"relative",
         overflow:"hidden" }} className="banner-pad">
