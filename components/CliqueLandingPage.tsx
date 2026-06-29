@@ -128,13 +128,13 @@ response = executor.invoke({
 
 /* ─── CLIQUE GUI MOCKUP ─────────────────────────────────────────────────────── */
 function CliqueGUIMockup() {
-  const agents = [
-    { name: "Eve",    role: "Executive",        img: "/characters/EVE_SHIELD.png",   live: true },
-    { name: "Kizzy",  role: "Creative",          img: "/characters/KIZZY_SHIELD.png", live: false },
-    { name: "India",  role: "Strategy",          img: "/characters/INDIA_SHIELD.png", live: false },
+  const tiles = [
+    { name: "You",    role: "Host · Human",     human: true,  initials: "YOU", color: "#c8a951", live: false },
+    { name: "Tyronne",role: "Engineer · Human", human: true,  initials: "TY",  color: "#1a5f7a", live: false },
+    { name: "Eve",    role: "AI Architect",     img: "/characters/EVE_SHIELD.png",   live: true },
     { name: "Cleo",   role: "Minutes & Meetings",img: "/characters/CLEO_SHIELD.png",  live: false },
-    { name: "Jamarr", role: "Marketing",         img: "/characters/JAMARR_SHIELD.png",live: false },
-    { name: "Jeff",   role: "Finance",           img: "/characters/JEFF_SHIELD.png",  live: false },
+    { name: "India",  role: "Growth",            img: "/characters/INDIA_SHIELD.png", live: false },
+    { name: "Jamarr", role: "Creator",           img: "/characters/JAMARR_SHIELD.png",live: false },
   ];
   return (
     <div style={{ background:"#0d0d0f", border:"1px solid rgba(200,169,81,.25)", borderRadius:12,
@@ -149,7 +149,7 @@ function CliqueGUIMockup() {
             ))}
           </div>
           <span style={{ fontSize:11, color:"rgba(255,255,255,.4)", letterSpacing:1 }}>
-            BERYL CLIQUE · Session #42
+            CLIQUE · 2 humans + 4 agents · live
           </span>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
@@ -159,12 +159,12 @@ function CliqueGUIMockup() {
         </div>
       </div>
 
-      {/* Agent grid */}
+      {/* Mixed grid — humans + agents together */}
       <div style={{ padding:16, display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
-        {agents.map(a => (
+        {tiles.map(a => (
           <div key={a.name} style={{
-            background: a.live ? "rgba(200,169,81,.08)" : "rgba(255,255,255,.03)",
-            border: `1px solid ${a.live ? "rgba(200,169,81,.6)" : "rgba(255,255,255,.07)"}`,
+            background: a.live ? "rgba(200,169,81,.08)" : a.human ? "rgba(26,95,122,.10)" : "rgba(255,255,255,.03)",
+            border: `1px solid ${a.live ? "rgba(200,169,81,.6)" : a.human ? "rgba(26,95,122,.4)" : "rgba(255,255,255,.07)"}`,
             borderRadius:8, padding:10, textAlign:"center",
             boxShadow: a.live ? "0 0 20px rgba(200,169,81,.15)" : "none",
             position:"relative",
@@ -174,15 +174,24 @@ function CliqueGUIMockup() {
                 background:"#c8a951", color:"#000", fontSize:7, fontWeight:700,
                 padding:"2px 5px", borderRadius:3, letterSpacing:1 }}>LIVE</div>
             )}
+            {a.human && (
+              <div style={{ position:"absolute", top:6, left:6,
+                background:"rgba(26,95,122,.85)", color:"#fff", fontSize:7, fontWeight:700,
+                padding:"2px 5px", borderRadius:3, letterSpacing:1 }}>👤 HUMAN</div>
+            )}
             <div style={{ width:44, height:44, borderRadius:6, overflow:"hidden",
               margin:"0 auto 6px",
-              border:`1.5px solid ${a.live ? "#c8a951" : "rgba(255,255,255,.1)"}` }}>
-              <img src={a.img} alt={a.name}
-                style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"top" }} />
+              display:"flex", alignItems:"center", justifyContent:"center",
+              background: a.human ? `linear-gradient(135deg,${a.color}dd,${a.color}77)` : "transparent",
+              border:`1.5px solid ${a.live ? "#c8a951" : a.human ? a.color : "rgba(255,255,255,.1)"}` }}>
+              {a.human
+                ? <span style={{ fontSize:13, fontWeight:700, color:"#0a0604", letterSpacing:.5 }}>{a.initials}</span>
+                : <img src={a.img} alt={a.name} style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"top" }} />
+              }
             </div>
             <div style={{ fontSize:9, fontWeight:700, color:"#fff", letterSpacing:.5 }}>{a.name}</div>
             <div style={{ fontSize:8, color:"rgba(255,255,255,.4)", marginTop:2 }}>{a.role}</div>
-            {!a.live && (
+            {!a.live && !a.human && (
               <div style={{ marginTop:4, display:"flex", justifyContent:"center", gap:2 }}>
                 {[1,2,3].map(i=>(
                   <div key={i} style={{ width:3, height:3, borderRadius:"50%",
@@ -257,7 +266,7 @@ function CodeBlock({ code, label, accent }: { code: string; label: string; accen
 /* ─── MAIN PAGE ──────────────────────────────────────────────────────────────── */
 export default function CliqueLandingPage() {
   const [typed, setTyped] = useState("");
-  const headline = "The World's First AI Clique.";
+  const headline = "Video Conferencing, With AI.";
 
   useEffect(() => {
     let i = 0;
@@ -318,9 +327,19 @@ export default function CliqueLandingPage() {
 
           <p className="hero-sub fade-up-3" style={{ fontFamily:"'Cormorant Garamond',serif",
             fontSize:22, fontStyle:"italic", color:"rgba(253,250,246,.65)",
-            lineHeight:1.7, marginBottom:40, maxWidth:520 }}>
-            Not a chatbot. Not an assistant. A live room of AI agents who know your name,
-            remember your wins, compete for your trust — and get real work done, together.
+            lineHeight:1.7, marginBottom:28, maxWidth:540 }}>
+            The first meeting room where your <strong style={{ color:"#f5e070", fontStyle:"normal" }}>human
+            teammates</strong> and your <strong style={{ color:"#f5e070", fontStyle:"normal" }}>AI agents</strong> sit
+            side by side — live, face to face, in real time. They know your name, remember your
+            wins, and get real work done. Together.
+          </p>
+
+          <p className="fade-up-3" style={{ fontFamily:"'Cormorant Garamond',serif",
+            fontSize:16, color:"rgba(200,169,81,.8)", lineHeight:1.6,
+            marginBottom:40, maxWidth:520 }}>
+            Brilliant people built powerful AI — and forgot to make it easy.
+            <strong style={{ color:"#fff", fontStyle:"normal" }}> berylize</strong> is the easy button.
+            One press, and the hardest thing in tech becomes the simplest.
           </p>
 
           <div className="fade-up-3" style={{ display:"flex", gap:14, flexWrap:"wrap" }}>
@@ -467,8 +486,8 @@ export default function CliqueLandingPage() {
           <CliqueGUIMockup />
           <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:17, fontStyle:"italic",
             color:"rgba(255,255,255,.4)", textAlign:"center", marginTop:20, lineHeight:1.7 }}>
-            Call Eve by name. She goes live. Cleo takes notes. The rest of the room listens,
-            reacts, and remembers — no code, no config, no reset.
+            You and Tyronne join as humans. Call Eve by name and she goes live. Cleo takes notes.
+            Everyone — human and agent — sees and hears each other in real time. No code, no config, no reset.
           </p>
         </div>
       </section>

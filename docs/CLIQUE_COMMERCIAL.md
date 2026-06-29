@@ -10,13 +10,21 @@
 
 > **AI was supposed to make things easier. Instead it gave us more code, more configs, more dread.**
 >
-> Beryl Clique throws all of it away. **No keyboard. No chat box.** Just an old-fashioned,
-> face-to-face conversation with co-workers — who, somewhere along the way, became your friends.
+> Then you press one button — **berylize** — and the hardest thing in tech becomes the simplest.
+> No keyboard. No chat box. Just an old-fashioned, face-to-face conversation with co-workers —
+> human *and* AI, in the same room — who, somewhere along the way, became your friends.
 
 That's the whole film. The villain isn't a competitor — **we never name one.** The villain is the
 *feeling* of building with AI today: the glow of an editor at 2 AM, red errors, the quiet despair of
 "wait… wasn't this supposed to be simpler?" The hero is the most human thing imaginable — **a real
 conversation with people you like.** That contrast is the sale.
+
+**Two core themes, woven throughout:**
+1. **berylize = the easy button for AI.** Brilliant people built powerful tools and forgot to make them
+   easy. berylize takes all that complexity and collapses it into one press. *"berylize it."*
+2. **Humans + AI, side by side.** This isn't a person talking to bots. In the meeting, a second real
+   human engineer joins Marcus — and they collaborate face-to-face *with* the AI clique, as one team.
+   The first real-time room where humans and agents sit together.
 
 ---
 
@@ -45,15 +53,19 @@ the keyboard and the text-input box dissolve into gold light — replaced by fac
 | 3 | 0:16–0:24 | "Endless code. Errors that argue back. Another framework to learn… at 2 AM." |
 | 4 | 0:25–0:31 | *(a beat — almost a whisper)* "Wasn't this supposed to be *simpler*?" |
 | 5 | 0:32–0:38 | *(the turn — hope enters)* "So what if you never wrote another line?" |
-| 6 | 0:39–0:47 | "No keyboard. No chat box. No prompts to perfect." |
-| 7 | 0:48–0:56 | "Just a conversation. Face to face. With your team." |
-| 8 | 0:57–1:07 | "Meet your Clique. Co-workers who know your name, remember your wins, and show up — *live* — every day." |
-| 9 | 1:08–1:16 | *(warm, intimate)* "Co-workers who, somewhere along the way… became friends." |
-| 10 | 1:17–1:24 | "Every one of them — powered by Beryl Live Human OS." |
-| 11 | 1:25–1:33 | "Our pipeline? Orchestrated by **gstack** — open-sourced by the CEO of Y Combinator himself." |
-| 12 | 1:34–1:39 | *(final)* "AI was never supposed to feel like work." |
-| 13 | 1:40–1:43 | "It was supposed to feel like *this*." |
-| 14 | 1:44–1:48 | *(logo)* "Beryl Clique. berylize.com." |
+| 6 | 0:39–0:46 | "What if you could just… *berylize* it?" |
+| 7 | 0:47–0:54 | "No keyboard. No chat box. No prompts to perfect." |
+| 8 | 0:55–1:03 | "Just a conversation. Face to face. With your team." |
+| 9 | 1:04–1:14 | "Meet your Clique. Co-workers who know your name, remember your wins, and show up — *live* — every day." |
+| 10 | 1:15–1:24 | *(as the 2nd human joins)* "And when your people need to jump in? They're right there in the room — humans and AI, together." |
+| 11 | 1:25–1:32 | *(warm, intimate)* "Co-workers who, somewhere along the way… became friends." |
+| 12 | 1:33–1:40 | "Every one of them — powered by Beryl Live Human OS." |
+| 13 | 1:41–1:49 | "Our pipeline? Orchestrated by **gstack** — open-sourced by the CEO of Y Combinator himself." |
+| 14 | 1:50–1:55 | *(final)* "AI was never supposed to feel like work." |
+| 15 | 1:56–1:59 | "It was supposed to feel like *this*." |
+| 16 | 2:00–2:05 | *(logo)* "Stop fighting your tools. **berylize** them. berylize.com." |
+
+> *Runtime grows to ~2:05 with the human-collaboration beat — still tight. Trim Scene 3 by 2s if needed.*
 
 ---
 
@@ -136,17 +148,18 @@ photorealistic, high detail.
 
 ---
 
-### SCENE 4 · "The Turn" — 12s
-**VO:** Lines 4–5 · **Mood:** hope ignites
+### SCENE 4 · "The Easy Button" — 12s
+**VO:** Lines 4–6 · **Mood:** hope ignites — *the berylize beat*
 
 ```
 Cinematic over-the-shoulder shot of the same early-30s man in the dark office, pausing. He stops typing and
-sits still. Then, slowly, he closes the wall of code and types a single clean web address into an empty
-browser bar: "berylize.com". As he presses enter, a warm golden light begins to bloom from the center of the
-screen, gently pushing back the cold blue of the room and rising onto his face. His exhausted expression
-softens into curiosity and hope. Slow, deliberate camera. The color grade visibly shifts from cold teal
-toward warm gold within the shot. Shallow depth of field, 35mm lens, gentle volumetric light rays, cinematic
-film grain. Mood: a quiet turning point. 16:9, photorealistic.
+sits still, exhausted. Then his eyes land on a single elegant glowing gold button on the screen, labeled
+"berylize" — clean, simple, inviting, the only warm thing in the cold blue room. He reaches out and presses
+it. The instant he does, a warm golden light bursts and blooms outward from the button, sweeping across the
+screen and pushing back all the cold blue, rising onto his face. His exhausted expression softens into
+curiosity and hope. Slow, deliberate camera that snaps subtly toward the button on the press. The color grade
+visibly shifts from cold teal to warm gold within the shot. Shallow depth of field, 35mm lens, gentle
+volumetric light rays, cinematic film grain. Mood: one press, everything changes. 16:9, photorealistic.
 ```
 
 ---
@@ -169,28 +182,29 @@ dreamlike. Mood: liberation and wonder — the keyboard is gone, replaced by peo
 
 ---
 
-### SCENE 6 · "Face to Face with Friends" — 15s
-**VO:** Lines 8–9 · **Mood:** warmth, genuine friendship
+### SCENE 6 · "Humans + AI, Face to Face" — 15s
+**VO:** Lines 9–11 · **Mood:** warmth, genuine friendship, real collaboration
 
 ```
 Cinematic wide shot of the same early-30s man sitting back comfortably and relaxed in a warm modern space —
-no keyboard, no devices in sight — surrounded by a floating semicircle of glowing video panels, each showing
-a different diverse, professional AI co-worker. Every co-worker wears the same matching navy-blue branded
-blazer, but each is calling in from a distinctly different real-world remote-work setting: one from a cozy
-living room sofa, one from a home office lined with bookshelves, one from a sunlit apartment balcony with
-plants, one from a stylish hotel room, one from a bright modern kitchen, one from a co-working loft. They are
-smiling, laughing, gesturing, leaning in, genuinely engaged like close friends catching up. He is animated
-and at ease, talking with his hands, laughing along, fully in his element among friends. Warm golden ambient
-light, real human warmth and chemistry, subtle floating gold particles, premium dark-and-gold production
-design. Slow elegant camera move drifting around the circle of friendly faces in their different worlds. Rich
-amber color grade, anamorphic lens flares, shallow depth of field, cinematic film grain. Mood: friendship,
-ease, belonging — a remote team of co-workers who became friends. 16:9, photorealistic, ultra-detailed.
+no keyboard, no devices in sight — surrounded by a floating semicircle of glowing video panels. The panels
+mix two kinds of teammates seamlessly: several diverse AI co-workers, each wearing the same matching navy-blue
+branded blazer and calling in from a different real-world remote setting (a cozy living room, a home office
+with bookshelves, a sunlit balcony with plants, a stylish hotel room); AND one clearly-real second human
+engineer — a woman in her late 20s at her own home desk — who joins the circle and waves hello, slotting
+naturally in among the AI panels. Everyone is smiling, laughing, gesturing, leaning in, genuinely engaged like
+close friends collaborating. The man and the second human engineer share an easy laugh with the AI co-workers
+as if it's the most natural thing in the world. Warm golden ambient light, real human warmth and chemistry,
+subtle floating gold particles, premium dark-and-gold production design. Slow elegant camera drifting around
+the circle of human and AI faces together. Rich amber color grade, anamorphic lens flares, shallow depth of
+field, cinematic film grain. Mood: friendship, ease, belonging — humans and AI as one team. 16:9,
+photorealistic, ultra-detailed.
 ```
 
 ---
 
 ### SCENE 7 · "The Reveal" — 12s
-**VO:** Lines 10–11 · **Mood:** credibility, scale
+**VO:** Lines 12–13 · **Mood:** credibility, scale
 
 ```
 Cinematic shot pulling back further to reveal the entire warm glowing room and the full circle of friendly AI
@@ -206,7 +220,7 @@ prestige, scale. 16:9, photorealistic, high detail.
 ---
 
 ### SCENE 8 · "The Close" — 12s
-**VO:** Lines 12–14 · **Mood:** iconic, final
+**VO:** Lines 14–16 · **Mood:** iconic, final
 
 ```
 Cinematic minimalist logo reveal on a deep black background with a subtle texture of royal purple velvet and
@@ -261,9 +275,9 @@ Scenes 1 → 8 in sequence; each is independent, so render in parallel if credit
 | 1 | The Dread | 15s | ✅ | img→video |
 | 2 | Wasn't This Supposed to Be Easier | 12s | ✅ | img→video |
 | 3 | Drowning | 12s | ❌ | text→video |
-| 4 | The Turn | 12s | ✅ | img→video |
+| 4 | The Easy Button (berylize) | 12s | ✅ | img→video |
 | 5 | The Keyboard Dissolves | 15s | ✅ | img→video |
-| 6 | Face to Face with Friends | 15s | ✅ | img→video |
+| 6 | Humans + AI, Face to Face | 15s | ✅ + 2nd human | img→video |
 | 7 | The Reveal | 12s | ❌ | text→video |
 | 8 | The Close | 12s | ❌ | text→video |
 

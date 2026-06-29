@@ -1,11 +1,16 @@
 "use client";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, type CSSProperties } from "react";
 import { CliqueAgent, getDefaultTeam } from "@/lib/clique-roster";
-import { QCRProfile, getQCRProfile, QCR_SEED } from "@/lib/qcr";
+import { QCRProfile, getQCRProfile } from "@/lib/qcr";
+import {
+  HumanParticipant, seedHumans, makeRoomCode,
+} from "@/lib/clique-participants";
 import AgentTile from "./AgentTile";
+import HumanTile from "./HumanTile";
 import CallControls from "./CallControls";
 import CameraPanel from "./CameraPanel";
 import AccessGrantPanel, { AccessGrants } from "./AccessGrantPanel";
+import InviteModal from "./InviteModal";
 import GroupListener from "./GroupListener";
 import GroupResponseBanner from "./GroupResponseBanner";
 import { GRIClip, GRICategory } from "@/lib/gri";
@@ -33,6 +38,8 @@ export default function CliqueRoom() {
   const [members]                  = useState<CliqueAgent[]>(getDefaultTeam);
   const [agentStates, setStates]   = useState<AgentStateMap>(() => buildInitialStates(getDefaultTeam()));
   const [qcrProfiles, setQCR]      = useState<Record<string, QCRProfile>>({});
+  const [humans, setHumans]        = useState<HumanParticipant[]>(seedHumans);
+  const [roomCode, setRoomCode]    = useState("CLIQUE");
   const [mic, setMic]              = useState(true);
   const [cam, setCam]              = useState(false);
   const [stream, setStream]        = useState<MediaStream | null>(null);
@@ -40,14 +47,14 @@ export default function CliqueRoom() {
   const [notesOpen, setNotesOpen]  = useState(false);
   const [accessOpen, setAccess]    = useState(false);
   const [callMeOpen, setCallMe]    = useState(false);
+  const [inviteOpen, setInvite]    = useState(false);
   const [activeAgent, setActive]   = useState<string | null>(null);
   const [grants, setGrants]        = useState<AccessGrants>({
     email: false, linkedin: false, phone: null, phoneCallEnabled: false,
   });
   const [griClip, setGriClip]      = useState<GRIClip | null>(null);
   const [griCat, setGriCat]        = useState<GRICategory | null>(null);
-  const [transcript, setTranscript] = useState("");
-  const userVideoRef = useRef<HTMLVideoElement>(null);
+  const [transcript]               = useState("");
 
   const handleGRI = useCallback((clip: GRIClip, category: GRICategory) => {
     setGriClip(clip);
@@ -56,15 +63,22 @@ export default function CliqueRoom() {
 
   useEffect(() => {
     setQCR(loadQCRProfiles(getDefaultTeam()));
+    // Room code from ?room= or a fresh one
+    if (typeof window !== "undefined") {
+      const param = new URLSearchParams(window.location.search).get("room");
+      setRoomCode(param?.toUpperCase() || makeRoomCode());
+    }
   }, []);
 
-  // Mirror camera stream to user tile video element
+  // Bind local webcam stream + mic/cam state into the local human participant
   useEffect(() => {
-    if (userVideoRef.current) {
-      userVideoRef.current.srcObject = stream;
-      if (stream) userVideoRef.current.play().catch(() => {});
-    }
-  }, [stream]);
+    setHumans(prev => prev.map(h =>
+      h.isLocal
+        ? { ...h, stream, camOn: cam && !!stream, micOn: mic,
+            connection: cam && stream ? "connected" : "camera-off" }
+        : h
+    ));
+  }, [stream, cam, mic]);
 
   const wakeAgent = useCallback((id: string) => {
     setStates(prev => {
@@ -81,14 +95,15 @@ export default function CliqueRoom() {
     setActive(null);
   }, []);
 
-  const memberCount = members.length;
-  const useGrid = memberCount > 6;
+  const humanCount = humans.length;
+  const totalCount = humanCount + members.length;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "calc(100vh - 64px)", background: "#FDFAF6", position: "relative" }}>
       <style>{`
         @keyframes scribe-blink { 0%,100%{opacity:1} 50%{opacity:.25} }
         @keyframes room-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes live-pip { 0%,100%{opacity:1} 50%{opacity:.4} }
       `}</style>
 
       {/* ── HEADER ── */}
@@ -99,84 +114,97 @@ export default function CliqueRoom() {
         background: "#fff", flexShrink: 0,
         flexWrap: "wrap", gap: 10,
       }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
           <span style={{
             fontFamily: "'Cinzel',serif", fontSize: 20, fontWeight: 700, letterSpacing: 3,
             background: "linear-gradient(110deg,#8B6914 0%,#c8a951 30%,#f5e070 50%,#c8a951 70%,#8B6914 100%)",
             WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-          }}>BERYL CLIQUE</span>
-          <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "#aaa", fontStyle: "italic" }}>
-            {memberCount} members · {useGrid ? "Grid" : "Radial"}
+          }}>CLIQUE</span>
+          <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "#999", fontStyle: "italic" }}>
+            Video Conferencing with AI · Real Time
           </span>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          {/* Participant count */}
+          <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "#aaa", fontStyle: "italic" }}>
+            👤 {humanCount} human{humanCount === 1 ? "" : "s"} · ✦ {members.length} agents
+          </span>
+
+          {/* Room code */}
+          <button onClick={() => setInvite(true)} title="Invite people" style={{
+            fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 2, fontWeight: 700,
+            textTransform: "uppercase", color: "#8B6914", cursor: "pointer",
+            padding: "5px 12px", borderRadius: 20,
+            border: "1px solid rgba(200,169,81,.4)", background: "rgba(200,169,81,.07)",
+          }}>Room {roomCode} · Invite ➕</button>
+
           {/* QCR indicator */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{
-              width: 7, height: 7, borderRadius: "50%", background: "#9c27b0",
-              display: "inline-block", boxShadow: "0 0 6px #9c27b0",
-            }} />
-            <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#aaa" }}>QCR Active</span>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#9c27b0", display: "inline-block", boxShadow: "0 0 6px #9c27b0" }} />
+            <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#aaa" }}>QCR</span>
           </div>
 
           {/* Scribe indicator */}
           {scribeActive && (
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{
-                width: 7, height: 7, borderRadius: "50%", background: "#dc3c3c",
-                display: "inline-block", animation: "scribe-blink 1.4s ease-in-out infinite",
-                boxShadow: "0 0 6px rgba(220,60,60,.7)",
-              }} />
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#dc3c3c", display: "inline-block", animation: "scribe-blink 1.4s ease-in-out infinite", boxShadow: "0 0 6px rgba(220,60,60,.7)" }} />
               <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#aaa" }}>Scribe</span>
             </div>
           )}
 
-          {/* Access grant badges */}
           {grants.email && <span title="Email connected" style={{ fontSize: 14 }}>📧</span>}
           {grants.linkedin && <span title="LinkedIn connected" style={{ fontSize: 14 }}>💼</span>}
           {grants.phone && <span title={`Phone: ${grants.phone}`} style={{ fontSize: 14 }}>📱</span>}
         </div>
       </div>
 
-      {/* ── ROOM ── */}
+      {/* ── ROOM — unified gallery of humans + agents ── */}
       <div style={{
-        flex: 1, padding: "24px 20px 16px",
-        display: "flex", flexDirection: "column", gap: 20,
+        flex: 1, padding: "26px 20px 16px",
+        display: "flex", flexDirection: "column", gap: 26,
         overflowY: "auto", animation: "room-in .45s ease both",
       }}>
-        {useGrid ? (
-          <GridLayout
-            members={members}
-            agentStates={agentStates}
-            qcrProfiles={qcrProfiles}
-            cam={cam}
-            mic={mic}
-            stream={stream}
-            videoRef={userVideoRef}
-            onWake={wakeAgent}
-          />
-        ) : (
-          <RadialLayout
-            members={members}
-            agentStates={agentStates}
-            qcrProfiles={qcrProfiles}
-            cam={cam}
-            mic={mic}
-            stream={stream}
-            videoRef={userVideoRef}
-            onWake={wakeAgent}
-          />
-        )}
+        {/* PEOPLE row */}
+        <section>
+          <div style={{ ...sectionLabel, color: "#1a5f7a" }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#1a5f7a", display: "inline-block" }} />
+            In the Room · People
+          </div>
+          <div style={galleryRow}>
+            {humans.map(h => (
+              <HumanTile key={h.id} human={h} size={h.isLocal ? "lg" : "md"} />
+            ))}
+          </div>
+        </section>
+
+        {/* AGENTS row */}
+        <section>
+          <div style={{ ...sectionLabel, color: "#c8a951" }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#c8a951", display: "inline-block" }} />
+            In the Room · Your Clique
+          </div>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(144px, 1fr))",
+            gap: 20, width: "100%", maxWidth: 1040, margin: "0 auto", justifyItems: "center",
+          }}>
+            {members.map(a => (
+              <AgentTile
+                key={a.id} agent={a}
+                state={agentStates[a.id] ?? "listening"}
+                size="md"
+                qcr={qcrProfiles[a.id]}
+                onClick={() => wakeAgent(a.id)}
+              />
+            ))}
+          </div>
+        </section>
 
         {/* Active agent bar */}
         {activeAgent && (
-          <div style={{
-            textAlign: "center",
-            fontFamily: "'Cormorant Garamond',serif", fontSize: 14,
-            color: "#888", fontStyle: "italic",
-          }}>
-            {members.find(a => a.id === activeAgent)?.name} is speaking —
+          <div style={{ textAlign: "center", fontFamily: "'Cormorant Garamond',serif", fontSize: 14, color: "#888", fontStyle: "italic" }}>
+            {members.find(a => a.id === activeAgent)?.name} is live —
             <button onClick={returnToListening} style={{
               marginLeft: 10, background: "none", border: "none", cursor: "pointer",
               fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 2,
@@ -185,7 +213,7 @@ export default function CliqueRoom() {
           </div>
         )}
 
-        {/* Camera panel (below grid when cam on) */}
+        {/* Camera panel (controls the local webcam feed) */}
         {cam && (
           <div style={{ maxWidth: 360, margin: "0 auto", width: "100%" }}>
             <CameraPanel active={cam} onStream={setStream} />
@@ -202,12 +230,12 @@ export default function CliqueRoom() {
           boxShadow: "-6px 0 30px rgba(0,0,0,.07)",
         }}>
           <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(200,169,81,.12)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontFamily: "'Cinzel',serif", fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", color: "#0D1117" }}>Live Notes · Scribe</span>
+            <span style={{ fontFamily: "'Cinzel',serif", fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", color: "#0D1117" }}>Live Notes · Cleo</span>
             <button onClick={() => setNotesOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#888", fontSize: 16 }}>✕</button>
           </div>
           <div style={{ padding: 18, flex: 1, overflowY: "auto" }}>
             <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 14, color: "#888", fontStyle: "italic", lineHeight: 1.65 }}>
-              Cleo is always listening. Notes, decisions, and action items will appear here in real-time.
+              Cleo is always listening — to humans and agents alike. Notes, decisions, and action items appear here in real-time.
             </p>
             <div style={{ marginTop: 18, padding: "12px 14px", background: "#FDFAF6", border: "1px solid rgba(200,169,81,.2)", borderRadius: 4 }}>
               <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 2, color: "#c8a951", textTransform: "uppercase", marginBottom: 8 }}>Action Items</div>
@@ -223,12 +251,11 @@ export default function CliqueRoom() {
 
       {/* ── ACCESS PANEL ── */}
       {accessOpen && (
-        <AccessGrantPanel
-          grants={grants}
-          onChange={setGrants}
-          onClose={() => setAccess(false)}
-        />
+        <AccessGrantPanel grants={grants} onChange={setGrants} onClose={() => setAccess(false)} />
       )}
+
+      {/* ── INVITE MODAL ── */}
+      {inviteOpen && <InviteModal roomCode={roomCode} onClose={() => setInvite(false)} />}
 
       {/* ── GROUP RESPONSE INTELLIGENCE ── */}
       <GroupListener transcript={transcript} onTrigger={handleGRI} />
@@ -245,7 +272,6 @@ export default function CliqueRoom() {
           phone={grants.phone}
           onRequestCall={async (agentId) => {
             setCallMe(false);
-            // Phase 1: hit /api/clique/call-me
             await fetch("/api/clique/call-me", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -268,6 +294,7 @@ export default function CliqueRoom() {
         onChat={() => {}}
         onAccess={() => setAccess(o => !o)}
         onCallMe={() => setCallMe(o => !o)}
+        onInvite={() => setInvite(true)}
         isScribeActive={scribeActive}
         hasPhone={!!grants.phone}
       />
@@ -275,126 +302,17 @@ export default function CliqueRoom() {
   );
 }
 
-/* ── GRID LAYOUT ── */
-function GridLayout({ members, agentStates, qcrProfiles, cam, mic, stream, videoRef, onWake }: {
-  members: CliqueAgent[];
-  agentStates: AgentStateMap;
-  qcrProfiles: Record<string, QCRProfile>;
-  cam: boolean; mic: boolean;
-  stream: MediaStream | null;
-  videoRef: React.RefObject<HTMLVideoElement | null>;
-  onWake: (id: string) => void;
-}) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24, alignItems: "center" }}>
-      <UserTile cam={cam} mic={mic} stream={stream} videoRef={videoRef} />
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(144px, 1fr))",
-        gap: 20, width: "100%", maxWidth: 940, justifyItems: "center",
-      }}>
-        {members.map(a => (
-          <AgentTile
-            key={a.id} agent={a}
-            state={agentStates[a.id] ?? "listening"}
-            size="md"
-            qcr={qcrProfiles[a.id]}
-            onClick={() => onWake(a.id)}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
+const sectionLabel: CSSProperties = {
+  display: "flex", alignItems: "center", gap: 8,
+  fontFamily: "'Cinzel',serif", fontSize: 10, fontWeight: 600,
+  letterSpacing: 2.5, textTransform: "uppercase",
+  marginBottom: 16, justifyContent: "center",
+};
 
-/* ── RADIAL LAYOUT ── */
-function RadialLayout({ members, agentStates, qcrProfiles, cam, mic, stream, videoRef, onWake }: {
-  members: CliqueAgent[];
-  agentStates: AgentStateMap;
-  qcrProfiles: Record<string, QCRProfile>;
-  cam: boolean; mic: boolean;
-  stream: MediaStream | null;
-  videoRef: React.RefObject<HTMLVideoElement | null>;
-  onWake: (id: string) => void;
-}) {
-  const half  = Math.ceil(members.length / 2);
-  const left  = members.slice(0, half);
-  const right = members.slice(half);
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 28, flexWrap: "wrap" }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 20, alignItems: "flex-end" }}>
-        {left.map(a => <AgentTile key={a.id} agent={a} state={agentStates[a.id] ?? "listening"} qcr={qcrProfiles[a.id]} onClick={() => onWake(a.id)} />)}
-      </div>
-      <UserTile cam={cam} mic={mic} stream={stream} videoRef={videoRef} size="lg" />
-      <div style={{ display: "flex", flexDirection: "column", gap: 20, alignItems: "flex-start" }}>
-        {right.map(a => <AgentTile key={a.id} agent={a} state={agentStates[a.id] ?? "listening"} qcr={qcrProfiles[a.id]} onClick={() => onWake(a.id)} />)}
-      </div>
-    </div>
-  );
-}
-
-/* ── USER TILE ── */
-function UserTile({ cam, mic, stream, videoRef, size = "md" }: {
-  cam: boolean; mic: boolean;
-  stream: MediaStream | null;
-  videoRef: React.RefObject<HTMLVideoElement | null>;
-  size?: "md" | "lg";
-}) {
-  const dim = size === "lg" ? 180 : 200;
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-      <div style={{
-        width: dim, height: dim,
-        borderRadius: size === "lg" ? "50%" : 8,
-        background: "#0f0a05",
-        border: "3px solid rgba(200,169,81,.65)",
-        boxShadow: "0 0 0 6px rgba(200,169,81,.1), 0 8px 40px rgba(0,0,0,.2)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        flexDirection: "column", gap: 8,
-        position: "relative", overflow: "hidden", flexShrink: 0,
-      }}>
-        {/* Live camera feed */}
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          style={{
-            position: "absolute", inset: 0,
-            width: "100%", height: "100%",
-            objectFit: "cover",
-            transform: "scaleX(-1)",
-            display: cam && stream ? "block" : "none",
-          }}
-        />
-        {/* Placeholder */}
-        {(!cam || !stream) && (
-          <>
-            <span style={{ fontSize: 36, zIndex: 1 }}>👤</span>
-            {!cam && (
-              <span style={{
-                fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 2,
-                textTransform: "uppercase", color: "rgba(200,169,81,.45)", zIndex: 1,
-              }}>Camera Off</span>
-            )}
-          </>
-        )}
-        {/* Muted badge */}
-        {!mic && (
-          <div style={{
-            position: "absolute", bottom: 8, right: 8, zIndex: 2,
-            background: "#dc3c3c", borderRadius: "50%",
-            width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11,
-          }}>🔇</div>
-        )}
-      </div>
-      <div style={{ textAlign: "center" }}>
-        <div style={{ fontFamily: "'Cinzel',serif", fontSize: 12, fontWeight: 600, color: "#0D1117", letterSpacing: 1 }}>You</div>
-        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 11, color: "#888", fontStyle: "italic", marginTop: 2 }}>Host</div>
-      </div>
-    </div>
-  );
-}
+const galleryRow: CSSProperties = {
+  display: "flex", flexWrap: "wrap", gap: 20,
+  justifyContent: "center", alignItems: "flex-end",
+};
 
 /* ── CALL ME MODAL ── */
 function CallMeModal({ hasPhone, phone, onRequestCall, onClose, members }: {

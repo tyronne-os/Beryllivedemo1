@@ -10,6 +10,7 @@ interface Props {
   onChat: () => void;
   onAccess: () => void;
   onCallMe: () => void;
+  onInvite: () => void;
   isScribeActive: boolean;
   hasPhone: boolean;
 }
@@ -52,7 +53,7 @@ function Btn({ label, icon, onClick, active, danger, dim }: {
 }
 
 export default function CallControls({
-  mic, cam, onMic, onCam, onEnd, onNotes, onChat, onAccess, onCallMe, isScribeActive, hasPhone,
+  mic, cam, onMic, onCam, onEnd, onNotes, onChat, onAccess, onCallMe, onInvite, isScribeActive, hasPhone,
 }: Props) {
   return (
     <div style={{
@@ -64,7 +65,7 @@ export default function CallControls({
     }}>
       <Btn label={mic ? "Mic On" : "Muted"}    icon={mic ? "🎤" : "🔇"} onClick={onMic}     active={mic} />
       <Btn label={cam ? "Cam On" : "Cam Off"}  icon={cam ? "📹" : "📷"} onClick={onCam}     active={cam} />
-      <Btn label="Share"                         icon="📋"               onClick={() => {}} />
+      <Btn label="Invite"                        icon="➕"               onClick={onInvite}  active />
       <Btn label="Chat"                          icon="💬"               onClick={onChat} />
       <Btn label={isScribeActive ? "Scribe ●" : "Scribe"} icon="📝"     onClick={onNotes}    active={isScribeActive} />
       <Btn label="Access"                        icon="🔑"               onClick={onAccess} />
