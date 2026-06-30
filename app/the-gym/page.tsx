@@ -26,12 +26,13 @@ export default function TheGymPage() {
   const [loading,     setLoading]     = useState(false);
   const [avatarState, setAvatarState] = useState<AvatarState>("idle");
   const [timeLeft,    setTimeLeft]    = useState(180);
-  const [micActive,   setMicActive]   = useState(false);
-  const [pipelineTag, setPipelineTag] = useState("Grok-3 · Runway Gen-3 · Live");
-  const [currentVideo, setCurrentVideo] = useState<string | null>(null);
-  const [notice,      setNotice]      = useState("");
+  const [micActive,    setMicActive]    = useState(false);
+  const [pipelineTag,  setPipelineTag]  = useState("Grok-3 · Eve-TTS · Live");
+  const [notice,       setNotice]       = useState("");
+  const [videoSrc,     setVideoSrc]     = useState<string | null>(null);
 
-  const audioRef   = useRef<HTMLAudioElement>(null);
+  const audioRef    = useRef<HTMLAudioElement>(null);
+  const videoRef    = useRef<HTMLVideoElement>(null);
   const chatRef    = useRef<HTMLDivElement>(null);
   const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
   const historyRef = useRef<{ role: string; content: string }[]>([]);
@@ -57,27 +58,6 @@ export default function TheGymPage() {
 
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
-  const pollRunway = useCallback(async (taskId: string) => {
-    const maxAttempts = 40;   // ~2 min at 3s intervals
-    for (let i = 0; i < maxAttempts; i++) {
-      await new Promise(r => setTimeout(r, 3000));
-      try {
-        const r = await fetch(`/api/runway/poll?taskId=${taskId}`);
-        const d = await r.json() as { status: string; videoUrl?: string; failure?: string };
-        if (d.status === "SUCCEEDED" && d.videoUrl) {
-          setCurrentVideo(d.videoUrl);
-          setPipelineTag("✓ Grok-3 · Runway Gen-3 Turbo · Live");
-          return;
-        }
-        if (d.status === "FAILED") {
-          setPipelineTag("✓ Grok-3 · voice · (Runway failed)");
-          return;
-        }
-      } catch { /* keep polling */ }
-    }
-    setPipelineTag("✓ Grok-3 · voice · (Runway timeout)");
-  }, []);
-
   const eveRespond = useCallback(async (userText: string, scripted = false) => {
     setAvatarState("thinking");
     setNotice("");
@@ -88,7 +68,6 @@ export default function TheGymPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: scripted ? "" : userText,
-          portraitUrl: EVE_PORTRAIT,
           history: historyRef.current.slice(-8),
         }),
       });
@@ -103,31 +82,50 @@ export default function TheGymPage() {
       historyRef.current.push({ role: "assistant", content: reply });
       setMsgs(p => [...p, { role: "eve", text: reply }]);
 
-      // ── Voice: speak immediately with browser SpeechSynthesis ─────────────
-      if (reply && typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
+      // ── Playback: eve-tts audio + speaking loop video (simultaneous) ────────
+      if (data.audioUrl) {
+        // Show the pre-baked talking loop immediately
+        if (data.speakingLoop) setVideoSrc(data.speakingLoop);
+        setAvatarState("speaking");
+
+        const audio = audioRef.current ?? new Audio();
+        audio.src = data.audioUrl;
+        audio.onplay  = () => { setAvatarState("speaking"); };
+        audio.onended = () => {
+          setAvatarState("idle");
+          setVideoSrc(null);
+        };
+        audio.onerror = () => {
+          // fallback to browser TTS if audio URL fails
+          const utt = new SpeechSynthesisUtterance(reply);
+          utt.rate = 0.91; utt.pitch = 1.08;
+          utt.onstart = () => setAvatarState("speaking");
+          utt.onend   = () => { setAvatarState("idle"); setVideoSrc(null); };
+          window.speechSynthesis.speak(utt);
+        };
+        audio.play().catch(() => {
+          window.speechSynthesis.cancel();
+          const utt = new SpeechSynthesisUtterance(reply);
+          utt.rate = 0.91; utt.pitch = 1.08;
+          utt.onstart = () => setAvatarState("speaking");
+          utt.onend   = () => { setAvatarState("idle"); setVideoSrc(null); };
+          window.speechSynthesis.speak(utt);
+        });
+        setPipelineTag("✓ Grok-3 · Eve-TTS (Ava) · Live");
+      } else {
+        // Browser TTS fallback
+        window.speechSynthesis?.cancel();
         const utt = new SpeechSynthesisUtterance(reply);
-        utt.rate = 0.91;
-        utt.pitch = 1.08;
-        const voices = window.speechSynthesis.getVoices();
+        utt.rate = 0.91; utt.pitch = 1.08;
+        const voices = window.speechSynthesis?.getVoices() ?? [];
         const pick = voices.find(v => /zira|samantha|victoria|karen|moira|fiona|tessa|veena|nicky/i.test(v.name))
           ?? voices.find(v => v.lang.startsWith("en-") && v.name.toLowerCase().includes("female"))
           ?? voices.find(v => v.lang.startsWith("en"));
         if (pick) utt.voice = pick;
-        utt.onstart = () => { setAvatarState("speaking"); };
-        utt.onend   = () => { setAvatarState("idle"); };
-        window.speechSynthesis.speak(utt);
-      } else {
-        setAvatarState("speaking");
-        setTimeout(() => setAvatarState("idle"), 3500);
-      }
-
-      // ── Video: poll Runway until the diffusion video is ready ─────────────
-      if (data.runwayTaskId) {
-        setPipelineTag("⏳ Grok-3 · Runway rendering…");
-        pollRunway(data.runwayTaskId);
-      } else {
-        setPipelineTag("✓ Grok-3 · voice only");
+        utt.onstart = () => setAvatarState("speaking");
+        utt.onend   = () => setAvatarState("idle");
+        window.speechSynthesis?.speak(utt);
+        setPipelineTag("Grok-3 · Browser TTS (fallback)");
       }
 
     } catch (e) {
@@ -303,21 +301,38 @@ export default function TheGymPage() {
             transition: "background 1s",
           }} />
 
-          {/* Living portrait image */}
+          {/* Speaking loop video — shown while Eve talks */}
+          {videoSrc && (
+            <video
+              ref={videoRef}
+              key={videoSrc}
+              src={videoSrc}
+              autoPlay
+              loop
+              muted
+              playsInline
+              style={{
+                position: "absolute", inset: 0, zIndex: 1,
+                width: "100%", height: "100%",
+                objectFit: "cover", objectPosition: "top center",
+              }}
+            />
+          )}
+
+          {/* Still portrait — shown when idle / thinking */}
           <img
             src={EVE_PORTRAIT}
             alt="Eve"
             style={{
-              position: "absolute", inset: 0, zIndex: 1,
+              position: "absolute", inset: 0, zIndex: videoSrc ? 0 : 1,
               width: "100%", height: "100%",
               objectFit: "cover", objectPosition: "top center",
-              transformOrigin: "50% 30%",   // pivot near face/head
-              animation: isSpeaking
-                ? "speaking 0.85s ease-in-out infinite, blink 5.3s linear infinite"
-                : isThinking
+              transformOrigin: "50% 30%",
+              animation: isThinking
                 ? "thinking 2.2s ease-in-out infinite, blink 5.3s linear infinite"
                 : "breathe 4.2s ease-in-out infinite, blink 5.3s linear infinite",
-              transition: "animation 0.4s",
+              transition: "opacity 0.3s",
+              opacity: videoSrc ? 0 : 1,
               willChange: "transform, filter",
             }}
           />
