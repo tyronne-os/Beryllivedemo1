@@ -2,8 +2,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Nav from "@/components/Nav";
 
-const EVE_WAVE_VIDEO = "/eve_wave_greeting.mp4";
-const EVE_TALK_VIDEO = "/eve_talking_loop.mp4";
+const EVE_IDLE_VIDEO = "/eve_idle.mp4";       // breathing, micro-movements, blinking — always on
+const EVE_TALK_VIDEO = "/eve_talking_loop.mp4"; // lips moving — only while she's speaking
 
 type Msg = { role: "eve" | "user"; text: string };
 type AvatarState = "idle" | "thinking" | "speaking";
@@ -27,7 +27,7 @@ export default function TheGymPage() {
   const [pipelineTag, setPipelineTag] = useState("Grok-3 · Eve-TTS · Live");
   const [notice,      setNotice]      = useState("");
   // videoSrc drives which video plays — wave for opener, talk loop for replies, null = idle loop
-  const [videoSrc,    setVideoSrc]    = useState<string>(EVE_WAVE_VIDEO);
+  const [videoSrc,    setVideoSrc]    = useState<string>(EVE_IDLE_VIDEO);
 
   const audioRef   = useRef<HTMLAudioElement>(null);
   const chatRef    = useRef<HTMLDivElement>(null);
@@ -72,8 +72,7 @@ export default function TheGymPage() {
 
       if (data.audioUrl) {
         visemesRef.current = data.visemes ?? [];
-        // Opener keeps the wave video; every other turn switches to talk loop
-        if (userText !== "__OPEN__") setVideoSrc(EVE_TALK_VIDEO);
+        setVideoSrc(EVE_TALK_VIDEO);
         setAvatarState("speaking");
 
         const audio = audioRef.current ?? new Audio();
@@ -82,24 +81,23 @@ export default function TheGymPage() {
         audio.onended = () => {
           stopVisemeLoop();
           setAvatarState("idle");
-          // After speaking, keep the talk loop running so she stays alive
-          setVideoSrc(EVE_TALK_VIDEO);
+          setVideoSrc(EVE_IDLE_VIDEO);
         };
         audio.onerror = () => {
-          stopVisemeLoop(); setAvatarState("idle"); setVideoSrc(EVE_TALK_VIDEO);
+          stopVisemeLoop(); setAvatarState("idle"); setVideoSrc(EVE_IDLE_VIDEO);
           const utt = new SpeechSynthesisUtterance(reply);
           utt.onend = () => setAvatarState("idle");
           window.speechSynthesis.speak(utt);
         };
         audio.play().catch(() => {
-          stopVisemeLoop(); setAvatarState("idle"); setVideoSrc(EVE_TALK_VIDEO);
+          stopVisemeLoop(); setAvatarState("idle"); setVideoSrc(EVE_IDLE_VIDEO);
           const utt = new SpeechSynthesisUtterance(reply);
           utt.onend = () => setAvatarState("idle");
           window.speechSynthesis.speak(utt);
         });
         setPipelineTag("✓ Grok-3 · Eve-TTS (Ava) · Live");
       } else {
-        setVideoSrc(EVE_TALK_VIDEO);
+        setVideoSrc(EVE_IDLE_VIDEO);
         const utt = new SpeechSynthesisUtterance(reply);
         utt.onstart = () => setAvatarState("speaking");
         utt.onend   = () => { setAvatarState("idle"); stopVisemeLoop(); };
@@ -109,16 +107,15 @@ export default function TheGymPage() {
     } catch (e) {
       setNotice(`${String(e).slice(0, 80)}`);
       setAvatarState("idle");
-      setVideoSrc(EVE_TALK_VIDEO);
+      setVideoSrc(EVE_IDLE_VIDEO);
     }
     setLoading(false);
   }, [startVisemeLoop, stopVisemeLoop]);
 
-  // On mount — play wave video immediately, then Eve greets TJ
+  // On mount — idle video is already set; Eve speaks her greeting after a short delay
   useEffect(() => {
     if (didGreet.current) return;
     didGreet.current = true;
-    setVideoSrc(EVE_WAVE_VIDEO);
     setTimeout(() => eveRespond("__OPEN__", true), 900);
   }, [eveRespond]);
 
@@ -187,7 +184,7 @@ export default function TheGymPage() {
             transition: "background 1s",
           }} />
 
-          {/* Live video — always playing: wave on open, talk loop otherwise */}
+          {/* Live video — idle breathing loop always on; swaps to talk loop while speaking */}
           <video
             key={videoSrc}
             src={videoSrc}
