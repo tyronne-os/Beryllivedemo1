@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html><body style='background:#000;margin:0'>
+<video id='v' src='/eve_speaking.mp4' style='display:none' crossorigin='anonymous'></video>
+<canvas id='c'></canvas>
+<script>
+const v=document.getElementById('v');
+const c=document.getElementById('c');
+v.addEventListener('loadeddata',()=>{
+  v.currentTime=2.0; // 2s in = mouth moving
+});
+v.addEventListener('seeked',()=>{
+  c.width=v.videoWidth;c.height=v.videoHeight;
+  c.getContext('2d').drawImage(v,0,0);
+  const d=c.toDataURL('image/jpeg',0.9);
+  fetch('/api/save-frame',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'eve_speaking_frame',dataUrl:d})})
+    .then(r=>r.json()).then(j=>{document.title='SAVED:'+j.path;console.log('SAVED',j.path);});
+});
+v.load();
+</script>
+</body></html>
