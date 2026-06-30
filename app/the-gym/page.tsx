@@ -13,9 +13,44 @@ const FALLBACK_LINES = [
 
 const EVE_PORTRAIT = "/characters/EVE_SHIELD.png";
 
-type Msg   = { role: "eve" | "user"; text: string };
-type Phase = "overlay" | "session" | "end";
+type Msg     = { role: "eve" | "user"; text: string };
+type Phase   = "overlay" | "session" | "end";
 type AvatarState = "idle" | "thinking" | "speaking";
+type Viseme  = { word: string; offsetMs: number; durationMs: number };
+
+// ── Viseme-driven mouth shapes ───────────────────────────────────────────────
+// Real mouth-shape frames extracted from Eve's own speaking footage — swapped
+// in real time against the TTS word-boundary timestamps as the audio plays,
+// so her mouth moves with what she's actually saying instead of looping a
+// pre-baked clip.
+const VISEME_IMG = {
+  rest: "/visemes/eve_viseme_rest.png", // closed mouth — silence, M/B/P
+  aa:   "/visemes/eve_viseme_aa.png",   // wide open — A vowels
+  ou:   "/visemes/eve_viseme_ou.png",   // round — O/U vowels
+  ee:   "/visemes/eve_viseme_ee.png",   // teeth/smile — E/I vowels
+  fv:   "/visemes/eve_viseme_fv.png",   // narrow/teeth-on-lip — F/V
+  mid:  "/visemes/eve_viseme_mid.png",  // generic open talking — other consonants
+} as const;
+type VisemeKey = keyof typeof VISEME_IMG;
+
+// Grapheme-driven viseme classifier: maps each spoken word to the mouth shape
+// it's most associated with, based on its leading consonant / first vowel.
+function wordToViseme(word: string): VisemeKey {
+  const w = word.toLowerCase().replace(/[^a-z]/g, "");
+  if (!w) return "rest";
+  if (/^[mbp]/.test(w)) return "rest";   // lips together
+  if (/^[fv]/.test(w))  return "fv";     // teeth on lip
+  const vowel = w.match(/[aeiou]/);
+  if (!vowel) return "mid";
+  switch (vowel[0]) {
+    case "a": return "aa";
+    case "o":
+    case "u": return "ou";
+    case "e":
+    case "i": return "ee";
+    default:  return "mid";
+  }
+}
 
 export default function TheGymPage() {
   const [phase,       setPhase]       = useState<Phase>("overlay");
@@ -29,15 +64,35 @@ export default function TheGymPage() {
   const [micActive,    setMicActive]    = useState(false);
   const [pipelineTag,  setPipelineTag]  = useState("Grok-3 · Eve-TTS · Live");
   const [notice,       setNotice]       = useState("");
-  const [videoSrc,     setVideoSrc]     = useState<string | null>(null);
+  const [visemeKey,    setVisemeKey]    = useState<VisemeKey>("rest");
 
   const audioRef    = useRef<HTMLAudioElement>(null);
-  const videoRef    = useRef<HTMLVideoElement>(null);
   const chatRef    = useRef<HTMLDivElement>(null);
   const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
   const historyRef = useRef<{ role: string; content: string }[]>([]);
   const lineIdx    = useRef(1);
   const srRef      = useRef<SpeechRecognition | null>(null);
+  const visemesRef = useRef<Viseme[]>([]);
+  const rafRef     = useRef<number | null>(null);
+
+  // Drives mouth-shape swaps off the audio's real playback position —
+  // synced to actual TTS word timing, not a looping animation.
+  const startVisemeLoop = useCallback(() => {
+    const tick = () => {
+      const audio = audioRef.current;
+      if (!audio || audio.paused || audio.ended) { rafRef.current = null; return; }
+      const tMs = audio.currentTime * 1000;
+      const active = visemesRef.current.find(v => tMs >= v.offsetMs && tMs < v.offsetMs + v.durationMs);
+      setVisemeKey(active ? wordToViseme(active.word) : "rest");
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    if (rafRef.current == null) rafRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  const stopVisemeLoop = useCallback(() => {
+    if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    setVisemeKey("rest");
+  }, []);
 
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
@@ -82,25 +137,21 @@ export default function TheGymPage() {
       historyRef.current.push({ role: "assistant", content: reply });
       setMsgs(p => [...p, { role: "eve", text: reply }]);
 
-      // ── Playback: eve-tts audio + speaking loop video (simultaneous) ────────
+      // ── Playback: eve-tts audio + real-time viseme-driven mouth sync ────────
       if (data.audioUrl) {
-        // Show the pre-baked talking loop immediately
-        if (data.speakingLoop) setVideoSrc(data.speakingLoop);
+        visemesRef.current = data.visemes ?? [];
         setAvatarState("speaking");
 
         const audio = audioRef.current ?? new Audio();
         audio.src = data.audioUrl;
-        audio.onplay  = () => { setAvatarState("speaking"); };
-        audio.onended = () => {
-          setAvatarState("idle");
-          setVideoSrc(null);
-        };
+        audio.onplay  = () => { setAvatarState("speaking"); startVisemeLoop(); };
+        audio.onended = () => { setAvatarState("idle"); stopVisemeLoop(); };
         audio.onerror = () => {
           // fallback to browser TTS if audio URL fails
           const utt = new SpeechSynthesisUtterance(reply);
           utt.rate = 0.91; utt.pitch = 1.08;
           utt.onstart = () => setAvatarState("speaking");
-          utt.onend   = () => { setAvatarState("idle"); setVideoSrc(null); };
+          utt.onend   = () => { setAvatarState("idle"); stopVisemeLoop(); };
           window.speechSynthesis.speak(utt);
         };
         audio.play().catch(() => {
@@ -108,10 +159,10 @@ export default function TheGymPage() {
           const utt = new SpeechSynthesisUtterance(reply);
           utt.rate = 0.91; utt.pitch = 1.08;
           utt.onstart = () => setAvatarState("speaking");
-          utt.onend   = () => { setAvatarState("idle"); setVideoSrc(null); };
+          utt.onend   = () => { setAvatarState("idle"); stopVisemeLoop(); };
           window.speechSynthesis.speak(utt);
         });
-        setPipelineTag("✓ Grok-3 · Eve-TTS (Ava) · Live");
+        setPipelineTag("✓ Grok-3 · Eve-TTS (Ava) · Viseme-sync · Live");
       } else {
         // Browser TTS fallback
         window.speechSynthesis?.cancel();
@@ -123,7 +174,7 @@ export default function TheGymPage() {
           ?? voices.find(v => v.lang.startsWith("en"));
         if (pick) utt.voice = pick;
         utt.onstart = () => setAvatarState("speaking");
-        utt.onend   = () => setAvatarState("idle");
+        utt.onend   = () => { setAvatarState("idle"); stopVisemeLoop(); };
         window.speechSynthesis?.speak(utt);
         setPipelineTag("Grok-3 · Browser TTS (fallback)");
       }
@@ -301,20 +352,18 @@ export default function TheGymPage() {
             transition: "background 1s",
           }} />
 
-          {/* Speaking loop video — shown while Eve talks */}
-          {videoSrc && (
-            <video
-              ref={videoRef}
-              key={videoSrc}
-              src={videoSrc}
-              autoPlay
-              loop
-              muted
-              playsInline
+          {/* Viseme-driven mouth — real frame swapped in sync with TTS word timing */}
+          {isSpeaking && (
+            <img
+              src={VISEME_IMG[visemeKey]}
+              alt="Eve speaking"
               style={{
                 position: "absolute", inset: 0, zIndex: 1,
                 width: "100%", height: "100%",
                 objectFit: "cover", objectPosition: "top center",
+                transformOrigin: "50% 30%",
+                animation: "speaking 2.4s ease-in-out infinite",
+                willChange: "transform",
               }}
             />
           )}
@@ -324,7 +373,7 @@ export default function TheGymPage() {
             src={EVE_PORTRAIT}
             alt="Eve"
             style={{
-              position: "absolute", inset: 0, zIndex: videoSrc ? 0 : 1,
+              position: "absolute", inset: 0, zIndex: isSpeaking ? 0 : 1,
               width: "100%", height: "100%",
               objectFit: "cover", objectPosition: "top center",
               transformOrigin: "50% 30%",
@@ -332,7 +381,7 @@ export default function TheGymPage() {
                 ? "thinking 2.2s ease-in-out infinite, blink 5.3s linear infinite"
                 : "breathe 4.2s ease-in-out infinite, blink 5.3s linear infinite",
               transition: "opacity 0.3s",
-              opacity: videoSrc ? 0 : 1,
+              opacity: isSpeaking ? 0 : 1,
               willChange: "transform, filter",
             }}
           />

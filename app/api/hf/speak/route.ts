@@ -5,7 +5,11 @@ const XAI_KEY  = process.env.XAI_API_KEY ?? "";
 const HF_TOKEN = process.env.HF_TOKEN ?? "";
 
 const EVE_TTS_URL = "https://aibruh-eve-tts.hf.space";
-const EVE_VOICE   = "en-US-AvaMultilingualNeural - en-US (Female)";
+// AvaMultilingualNeural doesn't emit WordBoundary metadata (only SentenceBoundary) —
+// switched to the standard AvaNeural voice, which does, for viseme-driven animation.
+const EVE_VOICE   = "en-US-AvaNeural - en-US (Female)";
+
+export type Viseme = { word: string; offsetMs: number; durationMs: number };
 
 const sessionHash = () => randomBytes(5).toString("hex");
 
@@ -31,8 +35,11 @@ async function generateReply(messages: { role: string; content: string }[]): Pro
   }
 }
 
-// ── AIBRUH/eve-tts — dedicated cpu-upgrade, ~2-4s ────────────────────────────
-async function tts(reply: string): Promise<string | null> {
+// ── AIBRUH/eve-tts (fn_index 1) — audio + WordBoundary timestamps ───────────
+// Drives real-time viseme animation from the actual TTS output instead of a
+// pre-baked loop video: each word's offset/duration lets the client swap
+// mouth-shape frames in sync with the audio as it plays.
+async function ttsWithVisemes(reply: string): Promise<{ audioUrl: string | null; visemes: Viseme[] }> {
   try {
     const sh = sessionHash();
     const auth = { Authorization: `Bearer ${HF_TOKEN}` };
@@ -40,17 +47,16 @@ async function tts(reply: string): Promise<string | null> {
     const join = await fetch(`${EVE_TTS_URL}/gradio_api/queue/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...auth },
-      body: JSON.stringify({ data: [reply, EVE_VOICE, 0, 0], fn_index: 0, session_hash: sh }),
+      body: JSON.stringify({ data: [reply, EVE_VOICE, 0, 0], fn_index: 1, session_hash: sh }),
       signal: AbortSignal.timeout(12000),
     });
-    if (!join.ok) return null;
+    if (!join.ok) return { audioUrl: null, visemes: [] };
 
-    // Stream SSE until process_completed
     const sse = await fetch(`${EVE_TTS_URL}/gradio_api/queue/data?session_hash=${sh}`, {
       headers: { ...auth, Accept: "text/event-stream" },
       signal: AbortSignal.timeout(60000),
     });
-    if (!sse.ok || !sse.body) return null;
+    if (!sse.ok || !sse.body) return { audioUrl: null, visemes: [] };
 
     const reader = sse.body.getReader();
     const dec = new TextDecoder();
@@ -67,23 +73,25 @@ async function tts(reply: string): Promise<string | null> {
           try {
             const evt = JSON.parse(line.slice(5).trim());
             if (evt.msg === "process_completed") {
-              const d = evt.output?.data?.[0] as { url?: string; path?: string } | string | undefined;
+              const [audioData, visemesJson] = evt.output?.data ?? [];
+              const d = audioData as { url?: string; path?: string } | string | undefined;
               let url = typeof d === "object" && d ? (d.url ?? d.path) : (typeof d === "string" ? d : null);
-              if (!url) return null;
-              if (!url.startsWith("http")) url = `${EVE_TTS_URL}/gradio_api/file=${url}`;
-              return url;
+              if (url && !url.startsWith("http")) url = `${EVE_TTS_URL}/gradio_api/file=${url}`;
+              let visemes: Viseme[] = [];
+              try { visemes = JSON.parse(visemesJson ?? "[]"); } catch { /* ignore */ }
+              return { audioUrl: url ?? null, visemes };
             }
-            if (evt.msg === "process_failed") return null;
+            if (evt.msg === "process_failed") return { audioUrl: null, visemes: [] };
           } catch { /* skip */ }
         }
       }
     } finally {
       try { await reader.cancel(); } catch { /* ignore */ }
     }
-    return null;
+    return { audioUrl: null, visemes: [] };
   } catch (e) {
-    console.error("eve-tts:", String(e).slice(0, 80));
-    return null;
+    console.error("eve-tts visemes:", String(e).slice(0, 80));
+    return { audioUrl: null, visemes: [] };
   }
 }
 
@@ -111,14 +119,14 @@ export async function POST(req: NextRequest) {
     { role: "user", content: text },
   ];
 
-  // Sequential: Grok first, then TTS with the actual reply
-  const reply   = await generateReply(msgs);
-  const audioUrl = await tts(reply);
+  // Sequential: Grok first, then TTS with word-boundary timing for visemes
+  const reply = await generateReply(msgs);
+  const { audioUrl, visemes } = await ttsWithVisemes(reply);
 
   return NextResponse.json({
     reply,
-    audioUrl,                            // HF URL — browser plays directly
-    speakingLoop: "/eve_talking_loop.mp4", // pre-baked Wan2.2 loop, plays while audio runs
+    audioUrl,   // HF URL — browser plays directly
+    visemes,    // [{word, offsetMs, durationMs}] — drives real-time mouth-shape sync
     voice: audioUrl ? "eve-tts" : "browser",
     fallback: audioUrl ? null : "tts_unavailable",
   });
