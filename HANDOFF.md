@@ -1,157 +1,140 @@
-# BERYL — Eve Alive Pipeline Handoff
-_Created 2026-06-30 for cross-account Claude continuation_
+# BERYL LIVE — HANDOFF DOC
+_Last updated: 2026-06-30_
 
 ---
 
-## Mission (do not change this goal)
-**Get Eve "alive" — real lip-synced video where her spoken words come out of her mouth.**  
-CSS animation = wrong. Whole-image bounce = wrong. We need diffusion-driven talking-head video.
+## Current State: Viseme-Driven Real-Time Lip Sync ✅
 
-Repo: `tyronne-os/Beryllivedemo1` branch `hf-deploy`  
-HF Space: `AIBRUH/ycberyldemo` (same code, always push both)  
-Working dir: `C:/Users/tjlsu/berylllm/Beryllivedemo1`  
-All API keys: `C:/Users/tjlsu/berylllm/.env` — NEVER commit
+The Gym is now a genuine real-time conversational AI avatar — no pre-baked video loop,
+no Runway, no per-second billing. Eve's mouth moves in sync with what she's actually
+saying, driven by word-boundary timestamps from the TTS output.
 
----
-
-## Current pipeline status
-
-### ✅ WORKING
-| Step | Service | Notes |
-|------|---------|-------|
-| Text reply | Grok-3-mini (`api.x.ai/v1/chat/completions`) | `XAI_API_KEY` in .env. Never fails. |
-| Image-to-video | Wan2.2 14B i2v Lightning | `eldmans-wan2-2-14b-i2v-480p-lightning-nsfw-diffusers.hf.space` — PROVEN: `public/eve_wave.mp4` exists (Eve waving, 4s) |
-| Browser voice | `window.speechSynthesis` | Fallback only. Picks female voice (Zira/Ava/Samantha). Not lip-synced. |
-
-### ❌ BLOCKED / FAILED
-| Step | Service | Why |
-|------|---------|-----|
-| TTS | Grok `/audio/speech` | 403 "Team not authorized" — xAI TTS not enabled on this account |
-| TTS | OpenAI | Key expired/invalid (164-char sk-proj-...) |
-| TTS | Chatterbox (resembleai) | ZeroGPU `event: error, data: null` — unreliable |
-| TTS | innoai/Edge-TTS public | Shared queue, estimation→heartbeat loop, never processes |
-| Lip-sync | LatentSync (AIBRUH/latentsync) | A10G Small — was SLEEPING. Can restart via `POST https://huggingface.co/api/spaces/AIBRUH/latentsync/restart` with Bearer token |
-
-### 🟡 READY BUT UNTESTED
-| Step | Service | Notes |
-|------|---------|-------|
-| TTS | `AIBRUH/eve-tts` | Duplicated from `innoai/Edge-TTS`, cpu-upgrade hardware, dedicated (no shared queue). SHOULD be RUNNING. Use queue/join pattern. Voice: `"en-US-AvaMultilingualNeural - en-US (Female)"` |
-| Lip-sync | `victor/LongCat-Video-Avatar-1.5` | LIVE on HF. Takes image + audio → lip-synced video. Endpoint `/generate`. See API below. |
+### What's Working
+- **Grok-3 Mini** → reply in ~4s
+- **AIBRUH/eve-tts (fn_index 1)** → audio + word-boundary viseme timing in ~4s
+- **Total round-trip: ~8–11s** (measured 11.24s end-to-end)
+- **Viseme sync**: `requestAnimationFrame` loop reads `audio.currentTime`, finds active
+  word boundary, swaps Eve's mouth-shape frame in real time
+- **6 viseme frames** extracted from Eve's own Wan2.2 speaking footage, served from
+  `/public/visemes/`: rest, aa (wide), ou (round), ee (smile), fv (teeth-lip), mid
 
 ---
 
-## The next 3 things to do IN ORDER
+## Pipeline Architecture
 
-### STEP 1 — Generate Eve's voice via AIBRUH/eve-tts
-Check if the space is running first:
-```bash
-node -e "
-const t=require('fs').readFileSync('C:/Users/tjlsu/berylllm/.env','utf8').match(/HF_TOKEN=(.+)/)?.[1]?.trim();
-fetch('https://huggingface.co/api/spaces/AIBRUH/eve-tts',{headers:{Authorization:'Bearer '+t}}).then(r=>r.json()).then(j=>console.log(j?.runtime?.stage))
-"
 ```
-If not RUNNING, restart: `POST https://huggingface.co/api/spaces/AIBRUH/eve-tts/restart`
-
-Then use the **queue/join + queue/data SSE** pattern (NOT /call/ — that hangs):
-```javascript
-// Base URL: https://aibruh-eve-tts.hf.space
-// fn_index: 0
-// data: [TEXT, VOICE, 0, 0]
-// VOICE = "en-US-AvaMultilingualNeural - en-US (Female)"
-// TEXT = "I'm a warm, brilliant companion at Beryl AI Labs who connects with you in real time."
-// Result audio in result.data[0].url or .path
-// Save to public/eve_answer.mp3
-```
-Script already written at scratchpad: `tts_dedicated.mjs` — just run it.
-
-### STEP 2 — Lip-sync via LongCat
-Space: `victor/LongCat-Video-Avatar-1.5`  
-Base URL: `https://victor-longcat-video-avatar-1-5.hf.space`
-
-API (from `/gradio_api/info`):
-```
-ENDPOINT /generate
-[0] image_path  (filepath)  — Eve's portrait
-[1] audio_path  (filepath)  — audio from step 1
-[2] prompt      (str)       def="A person is speaking expressively..."
-[3] resolution  ('480p'|'720p') def='480p'
-[4] seed        (int)       def=42
-[5] vocal_mode  ('Clean speech (fast)'|'Isolate vocals (quality)') def='Clean speech (fast)'
-[6] acceleration ('Exact 8-step'|'DBCache fast'|'DBCache faster') def='DBCache faster'
-RETURNS: video file
-```
-
-Eve's portrait URL: `https://berylize.com/characters/EVE_SHIELD.png`
-
-For image_path and audio_path — upload the files to LongCat's file endpoint first:
-```
-POST https://victor-longcat-video-avatar-1-5.hf.space/gradio_api/upload
-multipart form, returns [{path: "tmp/..."}]
-```
-Then pass the returned `path` string as the value.
-
-Use queue/join pattern (same as Wan2.2 — it works).
-
-### STEP 3 — Screenshot the lip-synced video
-Download the output video, extract frame 1-2 seconds in (when mouth is moving), save to `public/eve_answer_frame.jpg`. This is proof Eve is alive.
-
----
-
-## Key API patterns
-
-### Wan2.2 (PROVEN WORKING — reference for other HF spaces)
-```javascript
-// ImageData format:
-const img = { path: URL, url: URL, orig_name: "portrait.jpg", size: null, mime_type: "image/png", is_stream: false, meta: { _type: "gradio.FileData" } };
-// params array (16 items): [img, null, prompt, steps(max30), negPrompt, 4, guidance, 1, seed, true, 6, "UniPCMultistep", 3, 16(int), true, true]
-// Use queue/join + SSE queue/data pattern
-```
-
-### Grok text (ALWAYS WORKS)
-```javascript
-POST https://api.x.ai/v1/chat/completions
-{ model: "grok-3-mini", messages: [...], temperature: 0.8 }
-Headers: { Authorization: "Bearer XAI_API_KEY" }
-```
-
-### HF Space management
-```javascript
-// Check stage:
-GET https://huggingface.co/api/spaces/OWNER/SPACE  → .runtime.stage
-// Restart sleeping space:
-POST https://huggingface.co/api/spaces/OWNER/SPACE/restart
-// Both need: Authorization: Bearer HF_TOKEN
+User message
+    │
+    ▼
+POST /api/hf/speak
+    ├─► Grok-3 Mini (api.x.ai) ──► reply text (~4s)
+    └─► AIBRUH/eve-tts fn_index 1 (edge-tts boundary=WordBoundary)
+            └─► audioUrl + visemes [{word, offsetMs, durationMs}] (~4s)
+                         (sequential — TTS runs on the reply, not the user text)
+    │
+    ▼
+Client (the-gym/page.tsx)
+    ├─► <audio> plays audioUrl
+    ├─► rAF loop: audio.currentTime → active viseme → swap <img src>
+    └─► wordToViseme() grapheme classifier:
+            rest  → M/B/P or silence
+            aa    → A vowels
+            ou    → O/U vowels
+            ee    → E/I vowels
+            fv    → F/V consonants
+            mid   → everything else
 ```
 
 ---
 
-## Files changed this session (already committed + pushed)
-- `app/api/hf/speak/route.ts` — main pipeline: Grok → TTS → lip-sync
-- `app/api/ltx/generate/route.ts` — Wan2.2 14B wrapper (working)
-- `app/api/runway/poll/route.ts` — placeholder (Runway NOT used in Gym)
-- `app/api/save-frame/route.ts` — dev helper
-- `app/the-gym/page.tsx` — The Gym UI with browser speech fallback
-- `app/ltx-studio/page.tsx` — LTX studio page
-- `public/eve_wave.mp4` — PROOF Eve can wave (Wan2.2 generated)
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `app/api/hf/speak/route.ts` | Main pipeline: Grok→TTS, returns `{reply, audioUrl, visemes}` |
+| `app/the-gym/page.tsx` | Avatar UI, viseme rAF loop, `wordToViseme()` classifier |
+| `public/visemes/eve_viseme_*.png` | 6 mouth-shape frames (rest/aa/ou/ee/fv/mid) |
+| `public/eve_speaking.mp4` | PROOF: LatentSync lip-sync output (807KB, 66s A10G) |
+| `public/eve_answer.mp3` | Eve TTS reference audio (43KB) |
 
 ---
 
-## Rules (DO NOT VIOLATE)
-1. pnpm only, never npm
-2. Never commit .env or .env.local
-3. Always push BOTH: `git push origin hf-deploy` AND `git push hf hf-deploy:main`
-4. No Runway for The Gym
-5. No CSS whole-image animation for "speaking" — only real diffusion video counts
-6. Gradio SDK = thin host only; frontend = raw HTML5/JS (no stock Gradio components)
-7. Zero native binary deps in production; use native `fetch()` not npm `openai`
+## HF Spaces
+
+| Space | Hardware | Role |
+|-------|----------|------|
+| `AIBRUH/eve-tts` | cpu-upgrade | TTS + word boundaries. fn_index 0 = audio only, fn_index 1 = audio + visemes JSON |
+| `AIBRUH/latentsync` | A10G Small | Takes VIDEO+AUDIO → lip-synced video (66s, proven). NOT in hot path. |
+| `eldmans/wan2-2-14b-i2v-480p-lightning-nsfw-diffusers` | GPU | Image→video. Used to generate viseme source footage. |
 
 ---
 
-## HF Spaces summary
-| Space | Hardware | Status | Purpose |
-|-------|----------|--------|---------|
-| AIBRUH/ycberyldemo | cpu-basic | RUNNING | Main beryl demo (this repo) |
-| AIBRUH/eve-tts | cpu-upgrade | Should be RUNNING | Dedicated Edge-TTS for Eve |
-| AIBRUH/latentsync | A10G Small | Was SLEEPING — restart if needed | LatentSync lip-sync |
-| victor/LongCat-Video-Avatar-1.5 | unknown | LIVE | Best talking-head option |
-| eldmans/wan2-2-14b-i2v-480p-lightning-nsfw-diffusers | GPU | LIVE | Wan2.2 image-to-video (WORKING) |
+## eve-tts Space: fn_index Map
+
+```
+fn_index 0  →  tts_interface(text, voice, rate, pitch)
+               returns: [AudioFile, warning]
+
+fn_index 1  →  visemes_interface(text, voice, rate, pitch)
+               returns: [AudioFile, visemes_json_string, warning]
+               visemes_json: [{word, offsetMs, durationMs}, ...]
+```
+
+**Voice**: `en-US-AvaNeural - en-US (Female)`
+Note: AvaMultilingualNeural does NOT emit WordBoundary events (only SentenceBoundary).
+Must use standard AvaNeural and pass `boundary='WordBoundary'` to edge-tts Communicate.
+
+---
+
+## API Keys (all in `C:\Users\tjlsu\berylllm\.env` — NEVER commit)
+
+- `XAI_API_KEY` — Grok-3 Mini
+- `HF_TOKEN` — eve-tts, latentsync, Wan2.2
+- `RUNWAY_API_KEY` — NOT used in The Gym (no Runway rule)
+- `LIVEKIT_*` — for future Clique real-time room
+
+---
+
+## Hard Constraints
+
+- `pnpm` only — never npm
+- Never commit `.env` or `.env.local`
+- No Runway in The Gym — own pipeline only
+- Push to BOTH: `git push origin hf-deploy` AND `git push hf hf-deploy:main`
+- Zero native binary deps in production (use native `fetch()`)
+
+---
+
+## What Was Attempted & Abandoned
+
+| Approach | Why Abandoned |
+|----------|---------------|
+| LatentSync in hot path | 66s per response — too slow for conversation |
+| Pre-baked eve_talking_loop.mp4 | Same loop every turn = looks scripted/robotic |
+| AvaMultilingualNeural for visemes | No WordBoundary support, only SentenceBoundary |
+| xAI TTS | 403 "Team not authorized" on this account |
+| LongCat, LTX-2-3-sync | ZeroGPU file isolation bug — uploads inaccessible in GPU container |
+
+---
+
+## Next Steps / Open TODOs
+
+1. **Idle animation between turns**: replace CSS breathing with an actual idle video loop
+   (subtle blink/sway via Wan2.2 "woman listening, micro-expressions, slight breathing")
+   shown while `avatarState === "idle"` instead of still portrait.
+
+2. **Smooth viseme transitions**: add 60–80ms crossfade between mouth frames to reduce
+   hard-swap flicker at word boundaries.
+
+3. **True phoneme timing**: current heuristic classifies by first vowel / leading
+   consonant per word. For finer accuracy, integrate a G2P library (e.g. `g2p-en` on HF)
+   that maps text to ARPAbet phonemes with per-phoneme timing within each word boundary.
+
+4. **Clique multi-agent**: once Eve's pipeline is solid, expand to full Clique — CSA on
+   separate HF Space, n8n-style orchestration via KREWE canvas, all agents active
+   simultaneously per the 500%-cheaper cost model.
+
+5. **Screenshot proof**: `preview_screenshot` times out in this dev environment;
+   `computer-use` screenshot fails too. Open `localhost:3000/the-gym` in Chrome directly,
+   enter a name, ask a question, and capture mid-response manually — or reconnect the
+   Chrome extension for automated capture.
