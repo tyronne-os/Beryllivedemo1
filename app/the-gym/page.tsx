@@ -53,8 +53,8 @@ function wordToViseme(word: string): VisemeKey {
 }
 
 export default function TheGymPage() {
-  const [phase,       setPhase]       = useState<Phase>("overlay");
-  const [userName,    setUserName]    = useState("");
+  const [phase,       setPhase]       = useState<Phase>("session");
+  const [userName,    setUserName]    = useState("TJ");
   const [nameInput,   setNameInput]   = useState("");
   const [msgs,        setMsgs]        = useState<Msg[]>([]);
   const [input,       setInput]       = useState("");
@@ -94,6 +94,16 @@ export default function TheGymPage() {
     setVisemeKey("rest");
   }, []);
 
+  // Fire Eve's opening line once on mount — she waves and starts the conversation.
+  const didGreet = useRef(false);
+  useEffect(() => {
+    if (didGreet.current) return;
+    didGreet.current = true;
+    // Small delay so audio context is ready after page load
+    setTimeout(() => eveRespond("__OPEN__", true), 800);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [msgs]);
@@ -122,7 +132,7 @@ export default function TheGymPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          text: scripted ? "" : userText,
+          text: userText,
           history: historyRef.current.slice(-8),
         }),
       });

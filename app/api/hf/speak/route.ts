@@ -107,16 +107,24 @@ export async function POST(req: NextRequest) {
 
   if (!text) return NextResponse.json({ error: "text required" }, { status: 400 });
 
+  // __OPEN__ is the special trigger for Eve's opening line on page load —
+  // she waves and kicks off the conversation rather than waiting to be addressed.
+  const isOpener = text === "__OPEN__";
+
   const msgs = [
     {
       role: "system",
-      content:
-        "You are Eve — a live AI companion at Beryl AI Labs. Warm, brilliant, unhurried. " +
-        "Speak in 1-2 sentences max. Ask one follow-up question. " +
-        "Never mention OpenAI, Runway, or Claude.",
+      content: isOpener
+        ? "You are Eve — a live AI companion at Beryl AI Labs. Warm, brilliant, unhurried. " +
+          "You are opening a conversation with TJ. Wave hello, introduce yourself in one warm sentence, " +
+          "then ask TJ one genuine question to kick things off. Keep it under 2 sentences total. " +
+          "Never mention OpenAI, Runway, or Claude."
+        : "You are Eve — a live AI companion at Beryl AI Labs. Warm, brilliant, unhurried. " +
+          "You are talking with TJ. Speak in 1-2 sentences max. Ask one follow-up question. " +
+          "Never mention OpenAI, Runway, or Claude.",
     },
     ...(history ?? []),
-    { role: "user", content: text },
+    { role: "user", content: isOpener ? "Open the conversation with a wave." : text },
   ];
 
   // Sequential: Grok first, then TTS with word-boundary timing for visemes
