@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf8">
+<title>Eve Wave Proof</title>
+<style>
+  body{margin:0;background:#0a0613;font-family:system-ui,sans-serif;color:#E8DCC8;padding:18px}
+  h1{font-size:17px;margin:0 0 4px;color:#E8DCC8}
+  #status{font-size:13px;color:#a855f7;margin-bottom:14px}
+  .strip{display:flex;gap:8px;flex-wrap:wrap}
+  .f{text-align:center}
+  canvas{width:200px;height:auto;border:1px solid rgba(168,85,247,.6);border-radius:6px;display:block;background:#000}
+  .lbl{font-size:12px;color:#c8a951;margin-top:4px;font-family:monospace}
+</style>
+</head>
+<body>
+  <h1>Eve · Wan2.2 14B i2v — "wave hello" · frame-by-frame</h1>
+  <div id="status">loading…</div>
+  <div class="strip" id="strip"></div>
+  <video id="v" src="/eve_wave.mp4" muted playsinline crossorigin="anonymous" style="display:none"></video>
+<script>
+const fracs = [0.0, 0.18, 0.36, 0.54, 0.72, 0.95];
+const v = document.getElementById('v');
+const strip = document.getElementById('strip');
+const status = document.getElementById('status');
+function seek(t){ return new Promise(res=>{ const h=()=>{v.removeEventListener('seeked',h);res();}; v.addEventListener('seeked',h); v.currentTime=t; }); }
+async function run(){
+  await new Promise(res=>{ if(v.readyState>=1) res(); else v.addEventListener('loadedmetadata',res,{once:true}); });
+  const dur = v.duration || 4;
+  status.textContent = 'clip '+dur.toFixed(2)+'s @ '+v.videoWidth+'x'+v.videoHeight+' — capturing…';
+  for (const fr of fracs){
+    const t = Math.min(dur*fr, dur-0.05);
+    await seek(t);
+    const c = document.createElement('canvas');
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+    const wrap = document.createElement('div'); wrap.className='f';
+    const lbl = document.createElement('div'); lbl.className='lbl'; lbl.textContent = t.toFixed(2)+'s';
+    wrap.appendChild(c); wrap.appendChild(lbl); strip.appendChild(wrap);
+  }
+  status.textContent = '✓ captured '+fracs.length+' frames · '+v.videoWidth+'x'+v.videoHeight+' · clip '+dur.toFixed(2)+'s';
+  window.__done = true;
+}
+run().catch(e=>{ status.textContent='ERR '+e; window.__done=true; });
+</script>
+</body>
+</html>
