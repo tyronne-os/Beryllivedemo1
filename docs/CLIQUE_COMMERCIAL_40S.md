@@ -15,13 +15,13 @@ transition on each seam._
 
 | # | 0–10s | 10–20s | 20–30s | 30–40s |
 |---|-------|--------|--------|--------|
-| **Beat** | THE PROBLEM | THE SOLUTION | THE TEAM | THE BET |
+| **Beat** | THE PROBLEM | THE SOLUTION | THE TEAM | THE CATEGORY |
 | **Face(s)** | Marcus only (unnamed dev, prompt-generated) | Marcus + Amanda | All four Clique (Amanda, India, Jeff, Nu) | All four + logo |
-| **Emotion** | Facelessness, dread | Relief — a real face | Presence — full team | Conviction — the bet |
+| **Emotion** | Facelessness, dread | Relief — a real face | Presence — full team | Conviction — a new category |
 | **Color** | Cold teal/blue | Cold → warm bloom | Full royal gold | Gold-on-black |
 
-**Compelling point (baked into segment 4):** _"The first Clique of its kind. Funding
-round open now."_
+**Compelling point (baked into segment 4):** _"The first of its kind — video chat
+with your AI agents."_
 
 ---
 
@@ -171,13 +171,12 @@ panels back into a black-and-gold hero frame (~0.6s).
 
 ---
 
-## SEGMENT 4 · 30–40s · **THE BET (funding round open)**
-**In-frame faces:** All four (small, in an elegant lockup) + the "BERYL CLIQUE" wordmark
-+ a final funding-round tag.
+## SEGMENT 4 · 30–40s · **THE CATEGORY (first of its kind)**
+**In-frame faces:** All four (small, in an elegant lockup) + the "BERYL CLIQUE" wordmark.
 
 **Narration (in-clip audio):**
 > *(final, confident, ~8s of speech, plenty of resolution)*
-> "The first Clique of its kind. AI with faces, on the call. This is how we do AI now. Funding round — open."
+> "The first of its kind. Video chat — with your AI agents. Not prompts. Not chatbots. People. This is how we do AI now."
 
 **Background audio:** full elegant orchestral swell + subtle choir under the narrator;
 drops to one warm sustained chord under the wordmark; a single gold "shimmer" chime
@@ -195,16 +194,16 @@ in with a soft metallic gold sweep of light, refined serif typography. A single 
 light flares across the wordmark and fades.
 
 Below the wordmark, smaller elegant gold text glows into view:
-    "The first Clique of its kind."
-    "Funding round — open now · berylize.com"
+    "The first of its kind."
+    "Video chat with your AI agents · berylize.com"
 
 IN-CLIP AUDIO: Full elegant orchestral swell with subtle choir builds under the male
-narrator, who speaks the closing over ~8 seconds, calm and confident: "The first
-Clique of its kind. AI with faces, on the call. This is how we do AI now. Funding
-round — open." The orchestral bed drops to a single warm sustained chord under the
-wordmark draw. A single crystalline gold "shimmer" chime lands exactly as the
-"BERYL CLIQUE" wordmark completes its draw. The final second is near-silence with
-the sustained chord fading out.
+narrator, who speaks the closing over ~8 seconds, calm and confident: "The first of
+its kind. Video chat — with your AI agents. Not prompts. Not chatbots. People. This
+is how we do AI now." The orchestral bed drops to a single warm sustained chord
+under the wordmark draw. A single crystalline gold "shimmer" chime lands exactly as
+the "BERYL CLIQUE" wordmark completes its draw. The final second is near-silence
+with the sustained chord fading out.
 
 Slow, still, premium, luxurious. Deep black-and-royal-gold palette, gentle volumetric
 glow, cinematic. Mood: iconic, timeless, final — a bet worth making. 16:9,
@@ -248,13 +247,13 @@ naturally hands off — no re-timing needed if you use the transition durations 
 
 ---
 
-## WHY THIS SELLS THE ROUND (in one paragraph, for the deck)
+## WHY THIS LANDS (in one paragraph, for the deck)
 
-You lead with the pain every investor has felt themselves — talking to a nameless
+You lead with the pain every viewer has felt themselves — talking to a nameless
 box. Ten seconds in, they meet Amanda, a face who says her name. Ten seconds after
 that, three more brand faces join by name on Amanda's own voice, using the exact
 handoff phrase that lives in production code (`clique-agent-prompts.ts`) — meaning
-the ad and the product are the same thing, no hand-waving. The close doesn't ask
-for money, it announces a category — *"the first Clique of its kind. This is how we
-do AI now. Funding round — open."* — and that's the ask. Forty seconds. No wasted
-frame. No promise the product can't keep.
+the ad and the product are the same thing, no hand-waving. The close doesn't
+describe a feature, it announces a category: *"The first of its kind. Video chat
+with your AI agents. This is how we do AI now."* Forty seconds. No wasted frame.
+No promise the product can't keep.
