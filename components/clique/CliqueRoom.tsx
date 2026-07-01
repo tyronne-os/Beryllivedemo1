@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback, useEffect, useRef, type CSSProperties } from "react";
+import { useState, useCallback, useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { CliqueAgent, CLIQUE_ROSTER, getV1Team } from "@/lib/clique-roster";
 import { resolveResponders, detectAmandaHandoff } from "@/lib/clique-agent-prompts";
 import { QCRProfile, getQCRProfile } from "@/lib/qcr";
@@ -10,6 +10,7 @@ import { CLSRouterState } from "@/lib/cls-loop-router";
 import { useAmandaVoice } from "@/lib/use-amanda-voice";
 import { useCLSRunner } from "@/lib/use-cls-runner";
 import AgentTile from "./AgentTile";
+import CliqueChat from "./CliqueChat";
 import CLSTile from "./CLSTile";
 import HumanTile from "./HumanTile";
 import CallControls from "./CallControls";
@@ -75,6 +76,7 @@ export default function CliqueRoom() {
   const [intent, setIntent]             = useState<SessionIntent>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [buildUrl, setBuildUrl]         = useState<string | null>(null);
+  const [previewTab, setPreviewTab]     = useState<"preview" | "chat">("preview");
   // CLS state: "wave" = intro greeting loop, "listen" = active waiting, "confirm" = nodding, "live" = Runway stream
   const [amandaCLS, setAmandaCLS]       = useState<CLSRouterState>("wave");
   const inputRef                        = useRef<HTMLInputElement>(null);
@@ -439,33 +441,53 @@ export default function CliqueRoom() {
         <div style={{ flex:1, display:"flex", overflow:"hidden" }}>
           {/* Project preview area */}
           <div style={{ flex:1, display:"flex", flexDirection:"column", background:"#0a0c10", borderRight:"1px solid rgba(200,169,81,.1)", overflow:"hidden" }}>
-            {/* Preview header */}
-            <div style={{ padding:"10px 16px", borderBottom:"1px solid rgba(200,169,81,.1)", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
-              <span style={{ width:8, height:8, borderRadius:"50%", background:"#4CAF50", display:"inline-block", boxShadow:"0 0 6px #4CAF50" }} />
-              <span style={{ fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:2, color:"rgba(255,255,255,.4)", textTransform:"uppercase" }}>Live Preview</span>
-              {buildUrl && (
-                <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:12, color:"rgba(255,255,255,.3)", fontStyle:"italic", marginLeft:8 }}>{buildUrl}</span>
+            {/* Tab bar */}
+            <div style={{
+              display:"flex", alignItems:"center", gap:0,
+              borderBottom:"1px solid rgba(200,169,81,.1)", flexShrink:0,
+              background:"rgba(7,11,15,.9)",
+            }}>
+              <PreviewTab
+                label="Live Preview"
+                icon={<span style={{ width:7, height:7, borderRadius:"50%", background: previewTab==="preview" ? "#4CAF50" : "rgba(255,255,255,.2)", display:"inline-block", boxShadow: previewTab==="preview" ? "0 0 5px #4CAF50" : "none" }} />}
+                active={previewTab === "preview"}
+                onClick={() => setPreviewTab("preview")}
+              />
+              <PreviewTab
+                label="Clique Chat"
+                icon={<span style={{ fontSize:11, lineHeight:1 }}>💬</span>}
+                active={previewTab === "chat"}
+                onClick={() => setPreviewTab("chat")}
+              />
+              {buildUrl && previewTab === "preview" && (
+                <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:11, color:"rgba(255,255,255,.25)", fontStyle:"italic", marginLeft:"auto", paddingRight:14 }}>{buildUrl}</span>
               )}
             </div>
-            {/* Preview pane */}
-            <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
-              {buildUrl ? (
-                <iframe src={buildUrl} style={{ width:"100%", height:"100%", border:"none" }} />
-              ) : (
-                <div style={{ textAlign:"center" }}>
-                  <div style={{ fontFamily:"'Cinzel',serif", fontSize:11, letterSpacing:3, color:"rgba(255,255,255,.18)", textTransform:"uppercase", marginBottom:12 }}>Build Preview</div>
-                  <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:15, color:"rgba(255,255,255,.3)", fontStyle:"italic", maxWidth:360 }}>
-                    Your team is working. Output will appear here as it&apos;s produced.
+
+            {/* Tab content */}
+            {previewTab === "preview" ? (
+              <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
+                {buildUrl ? (
+                  <iframe src={buildUrl} style={{ width:"100%", height:"100%", border:"none" }} />
+                ) : (
+                  <div style={{ textAlign:"center" }}>
+                    <div style={{ fontFamily:"'Cinzel',serif", fontSize:11, letterSpacing:3, color:"rgba(255,255,255,.18)", textTransform:"uppercase", marginBottom:12 }}>Build Preview</div>
+                    <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:15, color:"rgba(255,255,255,.3)", fontStyle:"italic", maxWidth:360 }}>
+                      Your team is working. Output will appear here as it&apos;s produced.
+                    </div>
+                    <div style={{ marginTop:28, display:"flex", gap:8, justifyContent:"center" }}>
+                      {[0,1,2].map(i => (
+                        <div key={i} style={{ width:8, height:8, borderRadius:"50%", background:"rgba(200,169,81,.4)", animation:`blink 1.2s ${i*0.3}s ease-in-out infinite` }} />
+                      ))}
+                    </div>
                   </div>
-                  {/* Animated build indicator */}
-                  <div style={{ marginTop:28, display:"flex", gap:8, justifyContent:"center" }}>
-                    {[0,1,2].map(i => (
-                      <div key={i} style={{ width:8, height:8, borderRadius:"50%", background:"rgba(200,169,81,.4)", animation:`blink 1.2s ${i*0.3}s ease-in-out infinite` }} />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ flex:1, overflow:"hidden" }}>
+                <CliqueChat agents={allAgents} />
+              </div>
+            )}
           </div>
 
           {/* Vertical team panel */}
@@ -606,6 +628,33 @@ export default function CliqueRoom() {
       {/* PiP webcam capture (hidden, feeds stream into HumanTile) */}
       {cam && <div style={{ position:"fixed", width:1, height:1, opacity:0, pointerEvents:"none" }}><CameraPanel active={cam} onStream={setStream} /></div>}
     </div>
+  );
+}
+
+// ── Preview Tab button ────────────────────────────────────────────────────────
+function PreviewTab({ label, icon, active, onClick }: {
+  label: string; icon: ReactNode; active: boolean; onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display:"flex", alignItems:"center", gap:6,
+        padding:"8px 16px", border:"none", cursor:"pointer",
+        background:"transparent",
+        borderBottom: active ? "2px solid #c8a951" : "2px solid transparent",
+        fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:1.5,
+        color: active ? "#c8a951" : "rgba(255,255,255,.35)",
+        fontWeight: active ? 700 : 400,
+        transition:"color .15s, border-color .15s",
+        whiteSpace:"nowrap",
+      }}
+      onMouseOver={e => { if (!active) e.currentTarget.style.color = "rgba(255,255,255,.6)"; }}
+      onMouseOut={e => { if (!active) e.currentTarget.style.color = "rgba(255,255,255,.35)"; }}
+    >
+      {icon}
+      {label.toUpperCase()}
+    </button>
   );
 }
 
