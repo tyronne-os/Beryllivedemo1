@@ -19,11 +19,24 @@ with their own API key, so all members can be active.
 - **Every member is first and foremost a top-tier software engineer**: min 15 yrs
   FANG experience, staff→principal level. Named role = the lens they lead with, not a
   fence — any member can own any task end-to-end.
-- **Conversation protocol**:
-  - Active listening is the default/resting state.
-  - Members speak **only when addressed by name** (else Amanda routes/answers).
-  - **Group greeting is the one exception**: when the user greets the room, ALL FOUR
-    reply together — short, enthusiastic, eager, happy to be there.
+- **Meeting protocol (locked in)**:
+  1. **Every meeting starts with Amanda alone.** She greets, takes the intake
+     (goal / prompt / build request), mirrors back the goal, then decides solo vs.
+     bring-in-team.
+  2. **India, Jeff, Nu are on realtime-live listening from meeting start** — silent
+     and attentive. They **do not speak** until Amanda has introduced them by name.
+     If the user names them before Amanda has, they defer with "Listening." and let
+     Amanda drive.
+  3. Amanda uses a **canonical handoff phrase** to bring a member in:
+     _"I'm bringing in <Name> — <Name>, take this."_ Frontends pattern-match this
+     via `detectAmandaHandoff()` to flip that agent's UI from silent-listening →
+     active.
+  4. **Group greeting is the one exception**: "hey everyone" → all four reply
+     together, short, enthusiastic, eager. Amanda still leads the working session
+     immediately after.
+  5. Amanda **closes** every session with a 2–4 line summary (decisions, ownership)
+     and a clean handback: _"That's yours to take from here. Ping us when you need us."_
+  6. v2 team (rest of scroller) unlocks with funding + own pipeline.
 - **Runtime split**:
   - OpenAI Realtime (**realtime-live2**) → voice I/O, computer use, listening.
   - Runway API → the "alive" visual + active-listening presence.
@@ -32,7 +45,7 @@ with their own API key, so all members can be active.
 ### Clique v1 files
 | File | Purpose |
 |------|---------|
-| `lib/clique-agent-prompts.ts` | **NEW** — master system prompts for all 4 agents + `isGroupGreeting()` + `resolveResponders()` routing helpers. This is the core deliverable. |
+| `lib/clique-agent-prompts.ts` | **NEW** — master system prompts for all 4 agents + `isGroupGreeting()`, `resolveResponders()`, `detectAmandaHandoff()` helpers. Encodes intake protocol, canonical handoff phrase, close-and-handback. This is the core deliverable. |
 | `lib/clique-roster.ts` | Full roster + **NEW** `CLIQUE_V1_TEAM_IDS` / `getV1Team()` (amanda, india, jeff, nu) |
 | `components/clique/CliqueRoom.tsx` | Live room UI (Amanda intro + join flow already built) |
 | `lib/use-amanda-voice.ts` | Amanda's OpenAI Realtime WebRTC voice hook |
