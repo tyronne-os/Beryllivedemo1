@@ -1,6 +1,7 @@
 "use client";
 import { useState, useCallback, useEffect, useRef, type CSSProperties } from "react";
-import { CliqueAgent, CLIQUE_ROSTER } from "@/lib/clique-roster";
+import { CliqueAgent, CLIQUE_ROSTER, getV1Team } from "@/lib/clique-roster";
+import { resolveResponders, detectAmandaHandoff } from "@/lib/clique-agent-prompts";
 import { QCRProfile, getQCRProfile } from "@/lib/qcr";
 import { HumanParticipant, seedHumans, makeRoomCode } from "@/lib/clique-participants";
 import { detectIntent, SessionIntent } from "@/lib/clique-intent";
@@ -19,7 +20,7 @@ import GroupResponseBanner from "./GroupResponseBanner";
 import { GRIClip, GRICategory } from "@/lib/gri";
 
 type Phase = "intro" | "meeting";
-type AgentState = "listening" | "live" | "offline";
+type AgentState = "listening" | "live" | "offline" | "silent-listening";
 type AgentStateMap = Record<string, AgentState>;
 
 interface ChatMessage {
@@ -33,26 +34,22 @@ interface ChatMessage {
 const USER_ID = "beryl_user_default";
 const AMANDA = CLIQUE_ROSTER.find(a => a.id === "amanda")!;
 
-// Smart invite sets for quick-action chips
 const QUICK_ACTIONS = [
-  { label: "Build Something",      ids: ["eve","jamarr","brice"],              emoji: "🛠" },
-  { label: "Strategy Session",     ids: ["jessica","nu","naomi"],              emoji: "🎯" },
-  { label: "Research & Analyze",   ids: ["bri","terrell","india"],             emoji: "🔍" },
-  { label: "Design Review",        ids: ["lacara","jamarr","eve"],             emoji: "🎨" },
-  { label: "Full Clique",          ids: ["eve","jamarr","jessica","jeff","india","lacara","terrell","brice","bri","naomi","cleo","kizzy"], emoji: "⚡" },
+  { label: "Build Something",    ids: ["india","jeff","nu"],  emoji: "🛠" },
+  { label: "Strategy Session",   ids: ["nu","india"],         emoji: "🎯" },
+  { label: "Research & Analyze", ids: ["jeff","india"],       emoji: "🔍" },
+  { label: "Full Clique",        ids: ["india","jeff","nu"],  emoji: "⚡" },
 ];
 
 function inferAgentsFromText(text: string): string[] {
   const t = text.toLowerCase();
   const ids: string[] = [];
-  if (/build|code|develop|engineer|implement|feature|ship/.test(t))  ids.push("eve","jamarr","brice");
-  if (/design|ui|ux|visual|layout|brand|look/.test(t))               ids.push("lacara","jamarr");
-  if (/strategy|plan|pitch|investor|market|roadmap/.test(t))         ids.push("jessica","nu","naomi");
-  if (/data|analytics|metric|report|number|dashboard/.test(t))       ids.push("terrell","bri");
-  if (/growth|launch|user|funnel|traffic|retention/.test(t))         ids.push("india","kizzy");
-  if (/research|study|find|investigate|explore/.test(t))             ids.push("bri","terrell");
-  if (/content|write|copy|post|message/.test(t))                     ids.push("india","shelly");
-  return [...new Set(ids)];
+  if (/build|code|develop|engineer|implement|feature|ship/.test(t)) ids.push("jeff","india");
+  if (/strategy|plan|pitch|investor|market|roadmap/.test(t))        ids.push("nu","india");
+  if (/data|analytics|research|report|metric/.test(t))              ids.push("jeff","nu");
+  if (/content|write|copy|post|message|growth/.test(t))             ids.push("india","nu");
+  const found = [...new Set(ids)].filter(id => id !== "amanda");
+  return found.length ? found : ["india","jeff","nu"];
 }
 
 export default function CliqueRoom() {
@@ -70,7 +67,7 @@ export default function CliqueRoom() {
   const [inviting, setInviting]         = useState<string | null>(null);
   const [userGoal, setUserGoal]         = useState("");
   const [amandaMsg, setAmandaMsg]       = useState(
-    "Good day! I'm Amanda, your Clique Supervisor. What are we working on today?"
+    "Hey — I'm Amanda. Tell me what you're building."
   );
   const [griClip, setGriClip]           = useState<GRIClip | null>(null);
   const [griCat, setGriCat]             = useState<GRICategory | null>(null);
@@ -83,6 +80,26 @@ export default function CliqueRoom() {
   const inputRef                        = useRef<HTMLInputElement>(null);
   const chatEndRef                      = useRef<HTMLDivElement>(null);
 
+  const handleUserTranscript = useCallback((text: string) => {
+    const responders = resolveResponders(text);
+    setStates(prev => {
+      const next = { ...prev };
+      responders.forEach(id => {
+        if (next[id] === "silent-listening" || next[id] === "listening") {
+          next[id] = "listening";
+        }
+      });
+      return next;
+    });
+  }, []);
+
+  const handleAmandaTranscript = useCallback((text: string) => {
+    const handoffId = detectAmandaHandoff(text);
+    if (handoffId) {
+      setStates(prev => ({ ...prev, [handoffId]: "listening" }));
+    }
+  }, []);
+
   // CLS ↔ Live Runway runner for Amanda (intro phase uses this directly;
   // meeting phase AgentTile has its own instance — both key off "amanda")
   const amandaRunner = useCLSRunner("amanda");
@@ -91,7 +108,6 @@ export default function CliqueRoom() {
   const amanda = useAmandaVoice(
     () => {
       setAmandaCLS("live");
-      // Flip agentStates so meeting-phase AgentTile also goes live
       setStates(prev => ({ ...prev, amanda: "live" }));
       amandaRunner.goLive("speak");
     },
@@ -100,6 +116,8 @@ export default function CliqueRoom() {
       setStates(prev => ({ ...prev, amanda: "listening" }));
       amandaRunner.returnToLoop();
     },
+    handleAmandaTranscript,
+    handleUserTranscript,
   );
 
   const handleGRI = useCallback((clip: GRIClip, cat: GRICategory) => {
@@ -122,8 +140,9 @@ export default function CliqueRoom() {
   }, [stream, cam, mic]);
 
   const inviteAgents = useCallback(async (ids: string[]) => {
+    const v1 = getV1Team();
     const toAdd = ids
-      .map(id => CLIQUE_ROSTER.find(a => a.id === id))
+      .map(id => v1.find(a => a.id === id))
       .filter((a): a is CliqueAgent =>
         !!a && a.id !== "amanda" && !joinedAgents.find(j => j.id === a.id)
       );
@@ -145,7 +164,7 @@ export default function CliqueRoom() {
       setAmandaMsg(`Bringing in ${agent.name}…`);
       await new Promise(r => setTimeout(r, 900));
       setJoinedAgents(prev => [...prev, agent]);
-      setStates(prev => ({ ...prev, [agent.id]: "listening" }));
+      setStates(prev => ({ ...prev, [agent.id]: "silent-listening" }));
       try {
         setQCR(prev => ({ ...prev, [agent.id]: getQCRProfile(USER_ID, agent.id) }));
       } catch { /* no seed profile yet */ }
@@ -163,7 +182,7 @@ export default function CliqueRoom() {
     const detected = detectIntent(goal);
     setIntent(detected);
     const ids = inferAgentsFromText(goal);
-    inviteAgents(ids.length ? ids : ["eve", "jessica", "bri"]);
+    inviteAgents(ids);
     setUserGoal("");
   }, [userGoal, inviteAgents]);
 
@@ -183,7 +202,7 @@ export default function CliqueRoom() {
   }, []);
 
   const addMoreStaff = useCallback(() => {
-    const remaining = CLIQUE_ROSTER.filter(
+    const remaining = getV1Team().filter(
       a => a.id !== "amanda" && !joinedAgents.find(j => j.id === a.id)
     );
     if (remaining.length > 0) inviteAgents([remaining[0].id]);

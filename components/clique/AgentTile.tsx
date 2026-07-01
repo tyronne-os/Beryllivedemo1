@@ -9,7 +9,7 @@ import { useCLSRunner } from "@/lib/use-cls-runner";
 
 interface Props {
   agent: CliqueAgent;
-  state: "listening" | "live" | "offline";
+  state: "listening" | "live" | "offline" | "silent-listening";
   size?: "sm" | "md" | "lg";
   qcr?: QCRProfile;
   onClick?: () => void;
@@ -32,6 +32,7 @@ export default function AgentTile({ agent, state, size = "md", qcr, onClick, cls
   const dim      = size === "lg" ? 180 : size === "sm" ? 100 : 136;
   const isLive   = state === "live";
   const isOff    = state === "offline";
+  const isSilent = state === "silent-listening";
 
   const rapport   = qcr?.rapportScore ?? 0.3;
   const ringColor = rapportColor(rapport);
@@ -53,6 +54,15 @@ export default function AgentTile({ agent, state, size = "md", qcr, onClick, cls
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLive]);
 
+  // Pre-warm "listen" clip while silently listening
+  useEffect(() => {
+    if (isSilent) {
+      const t = setTimeout(() => prewarm("speak"), 1_000);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSilent]);
+
   // Pre-warm "speak" clip as soon as agent enters listening state
   useEffect(() => {
     if (!isLive && !isOff) {
@@ -70,7 +80,7 @@ export default function AgentTile({ agent, state, size = "md", qcr, onClick, cls
   );
 
   // Router state: live agents go "live", CSA follows parent state, others listen
-  const routerState: CLSRouterState = clsState ?? (isLive ? "live" : agent.isCSA ? "wave" : "listen");
+  const routerState: CLSRouterState = clsState ?? (isLive ? "live" : agent.isCSA ? "wave" : isSilent ? "listen" : "listen");
 
   const borderRadius = agent.isCSA ? "50%" : 6;
 
@@ -81,7 +91,7 @@ export default function AgentTile({ agent, state, size = "md", qcr, onClick, cls
       style={{
         display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
         cursor: onClick ? "pointer" : "default",
-        opacity: isOff ? 0.4 : 1,
+        opacity: isOff ? 0.4 : isSilent ? 0.55 : 1,
         transition: "opacity .3s, transform .3s",
         transform: isLive ? "scale(1.07)" : "scale(1)",
         position: "relative",
@@ -154,6 +164,17 @@ export default function AgentTile({ agent, state, size = "md", qcr, onClick, cls
             letterSpacing: 2, padding: "2px 7px", borderRadius: 2,
             textTransform: "uppercase", boxShadow: "0 0 8px rgba(220,60,60,.6)",
           }}>LIVE</div>
+        )}
+
+        {/* Silent-listening badge */}
+        {isSilent && (
+          <div style={{
+            position: "absolute", top: 6, left: 6,
+            background: "rgba(255,255,255,.08)", color: "rgba(255,255,255,.45)",
+            fontFamily: "'Cinzel',serif", fontSize: 7, fontWeight: 600,
+            letterSpacing: 1.5, padding: "2px 7px", borderRadius: 2,
+            textTransform: "uppercase",
+          }}>Listening.</div>
         )}
 
         {/* CSA badge */}

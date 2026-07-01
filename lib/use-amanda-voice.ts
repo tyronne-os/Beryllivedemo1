@@ -24,6 +24,8 @@ export interface AmandaVoiceHandle {
 export function useAmandaVoice(
   onSpeakStart?: () => void,
   onSpeakEnd?: () => void,
+  onAmandaTranscript?: (text: string) => void,
+  onUserTranscript?: (text: string) => void,
 ): AmandaVoiceHandle {
   const [isConnected, setConnected] = useState(false);
   const [isSpeaking, setSpeaking]   = useState(false);
@@ -75,17 +77,18 @@ export function useAmandaVoice(
         const dc = pc.createDataChannel("oai-events");
         dcRef.current = dc;
 
+        let amandaBuf = "";
+
         dc.onopen = () => {
           if (cancelled) return;
           connectedRef.current = true;
           setConnected(true);
 
-          // Trigger Amanda's opening greeting
           sendEvent({
             type: "response.create",
             response: {
               modalities: ["audio", "text"],
-              instructions: "Greet the user warmly and ask what they are working on today. Keep it natural — two sentences max.",
+              instructions: `Say exactly: "Hey — I'm Amanda. Tell me what you're building." Nothing more.`,
             },
           });
         };
@@ -93,16 +96,32 @@ export function useAmandaVoice(
         dc.onmessage = (ev) => {
           try {
             const msg = JSON.parse(ev.data);
-            if (msg.type === "response.audio.delta" || msg.type === "response.audio_transcript.delta") {
+            if (msg.type === "response.audio_transcript.delta" && msg.delta) {
+              amandaBuf += msg.delta;
               setSpeaking(true);
               onSpeakStart?.();
             }
-            if (msg.type === "response.done" || msg.type === "response.audio.done") {
+            if (msg.type === "response.audio.delta") {
+              setSpeaking(true);
+              onSpeakStart?.();
+            }
+            if (msg.type === "response.done") {
+              setSpeaking(false);
+              onSpeakEnd?.();
+              if (amandaBuf.trim()) {
+                onAmandaTranscript?.(amandaBuf.trim());
+                amandaBuf = "";
+              }
+            }
+            if (msg.type === "response.audio.done") {
               setSpeaking(false);
               onSpeakEnd?.();
             }
-            if (msg.type === "input_audio_buffer.speech_started") {
-              // User started speaking — note for VoiceBars
+            if (
+              msg.type === "conversation.item.input_audio_transcription.completed" &&
+              msg.transcript
+            ) {
+              onUserTranscript?.(msg.transcript);
             }
           } catch { /* malformed event */ }
         };
