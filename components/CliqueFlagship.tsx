@@ -158,16 +158,19 @@ function IntroBanner() {
           </p>
         </div>
 
-        {/* Still image in monitor-esque frame */}
-        <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", inset: -2, borderRadius: 14, background: "linear-gradient(135deg,rgba(200,169,81,.5),rgba(76,175,80,.3),transparent)", filter: "blur(2px)" }} />
-          <div style={{ position: "relative", borderRadius: 12, overflow: "hidden", border: "1px solid rgba(200,169,81,.35)", boxShadow: "0 30px 80px rgba(0,0,0,.6)" }}>
-            <img src="/images/clique-still.png" alt="The Clique — live video agent chat" style={{ width: "100%", display: "block" }} />
-            {/* LIVE tag */}
-            <div style={{ position: "absolute", top: 14, right: 14, display: "flex", alignItems: "center", gap: 6, background: "rgba(6,4,10,.7)", border: "1px solid rgba(220,60,60,.5)", borderRadius: 20, padding: "4px 12px" }}>
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#dc3c3c", animation: "cf-live 1.2s ease-in-out infinite", boxShadow: "0 0 6px #dc3c3c" }} />
-              <span style={{ fontFamily: "'Cinzel',serif", fontSize: 8, letterSpacing: 2, color: "#ff8080", textTransform: "uppercase" }}>Live Now</span>
-            </div>
+        {/* Amanda — cutout portrait, background removed */}
+        <div style={{ position: "relative", display: "flex", justifyContent: "center" }}>
+          {/* Ambient glow behind her */}
+          <div style={{ position: "absolute", top: "8%", left: "50%", transform: "translateX(-50%)", width: 480, height: 480, borderRadius: "50%", background: "radial-gradient(ellipse,rgba(200,169,81,.22) 0%,transparent 70%)", filter: "blur(20px)", pointerEvents: "none" }} />
+          <img
+            src="/images/amanda-cutout.png"
+            alt="Amanda — Chief Supervising Agent of The Clique"
+            style={{ position: "relative", zIndex: 2, width: "100%", maxWidth: 460, display: "block", filter: "drop-shadow(0 30px 60px rgba(0,0,0,.65))" }}
+          />
+          {/* Name tag */}
+          <div style={{ position: "absolute", zIndex: 3, bottom: 18, left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 7, background: "rgba(6,4,10,.72)", border: "1px solid rgba(200,169,81,.4)", borderRadius: 20, padding: "6px 16px", backdropFilter: "blur(6px)" }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#4CAF50", animation: "cf-live 1.3s ease-in-out infinite", boxShadow: "0 0 6px #4CAF50" }} />
+            <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 2, color: "#f5e070", textTransform: "uppercase" }}>Amanda · CSA</span>
           </div>
         </div>
       </div>
