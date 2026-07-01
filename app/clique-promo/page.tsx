@@ -1,17 +1,17 @@
 import Nav from "@/components/Nav";
-import CliqueLandingPage from "@/components/CliqueLandingPage";
+import CliqueFlagship from "@/components/CliqueFlagship";
 import Footer from "@/components/Footer";
 
 export const metadata = {
-  title: "Beryl Clique — The World's First AI Clique",
-  description: "Not a chatbot. Not an assistant. A live room of AI agents who know your name, remember your wins, and get real work done — together.",
+  title: "The Clique — Video Chat With Your AI Agents | Beryl Live",
+  description: "The end of coding AI agents. The world's first agent video chat — open the room, call them by name, and host a live meeting with your AI team.",
 };
 
 export default function CliquePromoPage() {
   return (
     <>
       <Nav />
-      <CliqueLandingPage />
+      <CliqueFlagship />
       <Footer />
     </>
   );
