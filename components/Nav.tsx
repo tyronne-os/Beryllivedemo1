@@ -100,14 +100,13 @@ export default function Nav() {
         {/* Desktop NAV LINKS */}
         <div className="nav-links" style={{display:"flex",alignItems:"center",gap:32}}>
           {pathname !== "/" && <Link href="/" className="nl">Home</Link>}
-          <a href="/#clique" className="nl">The Clique</a>
+          <Link href="/clique-promo" style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:600,letterSpacing:"2.5px",textTransform:"uppercase",textDecoration:"none",display:"flex",alignItems:"center",gap:6,background:"linear-gradient(135deg,#8B6914 0%,#c8a951 30%,#f5e070 50%,#c8a951 70%,#8B6914 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",padding:"4px 2px 6px"}}>
+            <span style={{WebkitTextFillColor:"initial",fontSize:14}}>✦</span>
+            The Clique
+          </Link>
           <Link href="/demo" className="nl">Demo</Link>
           <a href="/#pricing" className="nl">Pricing</a>
           <Link href="/desktop" className="nl">Desktop</Link>
-          <Link href="/clique" style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:600,letterSpacing:"2.5px",textTransform:"uppercase",textDecoration:"none",display:"flex",alignItems:"center",gap:6,background:"linear-gradient(135deg,#8B6914 0%,#c8a951 30%,#f5e070 50%,#c8a951 70%,#8B6914 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",padding:"4px 2px 6px"}}>
-            <span style={{WebkitTextFillColor:"initial",fontSize:14}}>✦</span>
-            Clique
-          </Link>
           <Link href="/matinee" style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:600,letterSpacing:"2.5px",textTransform:"uppercase",textDecoration:"none",color:"#dc3c3c",padding:"4px 2px 6px",textShadow:"0 0 12px rgba(220,60,60,.5)",transition:"color .2s",display:"flex",alignItems:"center",gap:5}}>
             {/* Movie camera on tripod — site green */}
             <svg width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0,opacity:0.9}}>
@@ -164,13 +163,12 @@ export default function Nav() {
 
           {/* Nav links — each fully self-contained with inline styles */}
           {([
-            { label:"Home",           href:"/",          show: pathname !== "/" },
-            { label:"The Clique",     href:"/#clique",   show: true, isAnchor: true },
-            { label:"Demo",           href:"/demo",      show: true },
-            { label:"Pricing",        href:"/#pricing",  show: true, isAnchor: true },
-            { label:"Desktop",        href:"/desktop",   show: true },
-            { label:"Clique",         href:"/clique",    show: true },
-            { label:"Contact",        href:"/contact",   show: true },
+            { label:"Home",           href:"/",             show: pathname !== "/" },
+            { label:"The Clique",     href:"/clique-promo", show: true },
+            { label:"Demo",           href:"/demo",         show: true },
+            { label:"Pricing",        href:"/#pricing",     show: true, isAnchor: true },
+            { label:"Desktop",        href:"/desktop",      show: true },
+            { label:"Contact",        href:"/contact",      show: true },
           ] as {label:string;href:string;show:boolean;isAnchor?:boolean}[])
             .filter(l => l.show)
             .map(l => l.isAnchor ? (
