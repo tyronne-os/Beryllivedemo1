@@ -1,10 +1,77 @@
 # BERYL LIVE — HANDOFF DOC
-_Last updated: 2026-06-30 (user hits weekly rate limit, resumes on another account
-within 10 min or by July 5)_
+_Last updated: 2026-06-30 late night — PinGate + Clique v1 wiring session complete_
 
-**Read this whole top section before touching anything.** The user has just
-switched Claude accounts because of a weekly rate limit. Everything is pushed
-to both remotes and typechecks clean. Do not re-derive.
+**Read this whole top section before touching anything.** Push pattern (do BOTH remotes every commit):
+```
+git push origin hf-deploy
+git push hf hf-deploy:main
+```
+
+---
+
+## 🧠 7AM DEEP DIVE: SOVEREIGN AGENT ARCHITECTURE
+
+Full architecture plan lives at: `docs/CLIQUE_AGENT_ARCHITECTURE.md`
+
+**READ THAT DOC FIRST at 7am.** It covers:
+- Per-agent LLM assignments (Nu=Qwen2.5-72B, Amanda=Llama-3.1-70B, Jeff=GLM-4, India=Mistral-7B)
+- Plug-and-play HF inference router (`lib/hf-inference.ts`)
+- Skill MD system — Amanda generates agent skills mid-session
+- QCR memory write-back stub
+- **20 ABSOLUTE DOMINATION features** with ease ratings
+- 7am–10am implementation sequence to hit the 10am live target
+- 5 discussion questions for TJ to answer before build starts
+
+---
+
+## 🌅 MORNING TASKS (July 1, 2026)
+
+Priority order for the morning session with TJ:
+1. **Film the 40-second promo** — use `docs/CLIQUE_COMMERCIAL_40S.md` for the script. Shoot Seg 2 + Seg 3 in Runway UI (need face control). Seg 1 (Marcus desk) + Seg 4 (logo lockup) can be done via Runway API (~200 credits).
+2. **Drop `public/videos/clique-hero.mp4`** → activates Banner 1 on `/clique` promo page. Until then a gold-grid fallback with placement instructions shows.
+3. **Clean the entire site** — audit all pages for polish, broken links, placeholder copy.
+4. **Apply for YC** — TJ wants Claude's help writing the application.
+5. **Apply for Runway startup partnership**.
+6. **Deploy clique-hero video** once shot and stitched.
+
+---
+
+## ✅ SESSION COMPLETE (June 30 night)
+
+Everything below was built and pushed in the last session:
+
+### Clique v1 Wiring (all done)
+- `lib/clique-agent-prompts.ts` — master prompts, `resolveResponders`, `detectAmandaHandoff`, `isGroupGreeting`, `getAgentPrompt`
+- `lib/clique-roster.ts` — `getV1Team()` returns only Amanda/India/Jeff/Nu
+- `components/clique/CliqueRoom.tsx` — fully wired to v1 team, `silent-listening` state, Amanda canonical opener, `resolveResponders`/`detectAmandaHandoff` in transcript handlers, `PreviewTab` tab bar above project preview
+- `components/clique/AgentTile.tsx` — `silent-listening` state: dimmed to 0.55 opacity, "Listening." badge, prewarms `speak` clip after 1s
+- `lib/use-amanda-voice.ts` — `onAmandaTranscript`/`onUserTranscript` callbacks, `amandaBuf` accumulator
+- `app/api/clique/realtime-token/route.ts` — Amanda's system prompt baked server-side via `getAgentPrompt("amanda")`
+
+### Clique Chat tab (done)
+- `app/api/clique/chat/route.ts` — POST `{message, targetId, history}` → multi-agent GPT-4o responses
+- `components/clique/CliqueChat.tsx` — full Microsoft Agent Framework style chat UI: group channel + per-agent DMs, CLS mini avatars, typing indicator, 420ms staggered responses
+
+### CliqueLandingPage banners (done)
+- **Banner 1 (VideoHero)** — `<video src="/videos/clique-hero.mp4">` with gold-grid fallback. Drop the file to activate.
+- **Banner 2 (MarcusPhoneBanner)** — iPhone mockup showing user on call with all 4 agents on screen, floating + glow animations, copyblock with CTA
+
+### Build fixes
+- `app/api/ltx/generate/route.ts` — TS narrowing fix for `rawData.output.data`
+- `app/ltx-studio/page.tsx` — `as const` status field type fix
+
+### PinGate (done tonight)
+- `components/PinGate.tsx` — 4-digit overlay, PIN: **2440**, sessionStorage persistence, shake on wrong code, full Beryl brand
+- `app/privacy/page.tsx` — Privacy Policy, wrapped in PinGate
+- `app/terms/page.tsx` — Terms of Service, wrapped in PinGate
+- `app/api-docs/page.tsx` — API Reference (internal routes documented), wrapped in PinGate
+- `app/contact/page.tsx` — existing contact form, wrapped in PinGate
+- `components/Footer.tsx` — footer links now use `<Link>` pointing to real pages: `/privacy`, `/terms`, `/api-docs`, `/contact`
+
+### 40-second promo script
+- Saved to `docs/CLIQUE_COMMERCIAL_40S.md`
+
+---
 
 ---
 

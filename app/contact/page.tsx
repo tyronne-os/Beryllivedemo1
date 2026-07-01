@@ -1,5 +1,6 @@
 "use client";
 import Nav from "@/components/Nav";
+import PinGate from "@/components/PinGate";
 import { useState } from "react";
 
 export default function ContactPage() {
@@ -37,7 +38,7 @@ export default function ContactPage() {
   };
 
   return (
-    <>
+    <PinGate>
       <Nav />
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:wght@400;500;600&display=swap');
@@ -192,6 +193,6 @@ export default function ContactPage() {
         </div>
 
       </div>
-    </>
+    </PinGate>
   );
 }
