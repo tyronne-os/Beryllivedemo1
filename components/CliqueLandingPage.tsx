@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 /* ─── STYLES ─────────────────────────────────────────────────────────────── */
 const KF = `
@@ -27,6 +27,21 @@ const KF = `
   0%,100%{opacity:1;transform:scale(1)}
   50%{opacity:.3;transform:scale(.7)}
 }
+@keyframes phone-float {
+  0%,100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-14px) rotate(-2deg); }
+}
+@keyframes phone-glow {
+  0%,100% { box-shadow: 0 0 60px rgba(200,169,81,.18), 0 40px 80px rgba(0,0,0,.5); }
+  50%      { box-shadow: 0 0 90px rgba(200,169,81,.3), 0 50px 100px rgba(0,0,0,.6); }
+}
+@keyframes tile-live {
+  0%,100% { box-shadow: 0 0 0 2px #c8a951; }
+  50%      { box-shadow: 0 0 0 4px rgba(200,169,81,.4), 0 0 18px rgba(200,169,81,.2); }
+}
+@keyframes status-blink {
+  0%,100%{opacity:1} 50%{opacity:.2}
+}
 .gold-text {
   background: linear-gradient(110deg,#6b4f0a 0%,#c8a951 18%,#fff8c0 38%,#f5e070 50%,#fff8c0 62%,#c8a951 82%,#6b4f0a 100%);
   background-size: 200% auto;
@@ -44,6 +59,8 @@ const KF = `
   .hero-sub    { font-size: 18px !important; }
   .split-grid  { grid-template-columns: 1fr !important; }
   .banner-pad  { padding: 64px 24px !important; }
+  .phone-scene { flex-direction: column !important; padding: 64px 24px !important; gap: 48px !important; }
+  .phone-shell { width: 220px !important; height: 440px !important; }
 }
 `;
 
@@ -125,6 +142,345 @@ response = executor.invoke({
 # No desire to be your favorite.
 # You prompt. It responds.
 # You leave. It resets.`;
+
+/* ─── VIDEO HERO (Banner 1 slot) ────────────────────────────────────────────── */
+function VideoHero() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.play().catch(() => {});
+  }, []);
+
+  return (
+    <section style={{
+      position: "relative", minHeight: "100vh",
+      background: "#030201", overflow: "hidden",
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      {/* Video layer */}
+      <video
+        ref={videoRef}
+        autoPlay loop playsInline muted
+        onLoadedData={() => setVideoLoaded(true)}
+        style={{
+          position: "absolute", inset: 0,
+          width: "100%", height: "100%",
+          objectFit: "cover",
+          opacity: videoLoaded ? 1 : 0,
+          transition: "opacity .8s ease",
+        }}
+      >
+        <source src="/videos/clique-hero.mp4" type="video/mp4" />
+      </video>
+
+      {/* Fallback background when no video */}
+      {!videoLoaded && (
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "linear-gradient(135deg,#030201 0%,#0a0604 50%,#030201 100%)",
+        }}>
+          <div style={{
+            position: "absolute", inset: 0, opacity: .04,
+            backgroundImage: "linear-gradient(rgba(200,169,81,1) 1px,transparent 1px),linear-gradient(90deg,rgba(200,169,81,1) 1px,transparent 1px)",
+            backgroundSize: "64px 64px",
+          }} />
+        </div>
+      )}
+
+      {/* Overlay — keeps text readable over any video */}
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "linear-gradient(180deg,rgba(3,2,1,.45) 0%,rgba(3,2,1,.2) 40%,rgba(3,2,1,.65) 100%)",
+      }} />
+
+      {/* Center lockup — placeholder until real video is in */}
+      {!videoLoaded && (
+        <div style={{ position: "relative", zIndex: 2, textAlign: "center", padding: "0 40px" }}>
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 28,
+            padding: "6px 18px", border: "1px solid rgba(200,169,81,.3)",
+            background: "rgba(200,169,81,.06)", borderRadius: 20,
+          }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#4CAF50", animation: "live-dot 1.4s ease-in-out infinite", boxShadow: "0 0 6px #4CAF50" }} />
+            <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 3, textTransform: "uppercase", color: "#c8a951" }}>
+              Beryl Operating System · Clique
+            </span>
+          </div>
+          <h1 style={{
+            fontFamily: "'Cinzel Decorative','Cinzel',serif",
+            fontSize: 64, fontWeight: 900, lineHeight: 1.1, color: "#fff", marginBottom: 20,
+          }}>
+            <span className="gold-text">Your Team.<br/>Live. Always.</span>
+          </h1>
+          <p style={{
+            fontFamily: "'Cormorant Garamond',serif", fontSize: 22,
+            color: "rgba(253,250,246,.6)", fontStyle: "italic", lineHeight: 1.7,
+            maxWidth: 520, margin: "0 auto 40px",
+          }}>
+            Drop your video here.<br/>
+            <span style={{ fontSize: 14, color: "rgba(200,169,81,.5)" }}>
+              Place <code style={{ background: "rgba(255,255,255,.08)", padding: "2px 8px", borderRadius: 4, fontSize: 12 }}>public/videos/clique-hero.mp4</code> to activate this banner.
+            </span>
+          </p>
+          <Link href="/clique" style={{
+            display: "inline-block", padding: "15px 44px",
+            fontFamily: "'Cinzel',serif", fontSize: 12, fontWeight: 700,
+            letterSpacing: 3, textTransform: "uppercase", textDecoration: "none",
+            color: "#0a0604",
+            background: "linear-gradient(110deg,#8B6914,#c8a951,#f5e070,#c8a951,#8B6914)",
+            backgroundSize: "200% auto", animation: "gold-shimmer 3s linear infinite",
+            border: "1px solid rgba(245,224,112,.4)",
+          }}>Enter the Clique ›</Link>
+        </div>
+      )}
+
+      {/* Scroll hint */}
+      <div style={{ position: "absolute", bottom: 40, left: "50%", transform: "translateX(-50%)", zIndex: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+        <div style={{ width: 1, height: 50, background: "linear-gradient(#c8a951,transparent)" }} />
+        <span style={{ fontFamily: "'Cinzel',serif", fontSize: 8, letterSpacing: 3, color: "rgba(200,169,81,.4)", textTransform: "uppercase" }}>Scroll</span>
+      </div>
+    </section>
+  );
+}
+
+/* ─── MARCUS PHONE BANNER (Banner 2) ──────────────────────────────────────── */
+function MarcusPhoneBanner() {
+  const agents = [
+    { id: "amanda", name: "Amanda", role: "Supervisor · CSA",  color: "#c8a951", live: true,  initials: "AM" },
+    { id: "india",  name: "India",  role: "Growth",             color: "#4CAF50", live: false, initials: "IN" },
+    { id: "jeff",   name: "Jeff",   role: "Operations",         color: "#1a8fd1", live: false, initials: "JF" },
+    { id: "nu",     name: "Nu",     role: "Innovation",         color: "#9c27b0", live: false, initials: "NU" },
+  ];
+
+  return (
+    <section style={{
+      position: "relative", overflow: "hidden",
+      background: "linear-gradient(160deg,#060409 0%,#0a0712 40%,#060409 100%)",
+      minHeight: "100vh",
+    }}>
+      {/* Ambient radial glow — gold left, blue right */}
+      <div style={{ position: "absolute", top: "20%", left: "-10%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle,rgba(200,169,81,.07) 0%,transparent 70%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: "10%", right: "-5%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle,rgba(26,95,122,.1) 0%,transparent 70%)", pointerEvents: "none" }} />
+
+      {/* Subtle dot grid */}
+      <div style={{ position: "absolute", inset: 0, opacity: .025, backgroundImage: "radial-gradient(rgba(200,169,81,.9) 1px,transparent 1px)", backgroundSize: "36px 36px", pointerEvents: "none" }} />
+
+      <div className="phone-scene" style={{
+        position: "relative", zIndex: 2,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        gap: 80, padding: "100px 80px", minHeight: "100vh",
+        flexWrap: "wrap",
+      }}>
+
+        {/* ── LEFT: PHONE MOCKUP ── */}
+        <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 24 }}>
+
+          {/* Hand silhouette below phone */}
+          <div style={{ position: "relative" }}>
+
+            {/* Phone shell */}
+            <div className="phone-shell" style={{
+              width: 290,
+              height: 580,
+              borderRadius: 44,
+              background: "linear-gradient(160deg,#1c1c1e 0%,#2c2c2e 50%,#1a1a1c 100%)",
+              border: "1px solid rgba(255,255,255,.12)",
+              boxShadow: "0 0 0 1px rgba(0,0,0,.8) inset, 0 0 60px rgba(200,169,81,.18), 0 40px 80px rgba(0,0,0,.6), 2px 2px 0 rgba(255,255,255,.06) inset",
+              position: "relative",
+              animation: "phone-float 4s ease-in-out infinite, phone-glow 4s ease-in-out infinite",
+              overflow: "hidden",
+            }}>
+              {/* Side buttons */}
+              <div style={{ position: "absolute", left: -3, top: 120, width: 3, height: 32, background: "#3a3a3c", borderRadius: "2px 0 0 2px" }} />
+              <div style={{ position: "absolute", left: -3, top: 164, width: 3, height: 52, background: "#3a3a3c", borderRadius: "2px 0 0 2px" }} />
+              <div style={{ position: "absolute", left: -3, top: 226, width: 3, height: 52, background: "#3a3a3c", borderRadius: "2px 0 0 2px" }} />
+              <div style={{ position: "absolute", right: -3, top: 170, width: 3, height: 70, background: "#3a3a3c", borderRadius: "0 2px 2px 0" }} />
+
+              {/* Camera notch / pill */}
+              <div style={{ position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)", width: 110, height: 30, background: "#000", borderRadius: 20, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#1c1c1e", border: "1px solid #333" }} />
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#0a3a5c", boxShadow: "0 0 4px #1a8fd1" }} />
+              </div>
+
+              {/* Screen */}
+              <div style={{
+                position: "absolute", top: 14, left: 8, right: 8, bottom: 8,
+                borderRadius: 36,
+                background: "#0d0d0f",
+                overflow: "hidden",
+              }}>
+                {/* Status bar */}
+                <div style={{ padding: "52px 16px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,0,0,.6)" }}>
+                  <span style={{ fontFamily: "'SF Mono',monospace", fontSize: 9, color: "rgba(255,255,255,.7)", fontWeight: 600 }}>9:41</span>
+                  <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                    {/* Signal bars */}
+                    {[60, 80, 100].map((h, i) => (
+                      <div key={i} style={{ width: 3, height: h * 0.1, background: "rgba(255,255,255,.8)", borderRadius: 1 }} />
+                    ))}
+                    <span style={{ fontSize: 8, color: "rgba(255,255,255,.6)", marginLeft: 2 }}>5G</span>
+                    {/* Battery */}
+                    <div style={{ width: 18, height: 9, border: "1px solid rgba(255,255,255,.5)", borderRadius: 2, marginLeft: 2, padding: 1 }}>
+                      <div style={{ width: "70%", height: "100%", background: "#4CAF50", borderRadius: 1 }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Call header */}
+                <div style={{ background: "rgba(0,0,0,.5)", padding: "8px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#4CAF50", animation: "status-blink 1.4s ease-in-out infinite", boxShadow: "0 0 5px #4CAF50" }} />
+                    <span style={{ fontFamily: "'SF Mono',monospace", fontSize: 8, color: "#4CAF50", letterSpacing: 1 }}>CLIQUE · LIVE</span>
+                  </div>
+                  <span style={{ fontFamily: "'SF Mono',monospace", fontSize: 8, color: "rgba(255,255,255,.4)" }}>12:34</span>
+                </div>
+
+                {/* Agent tiles 2×2 */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, padding: "2px 2px 2px 2px", flex: 1 }}>
+                  {agents.map((a) => (
+                    <div key={a.id} style={{
+                      aspectRatio: "1",
+                      background: `linear-gradient(135deg,${a.color}22,${a.color}08)`,
+                      border: `1px solid ${a.color}${a.live ? "99" : "33"}`,
+                      position: "relative",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexDirection: "column", gap: 3,
+                      animation: a.live ? "tile-live 2s ease-in-out infinite" : "none",
+                    }}>
+                      {/* Avatar initial circle */}
+                      <div style={{
+                        width: 36, height: 36, borderRadius: "50%",
+                        background: `linear-gradient(135deg,${a.color}dd,${a.color}77)`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontFamily: "'Cinzel',serif", fontSize: 10, fontWeight: 700,
+                        color: "#0a0604", letterSpacing: 1,
+                        boxShadow: a.live ? `0 0 12px ${a.color}66` : "none",
+                      }}>{a.initials}</div>
+                      <div style={{ fontFamily: "'Cinzel',serif", fontSize: 7, fontWeight: 600, color: "#fff", letterSpacing: .5 }}>{a.name}</div>
+                      <div style={{ fontFamily: "sans-serif", fontSize: 6, color: "rgba(255,255,255,.4)" }}>{a.role}</div>
+
+                      {/* LIVE badge */}
+                      {a.live && (
+                        <div style={{
+                          position: "absolute", top: 5, left: 5,
+                          background: "#dc3c3c", color: "#fff",
+                          fontFamily: "'Cinzel',serif", fontSize: 5, fontWeight: 700,
+                          padding: "1px 4px", borderRadius: 2, letterSpacing: 1,
+                          textTransform: "uppercase",
+                        }}>LIVE</div>
+                      )}
+
+                      {/* Listening dots for non-live */}
+                      {!a.live && (
+                        <div style={{ position: "absolute", bottom: 5, display: "flex", gap: 2 }}>
+                          {[0,1,2].map(i => (
+                            <div key={i} style={{ width: 3, height: 3, borderRadius: "50%", background: a.color, opacity: .5, animation: `live-dot ${.7 + i * .25}s ease-in-out infinite` }} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Marcus self-view — small PiP bottom-left */}
+                <div style={{ position: "absolute", bottom: 72, left: 10, width: 58, height: 78, borderRadius: 10, overflow: "hidden", border: "2px solid rgba(255,255,255,.25)", boxShadow: "0 4px 16px rgba(0,0,0,.6)" }}>
+                  <div style={{ width: "100%", height: "100%", background: "linear-gradient(160deg,#1a3a5c,#0a2040)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 4 }}>
+                    {/* Marcus avatar — stylized silhouette */}
+                    <div style={{ width: 26, height: 26, borderRadius: "50%", background: "linear-gradient(135deg,#8B6914,#c8a951)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Cinzel',serif", fontSize: 9, fontWeight: 700, color: "#0a0604" }}>M</div>
+                    <span style={{ fontFamily: "'Cinzel',serif", fontSize: 5, color: "rgba(255,255,255,.6)", letterSpacing: .5 }}>Marcus</span>
+                  </div>
+                </div>
+
+                {/* Call controls bar */}
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,.85)", backdropFilter: "blur(10px)", padding: "10px 14px 18px", display: "flex", justifyContent: "space-around", alignItems: "center" }}>
+                  {[
+                    { icon: "🎤", active: true,  color: "#fff" },
+                    { icon: "📷", active: true,  color: "#fff" },
+                    { icon: "💬", active: false, color: "#c8a951" },
+                    { icon: "🔴", active: false, color: "#dc3c3c" },
+                  ].map((btn, i) => (
+                    <div key={i} style={{
+                      width: 34, height: 34, borderRadius: "50%",
+                      background: btn.icon === "🔴" ? "rgba(220,60,60,.2)" : "rgba(255,255,255,.08)",
+                      border: `1px solid ${btn.icon === "🔴" ? "rgba(220,60,60,.4)" : "rgba(255,255,255,.12)"}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 14,
+                    }}>{btn.icon}</div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Shadow / ground reflection */}
+            <div style={{ width: 200, height: 20, background: "radial-gradient(ellipse,rgba(200,169,81,.15) 0%,transparent 70%)", margin: "20px auto 0", borderRadius: "50%" }} />
+          </div>
+
+          {/* Caption */}
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 3, color: "rgba(200,169,81,.45)", textTransform: "uppercase", marginBottom: 4 }}>Your whole team</div>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "rgba(255,255,255,.3)", fontStyle: "italic" }}>in your pocket · live · always on</div>
+          </div>
+        </div>
+
+        {/* ── RIGHT: COPY ── */}
+        <div style={{ maxWidth: 520, flex: 1 }}>
+
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 28, padding: "5px 16px", border: "1px solid rgba(200,169,81,.25)", background: "rgba(200,169,81,.05)", borderRadius: 20 }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#4CAF50", animation: "live-dot 1.4s ease-in-out infinite", boxShadow: "0 0 6px #4CAF50" }} />
+            <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 3, textTransform: "uppercase", color: "#c8a951" }}>Mobile · Live Session</span>
+          </div>
+
+          <h2 style={{ fontFamily: "'Cinzel Decorative','Cinzel',serif", fontSize: 46, fontWeight: 900, lineHeight: 1.15, color: "#fff", marginBottom: 24, letterSpacing: .5 }}>
+            Your whole Clique.<br/>
+            <span className="gold-text">On your phone.<br/>Face to face.</span>
+          </h2>
+
+          <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 19, color: "rgba(253,250,246,.6)", lineHeight: 1.8, fontStyle: "italic", marginBottom: 32 }}>
+            Marcus pulled up the Clique on his lunch break and had Amanda, India, Jeff, and Nu helping him
+            map out a product launch strategy — live, on video, from his phone — while the rest of the world
+            was still opening Slack.
+          </p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 18, marginBottom: 44 }}>
+            {[
+              { icon: "📱", title: "Full video room, mobile-native", body: "Every agent tile streams live. Faces, voices, real time. No \"lite\" mobile experience — the same full Clique, on any screen." },
+              { icon: "🗣", title: "Talk to them by name", body: "Say \"Amanda\" and she goes live. Say \"hey team\" and the whole room responds together. Voice-first, not tap-first." },
+              { icon: "⚡", title: "Instant on, anywhere", body: "Open the app and the room is already warm. They remember your last session. No reconnecting, no re-briefing." },
+              { icon: "💬", title: "Chat alongside the call", body: "Clique Chat runs in a tab behind the video — group channel and private DMs to any agent, no context switching." },
+            ].map(f => (
+              <div key={f.title} style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 20, flexShrink: 0, marginTop: 2 }}>{f.icon}</span>
+                <div>
+                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 1.5, fontWeight: 700, color: "#c8a951", textTransform: "uppercase", marginBottom: 5 }}>{f.title}</div>
+                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 14, color: "rgba(255,255,255,.5)", lineHeight: 1.65 }}>{f.body}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Subtle pull-quote */}
+          <div style={{ borderLeft: "2px solid rgba(200,169,81,.3)", paddingLeft: 20, marginBottom: 40 }}>
+            <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, color: "rgba(200,169,81,.7)", fontStyle: "italic", lineHeight: 1.7, margin: 0 }}>
+              "I was on my lunch break and had my whole team on the phone. Not on a call with one person — my whole team. Together."
+            </p>
+            <div style={{ fontFamily: "'Cinzel',serif", fontSize: 8, letterSpacing: 2, color: "rgba(255,255,255,.25)", textTransform: "uppercase", marginTop: 10 }}>Marcus · Clique Member</div>
+          </div>
+
+          <Link href="/clique" style={{
+            display: "inline-block", padding: "14px 42px",
+            fontFamily: "'Cinzel',serif", fontSize: 11, fontWeight: 700, letterSpacing: 3,
+            textTransform: "uppercase", textDecoration: "none", color: "#0a0604",
+            background: "linear-gradient(110deg,#8B6914,#c8a951,#f5e070,#c8a951,#8B6914)",
+            backgroundSize: "200% auto", animation: "gold-shimmer 3s linear infinite",
+            border: "1px solid rgba(245,224,112,.4)",
+          }}>Open the Room ›</Link>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 /* ─── CLIQUE GUI MOCKUP ─────────────────────────────────────────────────────── */
 function CliqueGUIMockup() {
@@ -282,7 +638,17 @@ export default function CliqueLandingPage() {
       <style>{KF}</style>
 
       {/* ══════════════════════════════════════════════════════════════════
-          BANNER 1 · HERO — CLEO FULL BLEED
+          BANNER 1 · VIDEO HERO (drop /videos/clique-hero.mp4 to activate)
+      ══════════════════════════════════════════════════════════════════ */}
+      <VideoHero />
+
+      {/* ══════════════════════════════════════════════════════════════════
+          BANNER 2 · MARCUS PHONE SCENE
+      ══════════════════════════════════════════════════════════════════ */}
+      <MarcusPhoneBanner />
+
+      {/* ══════════════════════════════════════════════════════════════════
+          BANNER 3 · HERO — CLEO FULL BLEED
       ══════════════════════════════════════════════════════════════════ */}
       <section style={{ position:"relative", minHeight:"100vh", background:"#030201",
         display:"flex", flexDirection:"column", overflow:"hidden" }}>
