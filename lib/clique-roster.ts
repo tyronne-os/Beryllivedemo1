@@ -49,3 +49,14 @@ export function getDefaultTeam(): CliqueAgent[] {
 export function getRosterById(id: string): CliqueAgent | undefined {
   return CLIQUE_ROSTER.find(a => a.id === id);
 }
+
+// ── Reduced v1 Clique: 4-member live team ────────────────────────────────────
+// Amanda (supervisor, MS Agent Framework) + 3 adaptable generalists.
+// Master system prompts live in lib/clique-agent-prompts.ts.
+export const CLIQUE_V1_TEAM_IDS = ["amanda", "eve", "brice", "india"];
+
+export function getV1Team(): CliqueAgent[] {
+  return CLIQUE_V1_TEAM_IDS
+    .map(id => CLIQUE_ROSTER.find(a => a.id === id))
+    .filter((a): a is CliqueAgent => Boolean(a));
+}

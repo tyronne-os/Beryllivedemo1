@@ -3,7 +3,56 @@ _Last updated: 2026-06-30_
 
 ---
 
-## Current State: Two-State Live Video Avatar ✅
+## ⭐ ACTIVE FOCUS: CLIQUE v1 (reduced 4-member live team)
+
+**The Gym is DONE and frozen.** Work has switched back to Clique, which is nearly
+complete. Decision: **no pre-baked loops in Clique** — the user powers extra members
+with their own API key, so all members can be active.
+
+### Clique v1 spec (as directed)
+- **4 members total** (reduced from the full roster). Portraits provided by user.
+  - **Amanda** — Clique Supervisor, **Microsoft Agent Framework**. Handles the majority
+    of any task ALONE; only pulls in others when a second specialist genuinely helps.
+  - **Eve** — AI Architect (adaptable generalist).
+  - **Brice** — Principal Development / Code Review (adaptable generalist).
+  - **India** — Growth / Distribution (adaptable generalist).
+- **Every member is first and foremost a top-tier software engineer**: min 15 yrs
+  FANG experience, staff→principal level. Named role = the lens they lead with, not a
+  fence — any member can own any task end-to-end.
+- **Conversation protocol**:
+  - Active listening is the default/resting state.
+  - Members speak **only when addressed by name** (else Amanda routes/answers).
+  - **Group greeting is the one exception**: when the user greets the room, ALL FOUR
+    reply together — short, enthusiastic, eager, happy to be there.
+- **Runtime split**:
+  - OpenAI Realtime (**realtime-live2**) → voice I/O, computer use, listening.
+  - Runway API → the "alive" visual + active-listening presence.
+  - Microsoft Agent Framework → Amanda's orchestration brain.
+
+### Clique v1 files
+| File | Purpose |
+|------|---------|
+| `lib/clique-agent-prompts.ts` | **NEW** — master system prompts for all 4 agents + `isGroupGreeting()` + `resolveResponders()` routing helpers. This is the core deliverable. |
+| `lib/clique-roster.ts` | Full roster + **NEW** `CLIQUE_V1_TEAM_IDS` / `getV1Team()` (amanda, eve, brice, india) |
+| `components/clique/CliqueRoom.tsx` | Live room UI (Amanda intro + join flow already built) |
+| `lib/use-amanda-voice.ts` | Amanda's OpenAI Realtime WebRTC voice hook |
+| `app/api/clique/realtime-token/route.ts` | Realtime session token |
+| `app/api/clique/livekit-token/route.ts` | LiveKit room token |
+
+### Clique v1 — remaining wiring (next session)
+1. Point `CliqueRoom` at `getV1Team()` (4 members) instead of the 9-member default.
+2. Wire `resolveResponders()` into the live listener: route each utterance to the
+   named member / Amanda, or trigger the all-four group-greeting reply.
+3. Feed each agent's `system` prompt from `clique-agent-prompts.ts` into its Realtime
+   session (Amanda via MS Agent Framework, others via realtime-live2).
+4. Group-greeting choreography: on `isGroupGreeting()`, fire all four `greeting`
+   lines in a warm enthusiastic burst (stagger ~200ms so they don't clip).
+5. Portraits: user uploaded 4 new headshots — regenerate/replace the SHIELD portraits
+   for amanda/eve/brice/india if the new images should be canonical.
+
+---
+
+## Frozen: The Gym — Two-State Live Video Avatar ✅ (DONE, not active)
 
 The Gym is a real-time conversational AI avatar — no overlay, no Runway, no per-second
 billing. Eve is **alive on page load** (breathing/blinking idle video) and switches to a
