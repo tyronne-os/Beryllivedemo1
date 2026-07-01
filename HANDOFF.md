@@ -13,9 +13,9 @@ with their own API key, so all members can be active.
 - **4 members total** (reduced from the full roster). Portraits provided by user.
   - **Amanda** — Clique Supervisor, **Microsoft Agent Framework**. Handles the majority
     of any task ALONE; only pulls in others when a second specialist genuinely helps.
-  - **Eve** — AI Architect (adaptable generalist).
-  - **Brice** — Principal Development / Code Review (adaptable generalist).
   - **India** — Growth / Distribution (adaptable generalist).
+  - **Jeff** — Operations / Delivery / Release (adaptable generalist).
+  - **Nu** — Innovation / Lateral Thinker (adaptable generalist).
 - **Every member is first and foremost a top-tier software engineer**: min 15 yrs
   FANG experience, staff→principal level. Named role = the lens they lead with, not a
   fence — any member can own any task end-to-end.
@@ -33,7 +33,7 @@ with their own API key, so all members can be active.
 | File | Purpose |
 |------|---------|
 | `lib/clique-agent-prompts.ts` | **NEW** — master system prompts for all 4 agents + `isGroupGreeting()` + `resolveResponders()` routing helpers. This is the core deliverable. |
-| `lib/clique-roster.ts` | Full roster + **NEW** `CLIQUE_V1_TEAM_IDS` / `getV1Team()` (amanda, eve, brice, india) |
+| `lib/clique-roster.ts` | Full roster + **NEW** `CLIQUE_V1_TEAM_IDS` / `getV1Team()` (amanda, india, jeff, nu) |
 | `components/clique/CliqueRoom.tsx` | Live room UI (Amanda intro + join flow already built) |
 | `lib/use-amanda-voice.ts` | Amanda's OpenAI Realtime WebRTC voice hook |
 | `app/api/clique/realtime-token/route.ts` | Realtime session token |
