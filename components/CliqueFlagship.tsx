@@ -489,8 +489,8 @@ export default function CliqueFlagship() {
     <>
       <style>{FLAG_KF}</style>
       <VideoHero />
-      <ComparisonBanner />
       <IntroBanner />
+      <ComparisonBanner />
       <div id="roster"><CliqueRoster /></div>
       <FleurGreenBanner />
       <AgentOSBanner />
