@@ -309,22 +309,34 @@ const COMPARE_KF = `
 `;
 
 function ComparisonBanner() {
-  const OLD = [
-    { label: "Install 6+ packages", detail: "crewai, langchain, langgraph, chromadb, pydantic, dotenv…" },
-    { label: "Write 200+ lines of Python", detail: "Agent classes, tool definitions, chain configs, memory stores" },
-    { label: "YAML config files", detail: "agents.yaml · tasks.yaml · crew.yaml · tools.yaml" },
-    { label: "Prompt engineering loops", detail: "Tweak system prompts for hours until agents stop arguing" },
-    { label: "Debug infinite loops", detail: "Token limits hit, agents call themselves, logs flood terminal" },
-    { label: "Still no voice or face", detail: "It's all text. You never see who you're working with." },
+  const CODE_LINES = [
+    { t: "kw", v: "from" }, { t: "pl", v: " crewai " }, { t: "kw", v: "import" }, { t: "pl", v: " Agent, Task, Crew" },
+    { t: "br" },
+    { t: "kw", v: "from" }, { t: "pl", v: " langchain_openai " }, { t: "kw", v: "import" }, { t: "pl", v: " ChatOpenAI" },
+    { t: "br" }, { t: "br" },
+    { t: "cm", v: "# agents.yaml · tasks.yaml · crew.yaml · tools.yaml" },
+    { t: "br" },
+    { t: "pl", v: "backend_engineer " }, { t: "op", v: "=" }, { t: "pl", v: " Agent(" }, { t: "br" },
+    { t: "pl", v: "    role" }, { t: "op", v: "=" }, { t: "st", v: '"Backend Engineer"' }, { t: "pl", v: "," }, { t: "br" },
+    { t: "pl", v: "    goal" }, { t: "op", v: "=" }, { t: "st", v: '"Design orchestration layer..."' }, { t: "pl", v: "," }, { t: "br" },
+    { t: "pl", v: "    backstory" }, { t: "op", v: "=" }, { t: "st", v: '"..."' }, { t: "pl", v: "," }, { t: "br" },
+    { t: "pl", v: "    llm" }, { t: "op", v: "=" }, { t: "pl", v: "ChatOpenAI(model" }, { t: "op", v: "=" }, { t: "st", v: '"gpt-4"' }, { t: "pl", v: ")," }, { t: "br" },
+    { t: "pl", v: "    tools" }, { t: "op", v: "=" }, { t: "pl", v: "[...], memory" }, { t: "op", v: "=" }, { t: "kw", v: "True" }, { t: "br" },
+    { t: "pl", v: ")" }, { t: "br" }, { t: "br" },
+    { t: "cm", v: "# ...repeat for every agent, every tool, every task" }, { t: "br" },
+    { t: "pl", v: "crew " }, { t: "op", v: "=" }, { t: "pl", v: " Crew(agents" }, { t: "op", v: "=" }, { t: "pl", v: "[...], tasks" }, { t: "op", v: "=" }, { t: "pl", v: "[...])" }, { t: "br" },
+    { t: "pl", v: "crew.kickoff()  " }, { t: "cm", v: "# pray it doesn't loop" }, { t: "br" }, { t: "br" },
+    { t: "err", v: "RecursionError: maximum recursion depth exceeded" }, { t: "br" },
+    { t: "err", v: "  in agent_executor.invoke(...)" },
   ];
 
-  const NEW = [
-    { label: "Open the room", detail: "One URL. No install. No setup file." },
-    { label: "Say their name", detail: '"Jeff — spin up the backend." Done.' },
-    { label: "They remember everything", detail: "Your codebase, your goals, your last conversation." },
-    { label: "Live voices and faces", detail: "Real-time video chat — you see your team, they see you." },
-    { label: "Amanda reviews before it ships", detail: "CSA lead signs off every output before it leaves the room." },
-    { label: "Deploy in one click", detail: "To your device, site, social, or email — right from the meeting." },
+  const CHAT_LINES = [
+    { who: "Jaydian", role: "host", text: "Jeff, spin up the backend for the new endpoint." },
+    { who: "Jeff", role: "jeff", text: "On it — orchestration layer's already scaffolded from last week. Give me 90 seconds." },
+    { who: "Jaydian", role: "host", text: "Nu, pull whatever's new on long-context memory." },
+    { who: "Nu", role: "nu", text: "Found three papers overnight. I'll have a working prototype before standup." },
+    { who: "India", role: "india", text: "Staging's green. Deploying the moment Jeff ships." },
+    { who: "Amanda", role: "amanda", text: "Reviewed and approved. Shipping now." },
   ];
 
   return (
@@ -400,38 +412,55 @@ function ComparisonBanner() {
           </h2>
         </div>
 
-        {/* Column headers */}
-        <div className="cmp-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-          <div style={{ background: "rgba(220,60,60,.1)", border: "1px solid rgba(220,60,60,.32)", borderRadius: "10px 10px 0 0", padding: "14px 20px", textAlign: "center" }}>
-            <div style={{ fontFamily: "'Cinzel',serif", fontSize: 12, letterSpacing: 2, textTransform: "uppercase", color: "#ff7070", fontWeight: 700 }}>CrewAI · LangChain</div>
-            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "rgba(255,255,255,.38)", marginTop: 4, fontStyle: "italic" }}>Traditional frameworks</div>
-          </div>
-          <div style={{ background: "rgba(200,169,81,.09)", border: "1px solid rgba(200,169,81,.42)", borderRadius: "10px 10px 0 0", padding: "14px 20px", textAlign: "center", animation: "cmp-glow 3s ease-in-out infinite" }}>
-            <div style={{ fontFamily: "'Cinzel',serif", fontSize: 12, letterSpacing: 2, textTransform: "uppercase", color: "#f5e070", fontWeight: 700 }}>✦ The Clique</div>
-            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "rgba(255,255,255,.38)", marginTop: 4, fontStyle: "italic" }}>Beryl Live Agent OS</div>
-          </div>
-        </div>
+        {/* ── DUAL PANEL — CODE EDITOR vs LIVE CHAT ── */}
+        <div className="cmp-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "stretch" }}>
 
-        {/* Row pairs */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {OLD.map((o, i) => (
-            <div key={i} className="cmp-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <div style={{ background: "rgba(30,8,8,.6)", border: "1px solid rgba(220,60,60,.16)", borderRadius: 8, padding: "14px 18px", display: "flex", alignItems: "flex-start", gap: 10 }}>
-                <span style={{ color: "#dc3c3c", fontSize: 14, flexShrink: 0, marginTop: 1 }}>✗</span>
-                <div>
-                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 11, letterSpacing: .5, color: "#ff9090", fontWeight: 600, marginBottom: 3 }}>{o.label}</div>
-                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "rgba(255,255,255,.38)", lineHeight: 1.5, fontStyle: "italic" }}>{o.detail}</div>
-                </div>
-              </div>
-              <div style={{ background: "rgba(4,22,12,.65)", border: "1px solid rgba(200,169,81,.2)", borderRadius: 8, padding: "14px 18px", display: "flex", alignItems: "flex-start", gap: 10 }}>
-                <span style={{ color: "#4CAF50", fontSize: 14, flexShrink: 0, marginTop: 1 }}>✓</span>
-                <div>
-                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 11, letterSpacing: .5, color: "#a8e6a8", fontWeight: 600, marginBottom: 3 }}>{NEW[i].label}</div>
-                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "rgba(255,255,255,.38)", lineHeight: 1.5, fontStyle: "italic" }}>{NEW[i].detail}</div>
-                </div>
-              </div>
+          {/* LEFT — code editor window */}
+          <div style={{ display: "flex", flexDirection: "column", minHeight: 620, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(220,60,60,.3)", boxShadow: "0 20px 50px rgba(0,0,0,.5)" }}>
+            {/* Title bar */}
+            <div style={{ background: "#1c1210", padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid rgba(220,60,60,.2)" }}>
+              <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#ff5f56", display: "inline-block" }} />
+              <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#ffbd2e", display: "inline-block" }} />
+              <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#27c93f", display: "inline-block" }} />
+              <span style={{ fontFamily: "'SF Mono','Fira Code',monospace", fontSize: 11, color: "#ff9090", marginLeft: 8 }}>crew_setup.py</span>
+              <span style={{ marginLeft: "auto", fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 1.5, textTransform: "uppercase", color: "#ff7070" }}>CrewAI · LangChain</span>
             </div>
-          ))}
+            {/* Code body */}
+            <div style={{ background: "#0d0806", flex: 1, padding: "18px 20px", fontFamily: "'SF Mono','Fira Code',monospace", fontSize: 12.5, lineHeight: 1.85, overflowX: "auto" }}>
+              {CODE_LINES.map((tok, i) =>
+                tok.t === "br" ? <br key={i} /> : (
+                  <span key={i} style={{
+                    color: tok.t === "kw" ? "#c586c0" : tok.t === "st" ? "#ce9178" : tok.t === "cm" ? "#6a9955" : tok.t === "op" ? "#d4d4d4" : tok.t === "err" ? "#ff5f56" : "#d4d4d4",
+                    whiteSpace: "pre",
+                  }}>{tok.v}</span>
+                )
+              )}
+            </div>
+            <div style={{ padding: "12px 20px", background: "rgba(220,60,60,.08)", borderTop: "1px solid rgba(220,60,60,.2)", fontFamily: "'Cormorant Garamond',serif", fontSize: 13, fontStyle: "italic", color: "rgba(255,255,255,.45)" }}>
+              6+ packages · 200+ lines · 4 config files · still crashes
+            </div>
+          </div>
+
+          {/* RIGHT — actual Clique Agents POV photo */}
+          <div style={{ position: "relative", display: "flex", flexDirection: "column", borderRadius: 10, overflow: "hidden", border: "1px solid rgba(200,169,81,.42)", boxShadow: "0 20px 50px rgba(0,0,0,.5)", animation: "cmp-glow 3s ease-in-out infinite" }}>
+            {/* Title bar */}
+            <div style={{ background: "#0e1a10", padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid rgba(200,169,81,.25)" }}>
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#4CAF50", animation: "cmp-blink 1.2s ease-in-out infinite", boxShadow: "0 0 6px #4CAF50" }} />
+              <span style={{ fontFamily: "'Cinzel',serif", fontSize: 11, color: "#a8e6a8", letterSpacing: .5 }}>Beryl Live · The Clique</span>
+              <span style={{ marginLeft: "auto", fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 1.5, textTransform: "uppercase", color: "#f5e070" }}>✦ Live Meeting</span>
+            </div>
+            {/* Photo body */}
+            <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
+              <img
+                src="/images/clique-agents-pov.png"
+                alt="The Clique — live video meeting with Jaydian, Jeff, Nu and India"
+                style={{ width: "100%", height: "100%", display: "block", objectFit: "cover", objectPosition: "center 22%" }}
+              />
+            </div>
+            <div style={{ padding: "12px 20px", background: "rgba(200,169,81,.08)", borderTop: "1px solid rgba(200,169,81,.22)", fontFamily: "'Cormorant Garamond',serif", fontSize: 13, fontStyle: "italic", color: "rgba(200,169,81,.85)" }}>
+              Zero install · Zero config · Just say their name
+            </div>
+          </div>
         </div>
 
         {/* CTA bar */}
