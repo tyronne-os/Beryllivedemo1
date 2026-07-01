@@ -295,12 +295,169 @@ function AgentOSBanner() {
   );
 }
 
+/* ─── COMPARISON BANNER — CREWAI/LANGCHAIN VS THE CLIQUE ───────────────────── */
+const COMPARE_KF = `
+@keyframes cmp-shimmer { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
+@keyframes cmp-blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+@keyframes cmp-slide-u { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:translateY(0)} }
+@keyframes cmp-glow { 0%,100%{box-shadow:0 0 24px rgba(200,169,81,.18)} 50%{box-shadow:0 0 48px rgba(200,169,81,.42)} }
+@media(max-width:900px){
+  .cmp-cols { grid-template-columns:1fr !important; }
+  .cmp-title { font-size:30px !important; }
+  .cmp-pad { padding:60px 24px 72px !important; }
+}
+`;
+
+function ComparisonBanner() {
+  const OLD = [
+    { label: "Install 6+ packages", detail: "crewai, langchain, langgraph, chromadb, pydantic, dotenv…" },
+    { label: "Write 200+ lines of Python", detail: "Agent classes, tool definitions, chain configs, memory stores" },
+    { label: "YAML config files", detail: "agents.yaml · tasks.yaml · crew.yaml · tools.yaml" },
+    { label: "Prompt engineering loops", detail: "Tweak system prompts for hours until agents stop arguing" },
+    { label: "Debug infinite loops", detail: "Token limits hit, agents call themselves, logs flood terminal" },
+    { label: "Still no voice or face", detail: "It's all text. You never see who you're working with." },
+  ];
+
+  const NEW = [
+    { label: "Open the room", detail: "One URL. No install. No setup file." },
+    { label: "Say their name", detail: '"Jeff — spin up the backend." Done.' },
+    { label: "They remember everything", detail: "Your codebase, your goals, your last conversation." },
+    { label: "Live voices and faces", detail: "Real-time video chat — you see your team, they see you." },
+    { label: "Amanda reviews before it ships", detail: "CSA lead signs off every output before it leaves the room." },
+    { label: "Deploy in one click", detail: "To your device, site, social, or email — right from the meeting." },
+  ];
+
+  return (
+    <section style={{
+      position: "relative", overflow: "hidden",
+      background: "linear-gradient(135deg,#021a0d 0%,#062416 30%,#0a3020 55%,#072018 75%,#031409 100%)",
+    }}>
+      <style>{COMPARE_KF}</style>
+
+      {/* Velvet noise texture */}
+      <div style={{ position: "absolute", inset: 0, opacity: 0.22, backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='v'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23v)' opacity='1'/%3E%3C/svg%3E")`, pointerEvents: "none" }} />
+
+      {/* Fleur-de-lis field */}
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }} aria-hidden="true">
+        {Array.from({ length: 10 }).map((_, r) => (
+          <div key={r} style={{ display: "flex", justifyContent: "space-around", paddingLeft: r % 2 ? 56 : 0 }}>
+            {Array.from({ length: 12 }).map((_, c) => (
+              <span key={c} style={{ fontSize: 36, color: "#7a5c10", opacity: 0.28, lineHeight: "82px", display: "block", filter: "drop-shadow(0 3px 6px rgba(0,0,0,.7))" }}>⚜</span>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* Top gold rule */}
+      <div style={{ height: 2, background: "linear-gradient(90deg,transparent,rgba(200,169,81,.6) 30%,rgba(245,224,112,.9) 50%,rgba(200,169,81,.6) 70%,transparent)" }} />
+
+      {/* ── HERO PHOTO — full width ── */}
+      <div style={{ position: "relative", zIndex: 2 }}>
+        <div style={{ position: "relative", overflow: "hidden", maxHeight: 680 }}>
+          <img
+            src="/images/clique-agents-pov.png"
+            alt="The Clique — Jaydian hosting a live video meeting with AI agents Jeff, Nu and India"
+            style={{ width: "100%", display: "block", objectFit: "cover", objectPosition: "center 20%" }}
+          />
+          {/* Gradient fade into comparison below */}
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(3,20,10,0) 40%, rgba(3,20,10,0.18) 70%, rgba(3,20,10,0.85) 100%)" }} />
+
+          {/* Live badge */}
+          <div style={{ position: "absolute", top: 22, left: 28, display: "flex", alignItems: "center", gap: 7, background: "rgba(3,8,4,.78)", border: "1px solid rgba(76,175,80,.45)", borderRadius: 22, padding: "5px 14px", backdropFilter: "blur(6px)" }}>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#4CAF50", animation: "cmp-blink 1.3s ease-in-out infinite", boxShadow: "0 0 7px #4CAF50" }} />
+            <span style={{ fontFamily: "'Cinzel',serif", fontSize: 8, letterSpacing: 2, color: "#7ed67e", textTransform: "uppercase" }}>Live Session · Beryl Clique</span>
+          </div>
+
+          {/* Bottom caption */}
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "60px 40px 28px", background: "linear-gradient(transparent, rgba(3,16,8,.92))" }}>
+            <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+              <div>
+                <div style={{ fontFamily: "'Cinzel Decorative','Cinzel',serif", fontSize: 22, fontWeight: 900, color: "#fff", marginBottom: 6 }}>Jaydian · The Host</div>
+                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontStyle: "italic", color: "rgba(200,169,81,.9)" }}>
+                  "Jeff, spin up the backend. Nu — pull the latest research. India, deploy to staging."
+                </div>
+                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, color: "rgba(255,255,255,.4)", marginTop: 4 }}>No YAML. No Python. No config files. Just the meeting.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── COMPARISON TABLE ── */}
+      <div className="cmp-pad" style={{ position: "relative", zIndex: 2, maxWidth: 1200, margin: "0 auto", padding: "72px 48px 90px" }}>
+
+        {/* Headline */}
+        <div style={{ textAlign: "center", marginBottom: 52 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 18, padding: "6px 20px", border: "1px solid rgba(200,169,81,.28)", background: "rgba(0,0,0,.35)", borderRadius: 20 }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#dc3c3c", animation: "cmp-blink 1.4s ease-in-out infinite", boxShadow: "0 0 6px #dc3c3c" }} />
+            <span style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 3.5, textTransform: "uppercase", color: "#c8a951" }}>The Old Way vs The Clique</span>
+          </div>
+          <h2 className="cmp-title" style={{ fontFamily: "'Cinzel Decorative','Cinzel',serif", fontSize: 42, fontWeight: 900, lineHeight: 1.18, color: "#fff", margin: 0 }}>
+            Stop writing code.<br />
+            <span style={{ background: "linear-gradient(110deg,#6b4f0a,#c8a951 25%,#fff8c0 48%,#f5e070 58%,#c8a951 78%,#6b4f0a)", backgroundSize: "200% auto", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", animation: "cmp-shimmer 4s linear infinite" }}>
+              Start hosting meetings.
+            </span>
+          </h2>
+        </div>
+
+        {/* Column headers */}
+        <div className="cmp-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+          <div style={{ background: "rgba(220,60,60,.1)", border: "1px solid rgba(220,60,60,.32)", borderRadius: "10px 10px 0 0", padding: "14px 20px", textAlign: "center" }}>
+            <div style={{ fontFamily: "'Cinzel',serif", fontSize: 12, letterSpacing: 2, textTransform: "uppercase", color: "#ff7070", fontWeight: 700 }}>CrewAI · LangChain</div>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "rgba(255,255,255,.38)", marginTop: 4, fontStyle: "italic" }}>Traditional frameworks</div>
+          </div>
+          <div style={{ background: "rgba(200,169,81,.09)", border: "1px solid rgba(200,169,81,.42)", borderRadius: "10px 10px 0 0", padding: "14px 20px", textAlign: "center", animation: "cmp-glow 3s ease-in-out infinite" }}>
+            <div style={{ fontFamily: "'Cinzel',serif", fontSize: 12, letterSpacing: 2, textTransform: "uppercase", color: "#f5e070", fontWeight: 700 }}>✦ The Clique</div>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "rgba(255,255,255,.38)", marginTop: 4, fontStyle: "italic" }}>Beryl Live Agent OS</div>
+          </div>
+        </div>
+
+        {/* Row pairs */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {OLD.map((o, i) => (
+            <div key={i} className="cmp-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <div style={{ background: "rgba(30,8,8,.6)", border: "1px solid rgba(220,60,60,.16)", borderRadius: 8, padding: "14px 18px", display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <span style={{ color: "#dc3c3c", fontSize: 14, flexShrink: 0, marginTop: 1 }}>✗</span>
+                <div>
+                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 11, letterSpacing: .5, color: "#ff9090", fontWeight: 600, marginBottom: 3 }}>{o.label}</div>
+                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "rgba(255,255,255,.38)", lineHeight: 1.5, fontStyle: "italic" }}>{o.detail}</div>
+                </div>
+              </div>
+              <div style={{ background: "rgba(4,22,12,.65)", border: "1px solid rgba(200,169,81,.2)", borderRadius: 8, padding: "14px 18px", display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <span style={{ color: "#4CAF50", fontSize: 14, flexShrink: 0, marginTop: 1 }}>✓</span>
+                <div>
+                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 11, letterSpacing: .5, color: "#a8e6a8", fontWeight: 600, marginBottom: 3 }}>{NEW[i].label}</div>
+                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: "rgba(255,255,255,.38)", lineHeight: 1.5, fontStyle: "italic" }}>{NEW[i].detail}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* CTA bar */}
+        <div style={{ marginTop: 40, padding: "20px 28px", background: "rgba(200,169,81,.06)", border: "1px solid rgba(200,169,81,.28)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
+          <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 19, fontStyle: "italic", color: "rgba(253,250,246,.7)" }}>
+            Your agents are already waiting in the room.
+          </span>
+          <a href="/demo" style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", textDecoration: "none", color: "#0a0604", background: "linear-gradient(110deg,#8B6914,#c8a951,#fff8c0,#f5e070,#c8a951,#8B6914)", backgroundSize: "200% auto", padding: "12px 28px", borderRadius: 2, fontWeight: 700, whiteSpace: "nowrap" }}>
+            Open the Room ›
+          </a>
+        </div>
+      </div>
+
+      {/* Bottom gold rule */}
+      <div style={{ height: 2, background: "linear-gradient(90deg,transparent,rgba(200,169,81,.6) 30%,rgba(245,224,112,.9) 50%,rgba(200,169,81,.6) 70%,transparent)" }} />
+    </section>
+  );
+}
+
 /* ─── PAGE ─────────────────────────────────────────────────────────────────── */
 export default function CliqueFlagship() {
   return (
     <>
       <style>{FLAG_KF}</style>
       <VideoHero />
+      <ComparisonBanner />
       <IntroBanner />
       <div id="roster"><CliqueRoster /></div>
       <FleurGreenBanner />
