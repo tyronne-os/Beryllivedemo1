@@ -237,8 +237,9 @@ export async function POST(req: NextRequest) {
     if (!spaceJson) throw new Error("No result from LTX Space SSE stream");
 
     // SSE output.data[0] is the video — handle all Gradio response shapes
-    const rawData = (spaceJson as Record<string, unknown>);
-    const dataArr = (rawData?.data ?? rawData?.output?.data ?? []) as unknown[];
+    const rawData = spaceJson as Record<string, unknown>;
+    const rawOutput = rawData?.output as Record<string, unknown> | undefined;
+    const dataArr = (rawData?.data ?? rawOutput?.data ?? []) as unknown[];
     const videoData = dataArr[0] as Record<string, unknown> | string | null;
 
     let videoUrl: string | null = null;

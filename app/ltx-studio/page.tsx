@@ -323,8 +323,8 @@ export default function LTXStudio() {
     for (let i = 0; i < jobs.length; i += 2) {
       if (batchAbort.current) break;
 
-      const jobA = { ...jobs[i], prompt: currentPrompt, negativePrompt: currentNeg, status: "generating" as const };
-      const jobB = jobs[i + 1] ? { ...jobs[i + 1], prompt: currentPrompt, negativePrompt: currentNeg, status: "generating" as const } : null;
+      const jobA: typeof jobs[0] = { ...jobs[i], prompt: currentPrompt, negativePrompt: currentNeg, status: "generating" };
+      const jobB: typeof jobs[0] | null = jobs[i + 1] ? { ...jobs[i + 1], prompt: currentPrompt, negativePrompt: currentNeg, status: "generating" } : null;
 
       // Update UI to show generating
       setBatchJobs(prev => prev.map((j, idx) =>
