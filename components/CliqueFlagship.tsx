@@ -52,7 +52,25 @@ const FLAG_KF = `
 function VideoHero() {
   const ref = useRef<HTMLVideoElement>(null);
   const [loaded, setLoaded] = useState(false);
-  useEffect(() => { ref.current?.play().catch(() => {}); }, []);
+
+  const tryPlay = () => {
+    const v = ref.current;
+    if (!v) return;
+    const p = v.play();
+    if (p && typeof p.catch === "function") {
+      p.catch(() => {
+        // Autoplay was blocked — retry once on first user interaction.
+        const retry = () => { v.play().catch(() => {}); document.removeEventListener("pointerdown", retry); };
+        document.addEventListener("pointerdown", retry, { once: true });
+      });
+    }
+  };
+
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    if (v.readyState >= 2) tryPlay();
+  }, []);
 
   return (
     <section style={{
@@ -61,9 +79,10 @@ function VideoHero() {
     }}>
       <video
         ref={ref}
-        autoPlay loop muted playsInline
+        autoPlay loop muted playsInline preload="auto"
         poster="/images/clique-still-wide.png"
         onLoadedData={() => setLoaded(true)}
+        onCanPlay={tryPlay}
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: loaded ? 1 : 0, transition: "opacity 1s ease" }}
       >
         <source src="/videos/clique-hero.mp4" type="video/mp4" />
