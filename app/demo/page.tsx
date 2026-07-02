@@ -141,7 +141,15 @@ export default function DemoPage() {
   const [runwayConnected, setRunwayConnected] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const videoWrapperRef = useRef<HTMLDivElement>(null);
   const userVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Point videoRef.current at the raw-HTML video so LiveKit can attach to it
+  useEffect(() => {
+    const v = videoWrapperRef.current?.querySelector("video") as HTMLVideoElement | null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (v) (videoRef as any).current = v;
+  }, []);
   const chatRef = useRef<HTMLDivElement>(null);
   const lineIdx = useRef(1);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -311,10 +319,11 @@ export default function DemoPage() {
 
             {/* Eve video */}
             <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-              <video ref={videoRef} autoPlay loop muted playsInline preload="auto"
-                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }}>
-                <source src="/videos/eve-demo.mp4" type="video/mp4" />
-              </video>
+              <div
+                ref={videoWrapperRef}
+                style={{ position: "absolute", inset: 0 }}
+                dangerouslySetInnerHTML={{ __html: `<video autoplay loop muted playsinline preload="auto" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center;"><source src="/videos/eve-demo.mp4" type="video/mp4"/></video>` }}
+              />
 
               {/* Gradient bottom fade */}
               <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 45%, rgba(8,5,3,0.98) 100%)" }} />

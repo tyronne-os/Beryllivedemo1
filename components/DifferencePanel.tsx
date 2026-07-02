@@ -3,10 +3,10 @@ import { useEffect, useRef } from "react";
 import { VIDEO } from "@/lib/cdn";
 
 export default function DifferencePanel() {
-  const ref = useRef<HTMLVideoElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const v = ref.current;
+    const v = ref.current?.querySelector("video") as HTMLVideoElement | null;
     if (!v) return;
 
     // GPU layer promotion
@@ -160,21 +160,11 @@ export default function DifferencePanel() {
                 - transform/will-change → own GPU layer
                 - backfaceVisibility hidden → skip occlusion math
               */}
-              <video
+              <div
                 ref={ref}
-                autoPlay loop muted playsInline
-                preload="none"
-                disablePictureInPicture
-                style={{
-                  width:"100%",height:"100%",objectFit:"cover",minHeight:280,display:"block",
-                  transform:"translateZ(0)",
-                  willChange:"transform",
-                  backfaceVisibility:"hidden",
-                  WebkitBackfaceVisibility:"hidden" as "hidden",
-                }}
-              >
-                <source src={VIDEO.eve} type="video/mp4"/>
-              </video>
+                style={{ width:"100%", height:"100%", minHeight:280, display:"block" }}
+                dangerouslySetInnerHTML={{ __html: `<video autoplay loop muted playsinline preload="none" disablepictureinpicture style="width:100%;height:100%;object-fit:cover;min-height:280px;display:block;transform:translateZ(0);will-change:transform;backface-visibility:hidden;"><source src="${VIDEO.eve}" type="video/mp4"/></video>` }}
+              />
               <div style={{position:"absolute",inset:0,background:"linear-gradient(transparent 55%,rgba(13,17,23,.85))"}}/>
               <div style={{position:"absolute",top:10,left:10,display:"flex",alignItems:"center",gap:6}}>
                 <span style={{width:7,height:7,borderRadius:"50%",background:"#4CAF50",animation:"pulse 2s infinite",display:"inline-block"}}/>

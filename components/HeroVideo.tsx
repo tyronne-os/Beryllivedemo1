@@ -4,10 +4,10 @@ import Link from "next/link";
 import { VIDEO } from "@/lib/cdn";
 
 export default function HeroVideo() {
-  const ref = useRef<HTMLVideoElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const v = ref.current;
+    const v = ref.current?.querySelector("video") as HTMLVideoElement | null;
     if (!v) return;
 
     // Promote to GPU compositor layer before anything else
@@ -57,22 +57,11 @@ export default function HeroVideo() {
         - preload="auto" hero only (above fold, plays immediately)
         - disablePictureInPicture → browser skips PiP affordance overhead
       */}
-      <video
+      <div
         ref={ref}
-        autoPlay loop muted playsInline
-        preload="auto"
-        disablePictureInPicture
-        style={{
-          position:"absolute", inset:0, width:"100%", height:"100%",
-          objectFit:"cover", zIndex:0,
-          transform:"translateZ(0)",
-          willChange:"transform",
-          backfaceVisibility:"hidden",
-          WebkitBackfaceVisibility:"hidden" as "hidden",
-        }}
-      >
-        <source src={VIDEO.hero} type="video/mp4"/>
-      </video>
+        style={{ position:"absolute", inset:0, zIndex:0 }}
+        dangerouslySetInnerHTML={{ __html: `<video autoplay loop muted playsinline preload="auto" disablepictureinpicture style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:translateZ(0);will-change:transform;backface-visibility:hidden;"><source src="${VIDEO.hero}" type="video/mp4"/></video>` }}
+      />
 
       <div style={{position:"absolute",inset:0,zIndex:1,background:
         "linear-gradient(to bottom,rgba(13,17,23,.55) 0%,transparent 25%,transparent 55%,rgba(13,17,23,.95) 100%),linear-gradient(to right,rgba(13,17,23,.65) 0%,transparent 60%)"

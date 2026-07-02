@@ -41,18 +41,9 @@ export default function MatineeBanner() {
         <div style={{position:"absolute",bottom:0,left:0,right:0,height:28,background:"#000",zIndex:20,pointerEvents:"none"}}/>
 
         {/* Muted video — same source as Matinee page, no controls, no sound */}
-        <video
-          src="/videos/matinee-hero.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          style={{
-            position:"absolute",inset:0,
-            width:"100%",height:"100%",
-            objectFit:"cover",
-            zIndex:1,
-          }}
+        <div
+          style={{ position:"absolute", inset:0, zIndex:1 }}
+          dangerouslySetInnerHTML={{ __html: `<video autoplay loop muted playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"><source src="/videos/matinee-hero.mp4" type="video/mp4"/></video>` }}
         />
 
         {/* Dark cinematic overlay */}

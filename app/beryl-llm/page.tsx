@@ -61,7 +61,7 @@ function Butterflies() {
 
 export default function BerylDiffusionPromo() {
   const [active, setActive] = useState(4); // start on Beryl Live (index 4 after removing portrait-2)
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLDivElement>(null);
 
   // Auto-rotate portraits every 3.5s
   useEffect(() => {
@@ -71,7 +71,7 @@ export default function BerylDiffusionPromo() {
 
   // Autoplay video
   useEffect(() => {
-    const v = videoRef.current;
+    const v = videoRef.current?.querySelector("video") as HTMLVideoElement | null;
     if (!v) return;
     v.muted = true;
     v.play().catch(() => {});
@@ -147,16 +147,10 @@ export default function BerylDiffusionPromo() {
 
       {/* ── HERO VIDEO ── */}
       <section style={{position:"relative",width:"100%",height:"85vh",overflow:"hidden",background:"#000"}}>
-        <video
+        <div
           ref={videoRef}
-          src={VIDEO.highlights}
-          loop muted playsInline autoPlay
-          preload="auto"
-          style={{
-            position:"absolute",inset:0,width:"100%",height:"100%",
-            objectFit:"cover",objectPosition:"center",
-            transform:"translateZ(0)",willChange:"transform",
-          }}
+          style={{ position:"absolute", inset:0 }}
+          dangerouslySetInnerHTML={{ __html: `<video autoplay loop muted playsinline preload="auto" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;transform:translateZ(0);will-change:transform;"><source src="${VIDEO.highlights}" type="video/mp4"/></video>` }}
         />
         {/* Overlay */}
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,rgba(8,5,3,.4) 0%,rgba(8,5,3,.15) 40%,rgba(8,5,3,.7) 100%)"}}/>

@@ -1,23 +1,31 @@
 "use client";
 import Link from "next/link";
-import { useRef, useEffect, useState } from "react";
+import { useEffect } from "react";
 import CliqueRoster from "./CliqueRoster";
 
-/** Robustly autoplay a muted video. Instead of relying on canplay/loadeddata
- *  event timing (which races with React hydration and silently drops the
- *  autoplay attempt), this polls every 250ms for 6s and calls play() any
- *  time the element is still paused despite having data. Also retries on
- *  the user's first interaction as a final fallback. */
-function ensureAutoplay(video: HTMLVideoElement) {
-  const poll = window.setInterval(() => {
-    if (video.paused && video.readyState >= 2) {
-      video.play().catch(() => {});
-    }
-  }, 250);
-  window.setTimeout(() => window.clearInterval(poll), 6000);
-
-  const retry = () => { video.play().catch(() => {}); };
-  document.addEventListener("pointerdown", retry, { once: true });
+/** ROOT CAUSE of the "video won't play on load" loop: React/Next SSR does NOT
+ *  serialize the `muted` attribute into server-rendered HTML — it only sets it
+ *  as a JS property during hydration. The browser therefore parses
+ *  <video autoplay playsinline> WITHOUT muted, classifies it as an unmuted
+ *  autoplay, and permanently blocks it before React ever runs. The fix is to
+ *  emit the video tag as raw HTML (dangerouslySetInnerHTML) so `muted` exists
+ *  at parse time and native autoplay engages with zero JS. The sweep below is
+ *  only a safety net for aggressive power-saving browsers. */
+function AutoplayRescue() {
+  useEffect(() => {
+    const sweep = window.setInterval(() => {
+      document.querySelectorAll("video").forEach(v => {
+        if (v.paused && v.readyState >= 2) { v.muted = true; v.play().catch(() => {}); }
+      });
+    }, 400);
+    const stop = window.setTimeout(() => window.clearInterval(sweep), 8000);
+    const retry = () => {
+      document.querySelectorAll("video").forEach(v => { v.muted = true; v.play().catch(() => {}); });
+    };
+    document.addEventListener("pointerdown", retry, { once: true });
+    return () => { window.clearInterval(sweep); window.clearTimeout(stop); document.removeEventListener("pointerdown", retry); };
+  }, []);
+  return null;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -67,29 +75,18 @@ const FLAG_KF = `
 
 /* ─── HERO — VIDEO ─────────────────────────────────────────────────────────── */
 function VideoHero() {
-  const ref = useRef<HTMLVideoElement>(null);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    const v = ref.current;
-    if (!v) return;
-    ensureAutoplay(v);
-  }, []);
-
   return (
     <section style={{
       position: "relative", minHeight: "94vh", background: "#030201",
       display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden",
     }}>
-      <video
-        ref={ref}
-        autoPlay loop muted playsInline preload="auto"
-        poster="/images/clique-still-wide.png"
-        onLoadedData={() => setLoaded(true)}
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: loaded ? 1 : 0, transition: "opacity 1s ease" }}
-      >
-        <source src="/videos/clique-hero.mp4" type="video/mp4" />
-      </video>
+      {/* Raw HTML so `muted` survives SSR — see AutoplayRescue comment */}
+      <div
+        style={{ position: "absolute", inset: 0 }}
+        dangerouslySetInnerHTML={{
+          __html: `<video autoplay loop muted playsinline preload="auto" poster="/images/clique-still-wide.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"><source src="/videos/clique-hero.mp4" type="video/mp4" /></video>`,
+        }}
+      />
 
       {/* Cinematic overlay */}
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(3,2,1,.6) 0%,rgba(3,2,1,.28) 42%,rgba(3,2,1,.82) 100%)" }} />
@@ -152,14 +149,6 @@ const OLDWAY_KF = `
 `;
 
 function OldWayBanner() {
-  const ref = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    const v = ref.current;
-    if (!v) return;
-    ensureAutoplay(v);
-  }, []);
-
   return (
     <section className="cf-pad" style={{
       position: "relative", overflow: "hidden",
@@ -179,14 +168,12 @@ function OldWayBanner() {
         <div style={{ position: "relative" }}>
           <div style={{ position: "absolute", inset: -2, borderRadius: 14, background: "linear-gradient(135deg,rgba(150,20,20,.4),rgba(80,80,80,.2),transparent)", filter: "blur(2px)" }} />
           <div style={{ position: "relative", borderRadius: 12, overflow: "hidden", border: "1px solid rgba(120,30,30,.4)", boxShadow: "0 30px 80px rgba(0,0,0,.7)", filter: "grayscale(.25) contrast(1.05)" }}>
-            <video
-              ref={ref}
-              autoPlay loop muted playsInline preload="auto"
-              aria-label="A lone engineer writing code alone at night — the old way of building AI agents"
-              style={{ width: "100%", display: "block" }}
-            >
-              <source src="/videos/old-way-coding.mp4" type="video/mp4" />
-            </video>
+            {/* Raw HTML so `muted` survives SSR — see AutoplayRescue comment */}
+            <div
+              dangerouslySetInnerHTML={{
+                __html: `<video autoplay loop muted playsinline preload="auto" aria-label="A lone engineer writing code alone at night — the old way of building AI agents" style="width:100%;display:block;"><source src="/videos/old-way-coding.mp4" type="video/mp4" /></video>`,
+              }}
+            />
             {/* Dead signal tag */}
             <div style={{ position: "absolute", top: 14, left: 14, display: "flex", alignItems: "center", gap: 6, background: "rgba(10,4,4,.75)", border: "1px solid rgba(150,30,30,.5)", borderRadius: 20, padding: "4px 12px" }}>
               <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#8a1e1e", animation: "ow-pulse 2.2s ease-in-out infinite" }} />
@@ -596,6 +583,7 @@ export default function CliqueFlagship() {
   return (
     <>
       <style>{FLAG_KF}</style>
+      <AutoplayRescue />
       <VideoHero />
       <OldWayBanner />
       <IntroBanner />
