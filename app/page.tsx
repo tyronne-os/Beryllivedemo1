@@ -4,8 +4,8 @@ import StatsBar from "@/components/StatsBar";
 import DifferencePanel from "@/components/DifferencePanel";
 import CliquePromo from "@/components/CliquePromo";
 import KizzyBanner from "@/components/KizzyBanner";
-import MatineeBanner from "@/components/MatineeBanner";
 import UseCases from "@/components/UseCases";
+import ShowcaseBanners from "@/components/ShowcaseBanners";
 import VoiceAgents from "@/components/VoiceAgents";
 import Pricing from "@/components/Pricing";
 import Manifesto from "@/components/Manifesto";
@@ -20,8 +20,8 @@ export default function Home() {
       <DifferencePanel />
       <CliquePromo />
       <KizzyBanner />
-      <MatineeBanner />
       <UseCases />
+      <ShowcaseBanners />
       <VoiceAgents />
       <div id="pricing"><Pricing /></div>
       <Manifesto />
