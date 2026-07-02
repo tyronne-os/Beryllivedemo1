@@ -9,6 +9,7 @@ import ShowcaseBanners from "@/components/ShowcaseBanners";
 import VoiceAgents from "@/components/VoiceAgents";
 import Pricing from "@/components/Pricing";
 import Manifesto from "@/components/Manifesto";
+import CleoHero from "@/components/CleoHero";
 import Footer from "@/components/Footer";
 
 export const metadata = {
@@ -30,6 +31,7 @@ export default function MeetBerylPage() {
       <VoiceAgents />
       <div id="pricing"><Pricing /></div>
       <Manifesto />
+      <CleoHero />
       <Footer />
     </main>
   );

@@ -1,5 +1,6 @@
 import Nav from "@/components/Nav";
 import CliqueFlagship from "@/components/CliqueFlagship";
+import CleoHero from "@/components/CleoHero";
 import Footer from "@/components/Footer";
 
 export const metadata = {
@@ -12,6 +13,7 @@ export default function Home() {
     <>
       <Nav />
       <CliqueFlagship />
+      <CleoHero />
       <Footer />
     </>
   );

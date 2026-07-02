@@ -78,6 +78,8 @@ export default function ShowcaseBanners() {
 
         @media (max-width: 900px) {
           .sb-inner { flex-direction:column;text-align:center;gap:36px; }
+          .sb-title { font-size:clamp(1.9rem,8vw,2.9rem); }
+          .sb-sub { font-size:clamp(16px,4.2vw,19px); }
           .sb-sub { margin-left:auto;margin-right:auto; }
           .sb-cards { justify-content:center !important; }
           .sb-window { width:100%;max-width:340px; }
