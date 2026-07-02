@@ -3,6 +3,23 @@ import Link from "next/link";
 import { useRef, useEffect, useState } from "react";
 import CliqueRoster from "./CliqueRoster";
 
+/** Robustly autoplay a muted video. Instead of relying on canplay/loadeddata
+ *  event timing (which races with React hydration and silently drops the
+ *  autoplay attempt), this polls every 250ms for 6s and calls play() any
+ *  time the element is still paused despite having data. Also retries on
+ *  the user's first interaction as a final fallback. */
+function ensureAutoplay(video: HTMLVideoElement) {
+  const poll = window.setInterval(() => {
+    if (video.paused && video.readyState >= 2) {
+      video.play().catch(() => {});
+    }
+  }, 250);
+  window.setTimeout(() => window.clearInterval(poll), 6000);
+
+  const retry = () => { video.play().catch(() => {}); };
+  document.addEventListener("pointerdown", retry, { once: true });
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    THE CLIQUE — FLAGSHIP LANDING PAGE
    Video chat with your AI agents. The end of coding agents.
@@ -53,23 +70,10 @@ function VideoHero() {
   const ref = useRef<HTMLVideoElement>(null);
   const [loaded, setLoaded] = useState(false);
 
-  const tryPlay = () => {
-    const v = ref.current;
-    if (!v) return;
-    const p = v.play();
-    if (p && typeof p.catch === "function") {
-      p.catch(() => {
-        // Autoplay was blocked — retry once on first user interaction.
-        const retry = () => { v.play().catch(() => {}); document.removeEventListener("pointerdown", retry); };
-        document.addEventListener("pointerdown", retry, { once: true });
-      });
-    }
-  };
-
   useEffect(() => {
     const v = ref.current;
     if (!v) return;
-    if (v.readyState >= 2) tryPlay();
+    ensureAutoplay(v);
   }, []);
 
   return (
@@ -82,7 +86,6 @@ function VideoHero() {
         autoPlay loop muted playsInline preload="auto"
         poster="/images/clique-still-wide.png"
         onLoadedData={() => setLoaded(true)}
-        onCanPlay={tryPlay}
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: loaded ? 1 : 0, transition: "opacity 1s ease" }}
       >
         <source src="/videos/clique-hero.mp4" type="video/mp4" />
@@ -149,6 +152,14 @@ const OLDWAY_KF = `
 `;
 
 function OldWayBanner() {
+  const ref = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    ensureAutoplay(v);
+  }, []);
+
   return (
     <section className="cf-pad" style={{
       position: "relative", overflow: "hidden",
@@ -169,19 +180,10 @@ function OldWayBanner() {
           <div style={{ position: "absolute", inset: -2, borderRadius: 14, background: "linear-gradient(135deg,rgba(150,20,20,.4),rgba(80,80,80,.2),transparent)", filter: "blur(2px)" }} />
           <div style={{ position: "relative", borderRadius: 12, overflow: "hidden", border: "1px solid rgba(120,30,30,.4)", boxShadow: "0 30px 80px rgba(0,0,0,.7)", filter: "grayscale(.25) contrast(1.05)" }}>
             <video
+              ref={ref}
               autoPlay loop muted playsInline preload="auto"
               aria-label="A lone engineer writing code alone at night — the old way of building AI agents"
               style={{ width: "100%", display: "block" }}
-              onCanPlay={(e) => {
-                const v = e.currentTarget;
-                const p = v.play();
-                if (p && typeof p.catch === "function") {
-                  p.catch(() => {
-                    const retry = () => { v.play().catch(() => {}); document.removeEventListener("pointerdown", retry); };
-                    document.addEventListener("pointerdown", retry, { once: true });
-                  });
-                }
-              }}
             >
               <source src="/videos/old-way-coding.mp4" type="video/mp4" />
             </video>
