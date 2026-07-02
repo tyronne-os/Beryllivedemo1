@@ -101,7 +101,7 @@ function VideoHero() {
         }}>
           <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#dc3c3c", animation: "cf-live 1.3s ease-in-out infinite", boxShadow: "0 0 8px #dc3c3c" }} />
           <span style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 3.5, textTransform: "uppercase", color: "#f5e070" }}>
-            Beryl Operating System · The Clique
+            Beryl Live Human Operating System · The Clique
           </span>
         </div>
 
