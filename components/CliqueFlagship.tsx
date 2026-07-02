@@ -296,29 +296,14 @@ function FleurGreenBanner() {
     { icon: "◈", title: "Deploy", body: "Ship them to your device, site, or channels the moment the meeting ends. One click." },
   ];
 
-  /* Staggered fleur-de-lis field */
-  const rows = Array.from({ length: 7 });
-  const cols = Array.from({ length: 11 });
-
   return (
     <section className="cf-pad" style={{
       position: "relative", overflow: "hidden", padding: "120px 60px",
-      background: "linear-gradient(135deg,#062416 0%,#0b3d24 38%,#083018 68%,#052012 100%)",
+      backgroundImage: "url('/images/green-velvet-fleur.jpg')",
+      backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat",
     }}>
-      {/* Velvet sheen */}
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 30% 20%,rgba(120,220,150,.12) 0%,transparent 55%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 80% 90%,rgba(0,0,0,.5) 0%,transparent 60%)", pointerEvents: "none" }} />
-
-      {/* Fleur-de-lis pattern */}
-      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "space-around", pointerEvents: "none", opacity: 0.9 }} aria-hidden="true">
-        {rows.map((_, r) => (
-          <div key={r} style={{ display: "flex", justifyContent: "space-around", paddingLeft: r % 2 ? 48 : 0 }}>
-            {cols.map((_, c) => (
-              <span key={c} style={{ fontSize: 30, color: "#c8a951", opacity: 0.14, lineHeight: 1 }}>⚜</span>
-            ))}
-          </div>
-        ))}
-      </div>
+      {/* Darken edges so copy stays readable over the velvet */}
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center,rgba(3,10,6,.35) 0%,rgba(3,10,6,.75) 100%)", pointerEvents: "none" }} />
 
       <div style={{ position: "relative", zIndex: 2, textAlign: "center", maxWidth: 900, margin: "0 auto" }}>
         <div style={{ fontSize: 22, letterSpacing: 18, color: "rgba(200,169,81,.55)", marginBottom: 22 }}>⚜ ⚜ ⚜</div>
