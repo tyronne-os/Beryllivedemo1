@@ -1,5 +1,6 @@
 import Nav from "@/components/Nav";
 import CliqueFlagship from "@/components/CliqueFlagship";
+import EasyBanner from "@/components/EasyBanner";
 import CleoHero from "@/components/CleoHero";
 import Footer from "@/components/Footer";
 
@@ -13,6 +14,7 @@ export default function Home() {
     <>
       <Nav />
       <CliqueFlagship />
+      <EasyBanner />
       <CleoHero />
       <Footer />
     </>
