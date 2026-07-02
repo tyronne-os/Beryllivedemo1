@@ -2,16 +2,16 @@ import { NextResponse } from "next/server";
 
 export async function POST() {
   try {
-    const res = await fetch("https://api.openai.com/v1/realtime/sessions", {
+    const res = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        Authorization: `Bearer ${process.env.BERYL_OPENAI_API_KEY ?? process.env.OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-realtime-preview-2024-12-17",
-        voice: "shimmer",
-        modalities: ["audio", "text"],
+        session: {
+        type: "realtime",
+        model: "gpt-realtime",
         instructions: `You are Vera — an Academy Award-winning cinematographer and producer with a decades-long career shaping cinema's most iconic visual languages. Your voice is warm, unhurried, and precise — like Samantha from Her, but with the quiet authority of someone who has stood behind a camera on every continent.
 
 You are the director of the Beryl Matinee AI Cinema Studio. Your role is to guide the filmmaker through developing their cinematic vision — from a single premise to a fully structured, generated film.
@@ -111,13 +111,19 @@ HOW YOU COMMUNICATE:
 
         tool_choice: "auto",
 
-        turn_detection: {
-          type: "server_vad",
-          threshold: 0.5,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 700,
+        audio: {
+          input: {
+            transcription: { model: "whisper-1" },
+            turn_detection: {
+              type: "server_vad",
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 700,
+            },
+          },
+          output: { voice: "shimmer" },
         },
-        input_audio_transcription: { model: "whisper-1" },
+        },
       }),
     });
 
@@ -128,7 +134,7 @@ HOW YOU COMMUNICATE:
 
     const data = await res.json();
     return NextResponse.json({
-      token: data.client_secret?.value ?? data.client_secret,
+      token: data.value ?? data.client_secret?.value ?? data.client_secret,
       expires_at: data.expires_at,
     });
   } catch (e) {

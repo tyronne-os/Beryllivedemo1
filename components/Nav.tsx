@@ -1,10 +1,8 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 export default function Nav() {
-  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -99,38 +97,14 @@ export default function Nav() {
 
         {/* Desktop NAV LINKS */}
         <div className="nav-links" style={{display:"flex",alignItems:"center",gap:32}}>
-          {pathname !== "/" && <Link href="/" className="nl">Home</Link>}
-          <Link href="/clique-promo" style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:600,letterSpacing:"2.5px",textTransform:"uppercase",textDecoration:"none",display:"flex",alignItems:"center",gap:6,background:"linear-gradient(135deg,#8B6914 0%,#c8a951 30%,#f5e070 50%,#c8a951 70%,#8B6914 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",padding:"4px 2px 6px"}}>
+          <Link href="/" style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:600,letterSpacing:"2.5px",textTransform:"uppercase",textDecoration:"none",display:"flex",alignItems:"center",gap:6,background:"linear-gradient(135deg,#8B6914 0%,#c8a951 30%,#f5e070 50%,#c8a951 70%,#8B6914 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",padding:"4px 2px 6px"}}>
             <span style={{WebkitTextFillColor:"initial",fontSize:14}}>✦</span>
             The Clique
           </Link>
           <Link href="/demo" className="nl">Demo</Link>
-          <a href="/#pricing" className="nl">Pricing</a>
-          <Link href="/desktop" className="nl">Desktop</Link>
-          <Link href="/matinee" style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:600,letterSpacing:"2.5px",textTransform:"uppercase",textDecoration:"none",color:"#dc3c3c",padding:"4px 2px 6px",textShadow:"0 0 12px rgba(220,60,60,.5)",transition:"color .2s",display:"flex",alignItems:"center",gap:5}}>
-            {/* Movie camera on tripod — site green */}
-            <svg width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0,opacity:0.9}}>
-              <rect x="2" y="2" width="10" height="6.5" rx="1" fill="#4CAF50"/>
-              <circle cx="6" cy="5.25" r="2.4" fill="#1b5e20" stroke="#4CAF50" strokeWidth="0.7"/>
-              <circle cx="6" cy="5.25" r="1.4" fill="#0a1a0a"/>
-              <circle cx="5.3" cy="4.6" r="0.45" fill="#a8e6a8" opacity="0.8"/>
-              <rect x="5.5" y="0.5" width="4.5" height="1.8" rx="0.6" fill="#4CAF50" opacity="0.8"/>
-              <rect x="12" y="3.2" width="2.8" height="1.8" rx="0.5" fill="#4CAF50" opacity="0.75"/>
-              <line x1="12" y1="4.1" x2="14.8" y2="4.1" stroke="#1b5e20" strokeWidth="0.5"/>
-              <circle cx="11.5" cy="1.8" r="0.7" fill="#4CAF50" opacity="0.7"/>
-              <rect x="7" y="8.5" width="2" height="1.2" rx="0.3" fill="#4CAF50" opacity="0.8"/>
-              <line x1="8" y1="9.7" x2="2"  y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
-              <line x1="8" y1="9.7" x2="8"  y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
-              <line x1="8" y1="9.7" x2="14" y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
-              <line x1="3.5" y1="13.5" x2="12.5" y2="13.5" stroke="#4CAF50" strokeWidth="0.6" strokeLinecap="round" opacity="0.6"/>
-            </svg>
-            Matinee
-          </Link>
+          <Link href="/meet-beryl" className="nl">Meet Beryl</Link>
+          <a href="/meet-beryl#pricing" className="nl">Pricing</a>
           <Link href="/contact" className="nl">Contact</Link>
-          <Link href="/beryl-llm" className="llm-pill">
-            <span className="llm-pill-dot"/>
-            <span className="llm-pill-text">Beryl Diffusion</span>
-          </Link>
         </div>
 
         {/* Desktop CTA */}
@@ -163,12 +137,11 @@ export default function Nav() {
 
           {/* Nav links — each fully self-contained with inline styles */}
           {([
-            { label:"Home",           href:"/",             show: pathname !== "/" },
-            { label:"The Clique",     href:"/clique-promo", show: true },
-            { label:"Demo",           href:"/demo",         show: true },
-            { label:"Pricing",        href:"/#pricing",     show: true, isAnchor: true },
-            { label:"Desktop",        href:"/desktop",      show: true },
-            { label:"Contact",        href:"/contact",      show: true },
+            { label:"The Clique",     href:"/",                    show: true },
+            { label:"Demo",           href:"/demo",                show: true },
+            { label:"Meet Beryl",     href:"/meet-beryl",          show: true },
+            { label:"Pricing",        href:"/meet-beryl#pricing",  show: true, isAnchor: true },
+            { label:"Contact",        href:"/contact",             show: true },
           ] as {label:string;href:string;show:boolean;isAnchor?:boolean}[])
             .filter(l => l.show)
             .map(l => l.isAnchor ? (
@@ -189,45 +162,6 @@ export default function Nav() {
               }}>{l.label}</Link>
             ))
           }
-
-          {/* Matinee — special red with camera icon */}
-          <Link href="/matinee" onClick={()=>setMenuOpen(false)} style={{
-            display:"flex", alignItems:"center", gap:10,
-            padding:"18px 28px",
-            fontFamily:"'Cinzel',serif", fontSize:17, fontWeight:600,
-            letterSpacing:"2px", textTransform:"uppercase", textDecoration:"none",
-            color:"#dc3c3c",
-            borderBottom:"1px solid rgba(200,169,81,.1)",
-          }}>
-            <svg width="17" height="16" viewBox="0 0 17 16" fill="none" style={{flexShrink:0}}>
-              <rect x="2" y="2" width="10" height="6.5" rx="1" fill="#4CAF50"/>
-              <circle cx="6" cy="5.25" r="2.4" fill="#1b5e20" stroke="#4CAF50" strokeWidth="0.7"/>
-              <circle cx="6" cy="5.25" r="1.4" fill="#0a1a0a"/>
-              <circle cx="5.3" cy="4.6" r="0.45" fill="#a8e6a8" opacity="0.8"/>
-              <rect x="5.5" y="0.5" width="4.5" height="1.8" rx="0.6" fill="#4CAF50" opacity="0.8"/>
-              <rect x="12" y="3.2" width="2.8" height="1.8" rx="0.5" fill="#4CAF50" opacity="0.75"/>
-              <circle cx="11.5" cy="1.8" r="0.7" fill="#4CAF50" opacity="0.7"/>
-              <rect x="7" y="8.5" width="2" height="1.2" rx="0.3" fill="#4CAF50" opacity="0.8"/>
-              <line x1="8" y1="9.7" x2="2"  y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
-              <line x1="8" y1="9.7" x2="8"  y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
-              <line x1="8" y1="9.7" x2="14" y2="15.5" stroke="#4CAF50" strokeWidth="0.85" strokeLinecap="round"/>
-              <line x1="3.5" y1="13.5" x2="12.5" y2="13.5" stroke="#4CAF50" strokeWidth="0.6" strokeLinecap="round" opacity="0.6"/>
-            </svg>
-            Matinee
-          </Link>
-
-          {/* Beryl Diffusion pill */}
-          <Link href="/beryl-llm" onClick={()=>setMenuOpen(false)} style={{
-            display:"flex", alignItems:"center", gap:10,
-            padding:"18px 28px",
-            fontFamily:"'Cinzel',serif", fontSize:14, fontWeight:600,
-            letterSpacing:"2px", textTransform:"uppercase", textDecoration:"none",
-            color:"#c8a951",
-            borderBottom:"1px solid rgba(200,169,81,.1)",
-          }}>
-            <span style={{width:7,height:7,borderRadius:"50%",background:"#c8a951",boxShadow:"0 0 6px #c8a951",flexShrink:0,display:"inline-block"}}/>
-            Beryl Diffusion
-          </Link>
 
           {/* CTA button */}
           <div style={{padding:"32px 28px 0"}}>

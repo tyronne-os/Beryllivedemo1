@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useRef, useEffect, useState } from "react";
 
 export default function MatineePage() {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoWrapperRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [muted, setMuted] = useState(true);
 
   useEffect(()=>{
+    videoRef.current = videoWrapperRef.current?.querySelector("video") as HTMLVideoElement | null;
     const v = videoRef.current;
     if(!v) return;
     // Video autoplays muted (universal browser support). Then try to unmute.
@@ -103,15 +105,10 @@ export default function MatineePage() {
           <div style={{position:"absolute",bottom:0,left:0,right:0,height:52,background:"#000",zIndex:20}}/>
 
           {/* VIDEO */}
-          <video
-            ref={videoRef}
-            src="/videos/matinee-hero.mp4"
-            autoPlay loop playsInline muted={muted} preload="auto"
-            style={{
-              position:"absolute",inset:0,width:"100%",height:"100%",
-              objectFit:"cover",zIndex:1,
-              animation:"parallax-drift 18s ease-in-out infinite",
-            }}
+          <div
+            ref={videoWrapperRef}
+            style={{ position:"absolute", inset:0, zIndex:1 }}
+            dangerouslySetInnerHTML={{ __html: `<video autoplay loop muted playsinline preload="auto" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:parallax-drift 18s ease-in-out infinite;"><source src="/videos/matinee-hero.mp4" type="video/mp4"/></video>` }}
           />
 
           {/* Cinematic overlays */}

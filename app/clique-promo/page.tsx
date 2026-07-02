@@ -1,18 +1,6 @@
-import Nav from "@/components/Nav";
-import CliqueLandingPage from "@/components/CliqueLandingPage";
-import Footer from "@/components/Footer";
+import { redirect } from "next/navigation";
 
-export const metadata = {
-  title: "Beryl Clique — The World's First AI Clique",
-  description: "Not a chatbot. Not an assistant. A live room of AI agents who know your name, remember your wins, and get real work done — together.",
-};
-
+// The Clique flagship now lives at the site root.
 export default function CliquePromoPage() {
-  return (
-    <>
-      <Nav />
-      <CliqueLandingPage />
-      <Footer />
-    </>
-  );
+  redirect("/");
 }

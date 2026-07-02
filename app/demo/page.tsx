@@ -141,7 +141,15 @@ export default function DemoPage() {
   const [runwayConnected, setRunwayConnected] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const videoWrapperRef = useRef<HTMLDivElement>(null);
   const userVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Point videoRef.current at the raw-HTML video so LiveKit can attach to it
+  useEffect(() => {
+    const v = videoWrapperRef.current?.querySelector("video") as HTMLVideoElement | null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (v) (videoRef as any).current = v;
+  }, []);
   const chatRef = useRef<HTMLDivElement>(null);
   const lineIdx = useRef(1);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -280,7 +288,7 @@ export default function DemoPage() {
         <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 3, textTransform: "uppercase", color: "#4CAF50", marginBottom: 20 }}>Session Complete</div>
         <h2 style={{ fontFamily: "'Cinzel',serif", fontSize: 28, fontWeight: 700, color: "#E8DCC8", marginBottom: 16 }}>That was just the beginning, {userName}.</h2>
         <p style={{ fontSize: 17, lineHeight: 1.8, color: "rgba(232,220,200,0.65)", fontFamily: "'Cormorant Garamond',serif", marginBottom: 40 }}>Your 3-minute session has ended. Create your account to continue with Eve and the full Amanda Squad — unlimited presence, on demand.</p>
-        <Link href="/#pricing"><button style={{ fontFamily: "'Cinzel',serif", fontSize: 11, letterSpacing: "2px", textTransform: "uppercase", padding: "16px 48px", background: "#4CAF50", color: "#fff", border: "none", cursor: "pointer", width: "100%", marginBottom: 14 }}>Create Your Account →</button></Link>
+        <Link href="/meet-beryl#pricing"><button style={{ fontFamily: "'Cinzel',serif", fontSize: 11, letterSpacing: "2px", textTransform: "uppercase", padding: "16px 48px", background: "#4CAF50", color: "#fff", border: "none", cursor: "pointer", width: "100%", marginBottom: 14 }}>Create Your Account →</button></Link>
         <Link href="/" style={{ fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 2, color: "rgba(232,220,200,0.3)", textDecoration: "none", textTransform: "uppercase" }}>← Back to Beryl Live</Link>
       </div>
     </div>
@@ -311,10 +319,11 @@ export default function DemoPage() {
 
             {/* Eve video */}
             <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-              <video ref={videoRef} autoPlay loop muted playsInline preload="auto"
-                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }}>
-                <source src="/videos/eve-demo.mp4" type="video/mp4" />
-              </video>
+              <div
+                ref={videoWrapperRef}
+                style={{ position: "absolute", inset: 0 }}
+                dangerouslySetInnerHTML={{ __html: `<video autoplay loop muted playsinline preload="auto" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center;"><source src="/videos/eve-demo.mp4" type="video/mp4"/></video>` }}
+              />
 
               {/* Gradient bottom fade */}
               <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 45%, rgba(8,5,3,0.98) 100%)" }} />

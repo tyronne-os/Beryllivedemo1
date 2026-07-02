@@ -39,8 +39,11 @@ body {
   50% { transform: scaleY(1); }
 }
 
-/* ── GLOBAL MOBILE / TABLET RESPONSIVE ── */
+/* ── GLOBAL MOBILE / TABLET RESPONSIVE (2026 pass) ── */
 img, video { max-width: 100%; height: auto; }
+
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
 
 @media (max-width: 1024px) {
   /* Tablet: tighten horizontal padding */
@@ -64,14 +67,14 @@ img, video { max-width: 100%; height: auto; }
     grid-template-columns: 1fr !important;
   }
 
-  /* Reduce hero heights on mobile */
-  [style*="height: 65vh"] { height: 50vh !important; }
-  [style*="height: 100vh"] { height: 75vh !important; }
-  [style*="minHeight: 90vh"] { min-height: 60vh !important; }
-  [style*="minHeight: 80vh"] { min-height: 60vh !important; }
+  /* Hero heights — svh so the mobile URL bar never crops content */
+  [style*="height: 65vh"] { height: 56svh !important; }
+  [style*="height: 100vh"] { height: 86svh !important; }
+  [style*="minHeight: 90vh"] { min-height: 72svh !important; }
+  [style*="minHeight: 80vh"] { min-height: 66svh !important; }
 
-  /* Font scaling */
-  h1, h2 { font-size: clamp(1.4rem, 7vw, 2.5rem) !important; }
+  /* Display type — big, confident, tight leading */
+  h1, h2 { font-size: clamp(1.9rem, 8.4vw, 3rem) !important; line-height: 1.15 !important; }
 
   /* Flex layouts → column on mobile */
   [style*="display: flex"][style*="gap: 32"],
@@ -80,10 +83,10 @@ img, video { max-width: 100%; height: auto; }
   }
 
   /* Padding tighten */
-  [style*="padding: 96px"] { padding: 52px 20px !important; }
-  [style*="padding: 80px"] { padding: 48px 20px !important; }
-  [style*="padding: 72px"] { padding: 40px 20px !important; }
-  [style*="padding: 64px"] { padding: 36px 20px !important; }
+  [style*="padding: 96px"] { padding: 56px 20px !important; }
+  [style*="padding: 80px"] { padding: 52px 20px !important; }
+  [style*="padding: 72px"] { padding: 44px 20px !important; }
+  [style*="padding: 64px"] { padding: 40px 20px !important; }
 
   /* Max-width panels */
   [style*="maxWidth: 560"],
@@ -100,7 +103,7 @@ img, video { max-width: 100%; height: auto; }
 @media (max-width: 480px) {
   /* Extra small phones */
   [style*="padding: 48px 40px"] { padding: 32px 20px !important; }
-  [style*="fontSize: 22"] { font-size: 16px !important; }
+  [style*="fontSize: 22"] { font-size: 17px !important; }
   [style*="gap: 20"] { gap: 12px !important; }
   [style*="gap: 24"] { gap: 12px !important; }
   [style*="gap: 32"] { gap: 16px !important; }

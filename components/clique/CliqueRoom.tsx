@@ -11,6 +11,7 @@ import { useAmandaVoice } from "@/lib/use-amanda-voice";
 import { useCLSRunner } from "@/lib/use-cls-runner";
 import AgentTile from "./AgentTile";
 import CliqueChat from "./CliqueChat";
+import CliquePanel from "./CliquePanel";
 import CLSTile from "./CLSTile";
 import HumanTile from "./HumanTile";
 import CallControls from "./CallControls";
@@ -210,13 +211,45 @@ export default function CliqueRoom() {
     if (remaining.length > 0) inviteAgents([remaining[0].id]);
   }, [joinedAgents, inviteAgents]);
 
+  // ── Permanent right panel wiring ─────────────────────────────────────────
+  const handleAmandaLiveEnded = useCallback(() => {
+    amandaRunner.returnToLoop();
+    setAmandaCLS("listen");
+    setStates(prev => ({ ...prev, amanda: "listening" }));
+  }, [amandaRunner]);
+
+  const handleAmandaCLSComplete = useCallback((completed: CLSRouterState) => {
+    if (completed === "wave" || completed === "confirm") setAmandaCLS("listen");
+  }, []);
+
+  // Intro: clicking a dormant agent invites them; meeting: wakes them
+  const handlePanelWake = useCallback((id: string) => {
+    if (phase === "intro") {
+      if (id !== "amanda") inviteAgents([id]);
+    } else {
+      wakeAgent(id);
+    }
+  }, [phase, inviteAgents, wakeAgent]);
+
+  const cliquePanel = (
+    <CliquePanel
+      agentStates={agentStates}
+      onWake={handlePanelWake}
+      amandaCLS={amandaCLS}
+      amandaLiveUrl={amandaRunner.liveVideoUrl}
+      onAmandaLiveEnded={handleAmandaLiveEnded}
+      onAmandaStateComplete={handleAmandaCLSComplete}
+      amandaSpeaking={amanda.isSpeaking}
+      amandaConnected={amanda.isConnected}
+    />
+  );
+
   // ── INTRO PHASE ──────────────────────────────────────────────────────────
   if (phase === "intro") {
     return (
-      <div style={introWrap}>
+      <div style={introWrap} className="cq-wrap">
         <style>{`
           @keyframes fade-up { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
-          @keyframes amanda-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(200,169,81,0),0 0 60px rgba(200,169,81,.15)} 50%{box-shadow:0 0 0 8px rgba(200,169,81,.08),0 0 60px rgba(200,169,81,.25)} }
           @keyframes chip-in { from{opacity:0;transform:scale(.88)} to{opacity:1;transform:scale(1)} }
           @keyframes intro-cam-border { 0%,100%{border-color:rgba(200,169,81,.3)} 50%{border-color:rgba(200,169,81,.65)} }
         `}</style>
@@ -232,10 +265,14 @@ export default function CliqueRoom() {
           </button>
         </div>
 
-        {/* ── Two-panel ── */}
-        <div style={twoPanelGrid}>
-          {/* USER — left */}
-          <div style={{ ...panelBase, animation:"fade-up .5s ease both" }}>
+        {/* ── Centered column — the clique lives in the right panel ── */}
+        <div style={{
+          flex:1, display:"flex", flexDirection:"column",
+          alignItems:"center", justifyContent:"center",
+          gap:20, padding:"32px 24px",
+        }}>
+          {/* User camera tile */}
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:14, animation:"fade-up .5s ease both" }}>
             <div style={{
               width: 240, height: 240, borderRadius: 12,
               background: "linear-gradient(135deg,#111827,#1a1a2e)",
@@ -269,81 +306,18 @@ export default function CliqueRoom() {
                 <span style={{ fontFamily:"'Cinzel',serif", fontSize:8, letterSpacing:2, color:"rgba(200,169,81,.9)", textTransform:"uppercase" }}>👤 Host</span>
               </div>
             </div>
-            <div style={{ textAlign:"center" }}>
-              <div style={{ fontFamily:"'Cinzel',serif", fontSize:16, fontWeight:700, color:"#fff", letterSpacing:2 }}>You</div>
-              <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:13, color:"rgba(255,255,255,.4)", fontStyle:"italic", marginTop:3 }}>Meeting Organizer</div>
-            </div>
             <button onClick={() => setCam(c => !c)} style={camToggleBtn(cam)}>
               {cam ? "📹 Camera On" : "📷 Enable Camera"}
             </button>
             {cam && <div style={{ display:"none" }}><CameraPanel active={cam} onStream={setStream} /></div>}
           </div>
 
-          {/* DIVIDER */}
-          <div style={{ width:1, background:"linear-gradient(to bottom,transparent,rgba(200,169,81,.25),transparent)", alignSelf:"stretch", margin:"40px 0" }} />
-
-          {/* AMANDA — right (CLS animated loop) */}
-          <div style={{ ...panelBase, animation:"fade-up .5s .1s ease both" }}>
-            {/* CLS frame — always animated, never frozen */}
-            <div style={{
-              width: 240, height: 240, borderRadius: "50%", overflow: "hidden",
-              border: "3px solid #c8a951",
-              boxShadow: "0 0 0 8px rgba(200,169,81,.1), 0 0 60px rgba(200,169,81,.2)",
-              animation: "amanda-pulse 3.5s ease-in-out infinite",
-              flexShrink: 0,
-            }}>
-              <CLSTile
-                agent={AMANDA}
-                clsState={amandaCLS}
-                size={240}
-                borderRadius="50%"
-                isCSA
-                liveVideoUrl={amandaRunner.liveVideoUrl}
-                onLiveEnded={() => {
-                  amandaRunner.returnToLoop();
-                  setAmandaCLS("listen");
-                  setStates(prev => ({ ...prev, amanda: "listening" }));
-                }}
-                onStateComplete={(completed) => {
-                  if (completed === "wave") setAmandaCLS("listen");
-                  if (completed === "confirm") setAmandaCLS("listen");
-                }}
-              />
-            </div>
-
-            <div style={{ textAlign:"center" }}>
-              <div style={{ fontFamily:"'Cinzel',serif", fontSize:16, fontWeight:700, color:"#c8a951", letterSpacing:2 }}>Amanda</div>
-              <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:13, color:"rgba(255,255,255,.45)", fontStyle:"italic", marginTop:3 }}>Clique Supervisor · CSA</div>
-
-              {/* Voice indicator — live Realtime speaking state */}
-              <div style={{ display:"flex", alignItems:"center", gap:6, justifyContent:"center", marginTop:10 }}>
-                {amanda.isSpeaking ? (
-                  <VoiceBars />
-                ) : (
-                  <>
-                    <span style={{
-                      width:7, height:7, borderRadius:"50%", display:"inline-block",
-                      background: amanda.isConnected ? "#4CAF50" : "#888",
-                      boxShadow: amanda.isConnected ? "0 0 6px #4CAF50" : "none",
-                    }} />
-                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:2, color:"rgba(255,255,255,.3)", textTransform:"uppercase" }}>
-                      {amanda.isConnected ? "Listening" : "Connecting…"}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Actions panel ── (no text bubble — Amanda speaks, not types) */}
-        <div style={{ background:"#0a0604", borderTop:"1px solid rgba(200,169,81,.12)", padding:"18px 28px 26px", animation:"fade-up .5s .2s ease both" }}>
           {/* Subtitle — live Realtime speaking state */}
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, animation:"fade-up .5s .1s ease both" }}>
             {amanda.isSpeaking && <VoiceBars small />}
             <span style={{
               fontFamily:"'Cormorant Garamond',serif", fontSize:14,
-              color:"rgba(255,255,255,.4)", fontStyle:"italic",
+              color:"rgba(255,255,255,.4)", fontStyle:"italic", textAlign:"center",
             }}>
               {amanda.isSpeaking
                 ? "Amanda is speaking…"
@@ -356,7 +330,7 @@ export default function CliqueRoom() {
           </div>
 
           {/* Quick-action chips */}
-          <div style={{ display:"flex", flexWrap:"wrap", gap:9, marginBottom:18 }}>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:9, justifyContent:"center", animation:"fade-up .5s .15s ease both" }}>
             {QUICK_ACTIONS.map((qa, i) => (
               <button
                 key={qa.label}
@@ -377,7 +351,7 @@ export default function CliqueRoom() {
           </div>
 
           {/* Goal input */}
-          <div style={{ display:"flex", gap:10 }}>
+          <div style={{ display:"flex", gap:10, width:"100%", maxWidth:520, animation:"fade-up .5s .2s ease both" }}>
             <input
               ref={inputRef}
               value={userGoal}
@@ -399,6 +373,7 @@ export default function CliqueRoom() {
         </div>
 
         {inviteOpen && <InviteModal roomCode={roomCode} onClose={() => setInvite(false)} />}
+        {cliquePanel}
       </div>
     );
   }
@@ -407,7 +382,7 @@ export default function CliqueRoom() {
   const allAgents = [AMANDA, ...joinedAgents];
 
   return (
-    <div style={meetingWrap}>
+    <div style={meetingWrap} className="cq-wrap">
       <style>{`
         @keyframes tile-in { from{opacity:0;transform:scale(.86) translateY(14px)} to{opacity:1;transform:scale(1) translateY(0)} }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
@@ -490,31 +465,6 @@ export default function CliqueRoom() {
             )}
           </div>
 
-          {/* Vertical team panel */}
-          <div style={{ width:220, display:"flex", flexDirection:"column", background:"#0D1117", overflowY:"auto", flexShrink:0 }}>
-            <div style={{ padding:"10px 12px", borderBottom:"1px solid rgba(200,169,81,.08)", flexShrink:0 }}>
-              <span style={{ fontFamily:"'Cinzel',serif", fontSize:8, letterSpacing:2, color:"rgba(200,169,81,.5)", textTransform:"uppercase" }}>Your Clique · Building</span>
-            </div>
-            {/* User tile — compact */}
-            <div style={{ padding:"12px 8px", borderBottom:"1px solid rgba(200,169,81,.06)", display:"flex", alignItems:"center", gap:10 }}>
-              <div style={{ width:36, height:36, borderRadius:4, background:"linear-gradient(135deg,#c8a951cc,#c8a95144)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Cinzel',serif", fontSize:10, fontWeight:700, color:"#0a0604", flexShrink:0 }}>YOU</div>
-              <div>
-                <div style={{ fontFamily:"'Cinzel',serif", fontSize:9, fontWeight:600, color:"#fff", letterSpacing:1 }}>You</div>
-                <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:10, color:"rgba(255,255,255,.35)", fontStyle:"italic" }}>Host</div>
-              </div>
-            </div>
-            {/* Amanda */}
-            <PanelAgentRow agent={AMANDA} state={agentStates["amanda"] ?? "listening"} onClick={() => wakeAgent("amanda")} />
-            {/* Joined agents stacked vertically */}
-            {joinedAgents.map((a, i) => (
-              <div key={a.id} style={{ animation:`tile-in .35s ${i * 0.08}s ease both` }}>
-                <PanelAgentRow agent={a} state={agentStates[a.id] ?? "listening"} onClick={() => wakeAgent(a.id)} />
-              </div>
-            ))}
-            <div style={{ padding:"10px 12px", marginTop:"auto", borderTop:"1px solid rgba(200,169,81,.06)" }}>
-              <button onClick={addMoreStaff} style={{ ...addStaffBtn, width:"100%", textAlign:"center" }}>+ Add Staff</button>
-            </div>
-          </div>
         </div>
       ) : intent === "chat" ? (
         /* ── CHAT MODE: gallery + conversation cards ── */
@@ -610,6 +560,7 @@ export default function CliqueRoom() {
       <GroupResponseBanner clip={griClip} category={griCat} onDone={() => { setGriClip(null); setGriCat(null); }} />
 
       {inviteOpen && <InviteModal roomCode={roomCode} onClose={() => setInvite(false)} />}
+      {cliquePanel}
 
       <CallControls
         mic={mic} cam={cam}
@@ -658,44 +609,6 @@ function PreviewTab({ label, icon, active, onClick }: {
   );
 }
 
-// ── Panel Agent Row (Build Mode right panel) ──────────────────────────────
-function PanelAgentRow({ agent, state, onClick }: { agent: CliqueAgent; state: AgentState; onClick?: () => void }) {
-  const isLive = state === "live";
-  return (
-    <div onClick={onClick} style={{
-      display:"flex", alignItems:"center", gap:10,
-      padding:"10px 12px", cursor:"pointer",
-      borderBottom:"1px solid rgba(255,255,255,.04)",
-      background: isLive ? "rgba(200,169,81,.07)" : "transparent",
-      transition:"background .2s",
-    }}
-    onMouseOver={e => (e.currentTarget.style.background = "rgba(200,169,81,.05)")}
-    onMouseOut={e => (e.currentTarget.style.background = isLive ? "rgba(200,169,81,.07)" : "transparent")}
-    >
-      <div style={{
-        width:36, height:36, borderRadius: agent.isCSA ? "50%" : 4,
-        overflow:"hidden", flexShrink:0,
-        border:`2px solid ${isLive ? "#f5e070" : "rgba(200,169,81,.2)"}`,
-        boxShadow: isLive ? "0 0 10px rgba(245,224,112,.3)" : "none",
-      }}>
-        {/* CLS loop — never a frozen 2D image */}
-        <CLSTile
-          agent={agent}
-          variant={isLive ? "focus" : "idle_a"}
-          size={36}
-          borderRadius={agent.isCSA ? "50%" : 4}
-        />
-      </div>
-      <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ fontFamily:"'Cinzel',serif", fontSize:9, fontWeight:600, color: isLive ? "#f5e070" : "#fff", letterSpacing:1, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{agent.name}</div>
-        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:9, color:"rgba(255,255,255,.35)", fontStyle:"italic", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{agent.role}</div>
-      </div>
-      {isLive && <span style={{ width:7, height:7, borderRadius:"50%", background:"#f5e070", display:"inline-block", boxShadow:"0 0 5px #f5e070", flexShrink:0 }} />}
-      {state === "listening" && <span style={{ width:6, height:6, borderRadius:"50%", background:"rgba(200,169,81,.3)", display:"inline-block", flexShrink:0 }} />}
-    </div>
-  );
-}
-
 // ── Voice Bars — animated equalizer shown when Amanda is speaking ──────────
 function VoiceBars({ small }: { small?: boolean }) {
   const h = small ? 14 : 20;
@@ -741,16 +654,6 @@ const logoStyle: CSSProperties = {
   fontFamily:"'Cinzel',serif", fontSize:18, fontWeight:700, letterSpacing:3,
   background:"linear-gradient(110deg,#8B6914,#c8a951,#f5e070,#c8a951,#8B6914)",
   WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text",
-};
-const twoPanelGrid: CSSProperties = {
-  display:"grid", gridTemplateColumns:"1fr auto 1fr", flex:1,
-  alignItems:"center", justifyItems:"center",
-  padding:"32px 20px", gap:0,
-  background:"#0D1117",
-};
-const panelBase: CSSProperties = {
-  display:"flex", flexDirection:"column", alignItems:"center",
-  justifyContent:"center", gap:18, padding:"24px",
 };
 const roomCodeBtn: CSSProperties = {
   fontFamily:"'Cinzel',serif", fontSize:9, letterSpacing:2, fontWeight:700,
