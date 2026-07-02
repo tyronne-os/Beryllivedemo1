@@ -134,7 +134,7 @@ function VideoHero() {
         </p>
 
         <div className="cf-fade-3" style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-          <Link href="/clique" className="cf-btn-primary">Start a Live Session ›</Link>
+          <Link href="/demo" className="cf-btn-primary">Start a Live Session ›</Link>
           <a href="#roster" className="cf-btn-ghost">Meet the Clique ↓</a>
         </div>
       </div>
@@ -346,7 +346,7 @@ function FleurGreenBanner() {
           ))}
         </div>
 
-        <Link href="/clique" className="cf-btn-primary">Open the Room ›</Link>
+        <Link href="/demo" className="cf-btn-primary">Open the Room ›</Link>
       </div>
     </section>
   );
@@ -395,7 +395,7 @@ function AgentOSBanner() {
       </div>
 
       <div style={{ textAlign: "center", marginTop: 52 }}>
-        <Link href="/clique" style={{
+        <Link href="/demo" style={{
           display: "inline-block", padding: "15px 44px", fontFamily: "'Cinzel',serif",
           fontSize: 12, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase",
           textDecoration: "none", color: "#fff",
@@ -588,7 +588,7 @@ function ComparisonBanner() {
           <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 19, fontStyle: "italic", color: "rgba(253,250,246,.7)" }}>
             Your agents are already waiting in the room.
           </span>
-          <a href="/clique" style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", textDecoration: "none", color: "#0a0604", background: "linear-gradient(110deg,#8B6914,#c8a951,#fff8c0,#f5e070,#c8a951,#8B6914)", backgroundSize: "200% auto", padding: "12px 28px", borderRadius: 2, fontWeight: 700, whiteSpace: "nowrap" }}>
+          <a href="/demo" style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", textDecoration: "none", color: "#0a0604", background: "linear-gradient(110deg,#8B6914,#c8a951,#fff8c0,#f5e070,#c8a951,#8B6914)", backgroundSize: "200% auto", padding: "12px 28px", borderRadius: 2, fontWeight: 700, whiteSpace: "nowrap" }}>
             Open the Room ›
           </a>
         </div>

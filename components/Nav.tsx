@@ -105,6 +105,9 @@ export default function Nav() {
             The Clique
           </Link>
           <Link href="/demo" className="nl">Demo</Link>
+          <Link href="/clique" style={{fontFamily:"'Cinzel',serif",fontSize:11,fontWeight:700,letterSpacing:"2px",textTransform:"uppercase",textDecoration:"none",color:"#0a0604",background:"linear-gradient(110deg,#8B6914,#c8a951,#fff8c0,#f5e070,#c8a951,#8B6914)",backgroundSize:"200% auto",padding:"8px 20px",border:"1px solid rgba(200,169,81,.5)",whiteSpace:"nowrap",display:"inline-block"}}>
+            Studio ›
+          </Link>
           <a href="/#pricing" className="nl">Pricing</a>
           <Link href="/desktop" className="nl">Desktop</Link>
           <Link href="/matinee" style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:600,letterSpacing:"2.5px",textTransform:"uppercase",textDecoration:"none",color:"#dc3c3c",padding:"4px 2px 6px",textShadow:"0 0 12px rgba(220,60,60,.5)",transition:"color .2s",display:"flex",alignItems:"center",gap:5}}>
@@ -166,6 +169,7 @@ export default function Nav() {
             { label:"Home",           href:"/",             show: pathname !== "/" },
             { label:"The Clique",     href:"/clique-promo", show: true },
             { label:"Demo",           href:"/demo",         show: true },
+            { label:"Studio ›",       href:"/clique",       show: true },
             { label:"Pricing",        href:"/#pricing",     show: true, isAnchor: true },
             { label:"Desktop",        href:"/desktop",      show: true },
             { label:"Contact",        href:"/contact",      show: true },
