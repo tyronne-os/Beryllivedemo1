@@ -66,10 +66,12 @@ export default function Nav() {
         .ham.open span:nth-child(2) { opacity:0; }
         .ham.open span:nth-child(3) { transform:translateY(-7px) rotate(-45deg); }
 
-        @media (max-width: 768px) {
+        @media (max-width: 1023px) {
           .ham { display:flex !important; }
           .nav-links { display:none !important; }
           .cta-btn { display:none !important; }
+        }
+        @media (max-width: 768px) {
           .logo-beryl { font-size:25px !important; letter-spacing:1px !important; }
           .logo-live  { font-size:17px !important; letter-spacing:5px !important; margin-left:5px !important; }
         }
