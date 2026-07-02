@@ -1,10 +1,8 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 export default function Nav() {
-  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -99,13 +97,13 @@ export default function Nav() {
 
         {/* Desktop NAV LINKS */}
         <div className="nav-links" style={{display:"flex",alignItems:"center",gap:32}}>
-          {pathname !== "/" && <Link href="/" className="nl">Home</Link>}
-          <Link href="/clique-promo" style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:600,letterSpacing:"2.5px",textTransform:"uppercase",textDecoration:"none",display:"flex",alignItems:"center",gap:6,background:"linear-gradient(135deg,#8B6914 0%,#c8a951 30%,#f5e070 50%,#c8a951 70%,#8B6914 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",padding:"4px 2px 6px"}}>
+          <Link href="/" style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:600,letterSpacing:"2.5px",textTransform:"uppercase",textDecoration:"none",display:"flex",alignItems:"center",gap:6,background:"linear-gradient(135deg,#8B6914 0%,#c8a951 30%,#f5e070 50%,#c8a951 70%,#8B6914 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",padding:"4px 2px 6px"}}>
             <span style={{WebkitTextFillColor:"initial",fontSize:14}}>✦</span>
             The Clique
           </Link>
           <Link href="/demo" className="nl">Demo</Link>
-          <a href="/#pricing" className="nl">Pricing</a>
+          <Link href="/meet-beryl" className="nl">Meet Beryl</Link>
+          <a href="/meet-beryl#pricing" className="nl">Pricing</a>
           <Link href="/contact" className="nl">Contact</Link>
         </div>
 
@@ -139,11 +137,11 @@ export default function Nav() {
 
           {/* Nav links — each fully self-contained with inline styles */}
           {([
-            { label:"Home",           href:"/",             show: pathname !== "/" },
-            { label:"The Clique",     href:"/clique-promo", show: true },
-            { label:"Demo",           href:"/demo",         show: true },
-            { label:"Pricing",        href:"/#pricing",     show: true, isAnchor: true },
-            { label:"Contact",        href:"/contact",      show: true },
+            { label:"The Clique",     href:"/",                    show: true },
+            { label:"Demo",           href:"/demo",                show: true },
+            { label:"Meet Beryl",     href:"/meet-beryl",          show: true },
+            { label:"Pricing",        href:"/meet-beryl#pricing",  show: true, isAnchor: true },
+            { label:"Contact",        href:"/contact",             show: true },
           ] as {label:string;href:string;show:boolean;isAnchor?:boolean}[])
             .filter(l => l.show)
             .map(l => l.isAnchor ? (

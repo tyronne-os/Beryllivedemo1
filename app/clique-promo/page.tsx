@@ -1,18 +1,6 @@
-import Nav from "@/components/Nav";
-import CliqueFlagship from "@/components/CliqueFlagship";
-import Footer from "@/components/Footer";
+import { redirect } from "next/navigation";
 
-export const metadata = {
-  title: "The Clique — Video Chat With Your AI Agents | Beryl Live",
-  description: "The end of coding AI agents. The world's first agent video chat — open the room, call them by name, and host a live meeting with your AI team.",
-};
-
+// The Clique flagship now lives at the site root.
 export default function CliquePromoPage() {
-  return (
-    <>
-      <Nav />
-      <CliqueFlagship />
-      <Footer />
-    </>
-  );
+  redirect("/");
 }
