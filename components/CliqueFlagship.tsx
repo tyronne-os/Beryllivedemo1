@@ -168,7 +168,23 @@ function OldWayBanner() {
         <div style={{ position: "relative" }}>
           <div style={{ position: "absolute", inset: -2, borderRadius: 14, background: "linear-gradient(135deg,rgba(150,20,20,.4),rgba(80,80,80,.2),transparent)", filter: "blur(2px)" }} />
           <div style={{ position: "relative", borderRadius: 12, overflow: "hidden", border: "1px solid rgba(120,30,30,.4)", boxShadow: "0 30px 80px rgba(0,0,0,.7)", filter: "grayscale(.25) contrast(1.05)" }}>
-            <img src="/videos/old-way-coding.gif" alt="A lone engineer writing code alone at night — the old way of building AI agents" style={{ width: "100%", display: "block" }} />
+            <video
+              autoPlay loop muted playsInline preload="auto"
+              aria-label="A lone engineer writing code alone at night — the old way of building AI agents"
+              style={{ width: "100%", display: "block" }}
+              onCanPlay={(e) => {
+                const v = e.currentTarget;
+                const p = v.play();
+                if (p && typeof p.catch === "function") {
+                  p.catch(() => {
+                    const retry = () => { v.play().catch(() => {}); document.removeEventListener("pointerdown", retry); };
+                    document.addEventListener("pointerdown", retry, { once: true });
+                  });
+                }
+              }}
+            >
+              <source src="/videos/old-way-coding.mp4" type="video/mp4" />
+            </video>
             {/* Dead signal tag */}
             <div style={{ position: "absolute", top: 14, left: 14, display: "flex", alignItems: "center", gap: 6, background: "rgba(10,4,4,.75)", border: "1px solid rgba(150,30,30,.5)", borderRadius: 20, padding: "4px 12px" }}>
               <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#8a1e1e", animation: "ow-pulse 2.2s ease-in-out infinite" }} />
