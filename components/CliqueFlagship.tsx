@@ -71,6 +71,16 @@ const FLAG_KF = `
   .cf-h2 { font-size:34px !important; }
   .cf-pad { padding:72px 28px !important; }
 }
+@media(max-width:640px){
+  .cf-hero-title { font-size:27px !important; line-height:1.18 !important; }
+  .cf-hero-sub  { font-size:17px !important; margin-bottom:28px !important; }
+  .cf-h2        { font-size:26px !important; }
+  .cf-pad       { padding:56px 20px !important; }
+  .cf-btn-primary,.cf-btn-ghost { padding:12px 24px !important; font-size:10px !important; letter-spacing:2px !important; }
+  .cf-hero-badge{ padding:5px 14px !important; font-size:9px !important; }
+  .cf-intro-portrait { max-width:320px !important; max-height:380px !important; object-fit:cover !important; }
+  .cf-intro-glow { display:none !important; }
+}
 `;
 
 /* ─── HERO — VIDEO ─────────────────────────────────────────────────────────── */
@@ -94,7 +104,7 @@ function VideoHero() {
 
       {/* Center lockup */}
       <div className="cf-pad" style={{ position: "relative", zIndex: 3, textAlign: "center", padding: "0 40px", maxWidth: 960 }}>
-        <div className="cf-fade" style={{
+        <div className="cf-fade cf-hero-badge" style={{
           display: "inline-flex", alignItems: "center", gap: 9, marginBottom: 28,
           padding: "7px 20px", border: "1px solid rgba(200,169,81,.35)",
           background: "rgba(6,4,10,.45)", borderRadius: 22, backdropFilter: "blur(6px)",
@@ -114,7 +124,7 @@ function VideoHero() {
           <span className="cf-gold">live meeting</span> with your AI agents?
         </h1>
 
-        <p className="cf-fade-3" style={{
+        <p className="cf-fade-3 cf-hero-sub" style={{
           fontFamily: "'Cormorant Garamond',serif", fontSize: 24, fontStyle: "italic",
           color: "rgba(253,250,246,.82)", lineHeight: 1.65, maxWidth: 680, margin: "0 auto 40px",
           textShadow: "0 2px 20px rgba(0,0,0,.9)",
@@ -143,8 +153,12 @@ const OLDWAY_KF = `
 @keyframes ow-flicker { 0%,100%{opacity:1} 45%{opacity:1} 46%{opacity:.55} 47%{opacity:1} 72%{opacity:1} 73%{opacity:.6} 74%{opacity:1} }
 @keyframes ow-pulse { 0%,100%{opacity:.55} 50%{opacity:1} }
 @media(max-width:900px){
-  .ow-split { grid-template-columns:1fr !important; }
+  .ow-split { grid-template-columns:1fr !important; gap:32px !important; }
   .ow-title { font-size:34px !important; }
+}
+@media(max-width:640px){
+  .ow-title { font-size:26px !important; }
+  .ow-split { gap:20px !important; }
 }
 `;
 
@@ -256,10 +270,11 @@ function IntroBanner() {
         {/* Cleo — cutout portrait, background removed */}
         <div style={{ position: "relative", display: "flex", justifyContent: "center" }}>
           {/* Ambient glow behind her */}
-          <div style={{ position: "absolute", top: "8%", left: "50%", transform: "translateX(-50%)", width: 480, height: 480, borderRadius: "50%", background: "radial-gradient(ellipse,rgba(200,169,81,.22) 0%,transparent 70%)", filter: "blur(20px)", pointerEvents: "none" }} />
+          <div className="cf-intro-glow" style={{ position: "absolute", top: "8%", left: "50%", transform: "translateX(-50%)", width: 480, height: 480, borderRadius: "50%", background: "radial-gradient(ellipse,rgba(200,169,81,.22) 0%,transparent 70%)", filter: "blur(20px)", pointerEvents: "none" }} />
           <img
             src="/images/cleo-cutout.png"
             alt="Cleo — engineer of The Clique"
+            className="cf-intro-portrait"
             style={{ position: "relative", zIndex: 2, width: "100%", maxWidth: 460, display: "block", filter: "drop-shadow(0 30px 60px rgba(0,0,0,.65))" }}
           />
           {/* Name tag */}
@@ -404,6 +419,13 @@ const COMPARE_KF = `
   .cmp-title { font-size:30px !important; }
   .cmp-pad { padding:60px 24px 72px !important; }
 }
+@media(max-width:640px){
+  .cmp-title { font-size:22px !important; }
+  .cmp-pad   { padding:36px 16px 52px !important; }
+  .cmp-code  { font-size:10px !important; line-height:1.65 !important; padding:12px 14px !important; max-height:260px !important; overflow-y:auto !important; }
+  .cmp-code-wrap { min-height:auto !important; }
+  .cmp-right-hide { display:none !important; }
+}
 `;
 
 function ComparisonBanner() {
@@ -514,7 +536,7 @@ function ComparisonBanner() {
         <div className="cmp-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "stretch" }}>
 
           {/* LEFT — code editor window */}
-          <div style={{ display: "flex", flexDirection: "column", minHeight: 620, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(220,60,60,.3)", boxShadow: "0 20px 50px rgba(0,0,0,.5)" }}>
+          <div className="cmp-code-wrap" style={{ display: "flex", flexDirection: "column", minHeight: 620, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(220,60,60,.3)", boxShadow: "0 20px 50px rgba(0,0,0,.5)" }}>
             {/* Title bar */}
             <div style={{ background: "#1c1210", padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid rgba(220,60,60,.2)" }}>
               <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#ff5f56", display: "inline-block" }} />
@@ -524,7 +546,7 @@ function ComparisonBanner() {
               <span style={{ marginLeft: "auto", fontFamily: "'Cinzel',serif", fontSize: 9, letterSpacing: 1.5, textTransform: "uppercase", color: "#ff7070" }}>CrewAI · LangChain</span>
             </div>
             {/* Code body */}
-            <div style={{ background: "#0d0806", flex: 1, padding: "18px 20px", fontFamily: "'SF Mono','Fira Code',monospace", fontSize: 12.5, lineHeight: 1.85, overflowX: "auto" }}>
+            <div className="cmp-code" style={{ background: "#0d0806", flex: 1, padding: "18px 20px", fontFamily: "'SF Mono','Fira Code',monospace", fontSize: 12.5, lineHeight: 1.85, overflowX: "auto" }}>
               {CODE_LINES.map((tok, i) =>
                 tok.t === "br" ? <br key={i} /> : (
                   <span key={i} style={{
@@ -539,8 +561,8 @@ function ComparisonBanner() {
             </div>
           </div>
 
-          {/* RIGHT — actual Clique Agents POV photo */}
-          <div style={{ position: "relative", display: "flex", flexDirection: "column", borderRadius: 10, overflow: "hidden", border: "1px solid rgba(200,169,81,.42)", boxShadow: "0 20px 50px rgba(0,0,0,.5)", animation: "cmp-glow 3s ease-in-out infinite" }}>
+          {/* RIGHT — actual Clique Agents POV photo (hidden on mobile — the hero photo above already shows it) */}
+          <div className="cmp-right-hide" style={{ position: "relative", display: "flex", flexDirection: "column", borderRadius: 10, overflow: "hidden", border: "1px solid rgba(200,169,81,.42)", boxShadow: "0 20px 50px rgba(0,0,0,.5)", animation: "cmp-glow 3s ease-in-out infinite" }}>
             {/* Title bar */}
             <div style={{ background: "#0e1a10", padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid rgba(200,169,81,.25)" }}>
               <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#4CAF50", animation: "cmp-blink 1.2s ease-in-out infinite", boxShadow: "0 0 6px #4CAF50" }} />
