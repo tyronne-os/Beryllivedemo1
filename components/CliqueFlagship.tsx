@@ -137,6 +137,77 @@ function VideoHero() {
   );
 }
 
+/* ─── OLD WAY BANNER — CODING IS THE OLD WAY ────────────────────────────────── */
+const OLDWAY_KF = `
+@keyframes ow-fade-up { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:translateY(0)} }
+@keyframes ow-flicker { 0%,100%{opacity:1} 45%{opacity:1} 46%{opacity:.55} 47%{opacity:1} 72%{opacity:1} 73%{opacity:.6} 74%{opacity:1} }
+@keyframes ow-pulse { 0%,100%{opacity:.55} 50%{opacity:1} }
+@media(max-width:900px){
+  .ow-split { grid-template-columns:1fr !important; }
+  .ow-title { font-size:34px !important; }
+}
+`;
+
+function OldWayBanner() {
+  return (
+    <section className="cf-pad" style={{
+      position: "relative", overflow: "hidden",
+      background: "linear-gradient(160deg,#050505 0%,#0a0a0a 55%,#050505 100%)",
+      padding: "100px 60px",
+    }}>
+      <style>{OLDWAY_KF}</style>
+
+      {/* Cold red warning glow, opposite of the gold/green Clique palette */}
+      <div style={{ position: "absolute", top: "-15%", left: "-10%", width: 560, height: 560, borderRadius: "50%", background: "radial-gradient(circle,rgba(150,20,20,.12) 0%,transparent 70%)", pointerEvents: "none" }} />
+
+      <div className="ow-split" style={{
+        position: "relative", zIndex: 2, display: "grid", gridTemplateColumns: "1.05fr 1fr",
+        gap: 60, alignItems: "center", maxWidth: 1200, margin: "0 auto",
+      }}>
+        {/* GIF — the old way */}
+        <div style={{ position: "relative" }}>
+          <div style={{ position: "absolute", inset: -2, borderRadius: 14, background: "linear-gradient(135deg,rgba(150,20,20,.4),rgba(80,80,80,.2),transparent)", filter: "blur(2px)" }} />
+          <div style={{ position: "relative", borderRadius: 12, overflow: "hidden", border: "1px solid rgba(120,30,30,.4)", boxShadow: "0 30px 80px rgba(0,0,0,.7)", filter: "grayscale(.25) contrast(1.05)" }}>
+            <img src="/videos/old-way-coding.gif" alt="A lone engineer writing code alone at night — the old way of building AI agents" style={{ width: "100%", display: "block" }} />
+            {/* Dead signal tag */}
+            <div style={{ position: "absolute", top: 14, left: 14, display: "flex", alignItems: "center", gap: 6, background: "rgba(10,4,4,.75)", border: "1px solid rgba(150,30,30,.5)", borderRadius: 20, padding: "4px 12px" }}>
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#8a1e1e", animation: "ow-pulse 2.2s ease-in-out infinite" }} />
+              <span style={{ fontFamily: "'Cinzel',serif", fontSize: 8, letterSpacing: 2, color: "#c97a7a", textTransform: "uppercase" }}>No Team · No Voice · Alone</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Copy */}
+        <div className="ow-fade" style={{ animation: "ow-fade-up .9s ease both" }}>
+          <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, letterSpacing: 3.5, textTransform: "uppercase", color: "#9a4a4a", marginBottom: 20 }}>
+            This Was Everyone's Reality
+          </div>
+          <h2 className="ow-title" style={{ fontFamily: "'Cinzel Decorative','Cinzel',serif", fontSize: 46, fontWeight: 900, lineHeight: 1.16, color: "#e8e4de", marginBottom: 22 }}>
+            <span style={{ animation: "ow-flicker 6s ease-in-out infinite" }}>One man.</span><br />
+            One terminal.<br />
+            <span style={{ color: "#a83232" }}>A thousand lines of code nobody sees.</span>
+          </h2>
+
+          <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, fontStyle: "italic", color: "rgba(230,225,220,.55)", lineHeight: 1.8, margin: "0 0 26px" }}>
+            This is what building an AI team used to look like — alone in the dark,
+            staring at a wall of syntax, hoping the agent you can't see is doing what
+            you think it's doing. No face. No voice. No room. Just you and the code.
+          </p>
+
+          <div style={{
+            display: "inline-block", padding: "14px 28px",
+            border: "1px solid rgba(150,30,30,.4)", background: "rgba(120,20,20,.08)",
+            fontFamily: "'Cinzel',serif", fontSize: 14, fontWeight: 700, letterSpacing: 2,
+            textTransform: "uppercase", color: "#c97a7a",
+          }}>
+            The old way ends here. →
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ─── INTRO BANNER — THE END OF CODING AGENTS ──────────────────────────────── */
 function IntroBanner() {
   return (
@@ -508,6 +579,7 @@ export default function CliqueFlagship() {
     <>
       <style>{FLAG_KF}</style>
       <VideoHero />
+      <OldWayBanner />
       <IntroBanner />
       <ComparisonBanner />
       <div id="roster"><CliqueRoster /></div>
