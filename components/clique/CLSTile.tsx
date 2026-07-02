@@ -22,7 +22,8 @@ interface Props {
   clsState?: CLSRouterState;
   /** Optional variant override (bypasses router) */
   variant?: CLSVariant;
-  size: number;
+  /** Square px size, or a CSS length ("100%") to fill the parent */
+  size: number | string;
   borderRadius?: number | string;
   isCSA?: boolean;
   onReady?: () => void;

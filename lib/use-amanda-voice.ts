@@ -87,7 +87,7 @@ export function useAmandaVoice(
           sendEvent({
             type: "response.create",
             response: {
-              modalities: ["audio", "text"],
+              output_modalities: ["audio"],
               instructions: `Say exactly: "Hey — I'm Amanda. Tell me what you're building." Nothing more.`,
             },
           });
@@ -96,12 +96,19 @@ export function useAmandaVoice(
         dc.onmessage = (ev) => {
           try {
             const msg = JSON.parse(ev.data);
-            if (msg.type === "response.audio_transcript.delta" && msg.delta) {
+            // GA event names (output_audio) with beta fallbacks (audio)
+            if (
+              (msg.type === "response.output_audio_transcript.delta" ||
+               msg.type === "response.audio_transcript.delta") && msg.delta
+            ) {
               amandaBuf += msg.delta;
               setSpeaking(true);
               onSpeakStart?.();
             }
-            if (msg.type === "response.audio.delta") {
+            if (
+              msg.type === "response.output_audio.delta" ||
+              msg.type === "response.audio.delta"
+            ) {
               setSpeaking(true);
               onSpeakStart?.();
             }
@@ -113,7 +120,10 @@ export function useAmandaVoice(
                 amandaBuf = "";
               }
             }
-            if (msg.type === "response.audio.done") {
+            if (
+              msg.type === "response.output_audio.done" ||
+              msg.type === "response.audio.done"
+            ) {
               setSpeaking(false);
               onSpeakEnd?.();
             }
@@ -132,12 +142,13 @@ export function useAmandaVoice(
           connectedRef.current = false;
         };
 
-        // 6. SDP offer → OpenAI Realtime
+        // 6. SDP offer → OpenAI Realtime (GA API — model is baked into the
+        //    ephemeral token's session; beta /v1/realtime?model= is retired)
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
         const sdpRes = await fetch(
-          `https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview`,
+          "https://api.openai.com/v1/realtime/calls",
           {
             method: "POST",
             headers: {
@@ -180,7 +191,7 @@ export function useAmandaVoice(
     sendEvent({
       type: "response.create",
       response: {
-        modalities: ["audio", "text"],
+        output_modalities: ["audio"],
         instructions: `Say the following — naturally, as yourself: "${text}"`,
       },
     });
