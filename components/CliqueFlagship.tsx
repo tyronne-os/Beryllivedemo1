@@ -447,23 +447,13 @@ function ComparisonBanner() {
   return (
     <section style={{
       position: "relative", overflow: "hidden",
-      background: "linear-gradient(135deg,#021a0d 0%,#062416 30%,#0a3020 55%,#072018 75%,#031409 100%)",
+      backgroundImage: "url('/images/green-velvet-fleur.jpg')",
+      backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat",
     }}>
       <style>{COMPARE_KF}</style>
 
-      {/* Velvet noise texture */}
-      <div style={{ position: "absolute", inset: 0, opacity: 0.22, backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='v'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23v)' opacity='1'/%3E%3C/svg%3E")`, pointerEvents: "none" }} />
-
-      {/* Fleur-de-lis field */}
-      <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }} aria-hidden="true">
-        {Array.from({ length: 10 }).map((_, r) => (
-          <div key={r} style={{ display: "flex", justifyContent: "space-around", paddingLeft: r % 2 ? 56 : 0 }}>
-            {Array.from({ length: 12 }).map((_, c) => (
-              <span key={c} style={{ fontSize: 36, color: "#7a5c10", opacity: 0.28, lineHeight: "82px", display: "block", filter: "drop-shadow(0 3px 6px rgba(0,0,0,.7))" }}>⚜</span>
-            ))}
-          </div>
-        ))}
-      </div>
+      {/* Darken so photo/copy stay legible over the velvet */}
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg,rgba(2,10,6,.72) 0%,rgba(3,20,10,.8) 50%,rgba(2,10,6,.85) 100%)", pointerEvents: "none" }} />
 
       {/* Top gold rule */}
       <div style={{ height: 2, background: "linear-gradient(90deg,transparent,rgba(200,169,81,.6) 30%,rgba(245,224,112,.9) 50%,rgba(200,169,81,.6) 70%,transparent)" }} />
@@ -521,6 +511,12 @@ function ComparisonBanner() {
         <div className="cmp-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "stretch" }}>
 
           {/* LEFT — code editor window */}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ textAlign: "center", marginBottom: 16 }}>
+              <span style={{ fontFamily: "'Cinzel Decorative','Cinzel',serif", fontSize: 20, fontWeight: 900, letterSpacing: 2, textTransform: "uppercase", color: "#ff7070", textShadow: "0 0 20px rgba(220,60,60,.4)" }}>
+                The Annoying Way
+              </span>
+            </div>
           <div className="cmp-code-wrap" style={{ display: "flex", flexDirection: "column", minHeight: 620, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(220,60,60,.3)", boxShadow: "0 20px 50px rgba(0,0,0,.5)" }}>
             {/* Title bar */}
             <div style={{ background: "#1c1210", padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid rgba(220,60,60,.2)" }}>
@@ -545,9 +541,16 @@ function ComparisonBanner() {
               6+ packages · 200+ lines · 4 config files · still crashes
             </div>
           </div>
+          </div>
 
           {/* RIGHT — actual Clique Agents POV photo (hidden on mobile — the hero photo above already shows it) */}
-          <div className="cmp-right-hide" style={{ position: "relative", display: "flex", flexDirection: "column", borderRadius: 10, overflow: "hidden", border: "1px solid rgba(200,169,81,.42)", boxShadow: "0 20px 50px rgba(0,0,0,.5)", animation: "cmp-glow 3s ease-in-out infinite" }}>
+          <div className="cmp-right-hide" style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ textAlign: "center", marginBottom: 16 }}>
+              <span style={{ fontFamily: "'Cinzel Decorative','Cinzel',serif", fontSize: 20, fontWeight: 900, letterSpacing: 2, textTransform: "uppercase", color: "#f5e070", textShadow: "0 0 20px rgba(200,169,81,.5)" }}>
+                The Beryl Way
+              </span>
+            </div>
+          <div style={{ position: "relative", display: "flex", flexDirection: "column", flex: 1, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(200,169,81,.42)", boxShadow: "0 20px 50px rgba(0,0,0,.5)", animation: "cmp-glow 3s ease-in-out infinite" }}>
             {/* Title bar */}
             <div style={{ background: "#0e1a10", padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid rgba(200,169,81,.25)" }}>
               <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#4CAF50", animation: "cmp-blink 1.2s ease-in-out infinite", boxShadow: "0 0 6px #4CAF50" }} />
@@ -565,6 +568,7 @@ function ComparisonBanner() {
             <div style={{ padding: "12px 20px", background: "rgba(200,169,81,.08)", borderTop: "1px solid rgba(200,169,81,.22)", fontFamily: "'Cormorant Garamond',serif", fontSize: 13, fontStyle: "italic", color: "rgba(200,169,81,.85)" }}>
               Zero install · Zero config · Just say their name
             </div>
+          </div>
           </div>
         </div>
 

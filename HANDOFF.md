@@ -1,391 +1,118 @@
-# BERYL LIVE — HANDOFF DOC
-_Last updated: 2026-06-30 late night — PinGate + Clique v1 wiring session complete_
+# BERYL LIVE — HANDOFF DOCUMENT
 
-**Read this whole top section before touching anything.** Push pattern (do BOTH remotes every commit):
+_Last updated: 2026-07-02, YC application day. Written for cold-boot continuity across two Claude accounts (TJ alternates when one hits a rate limit mid-session)._
+
+**Read the whole "PROJECT OVERVIEW" section before touching anything.** It exists specifically so a fresh Claude instance — with zero memory of this conversation — can pick up mid-stream without re-deriving decisions that were already made, argued through, and shipped. Do not re-litigate anything described below as "locked in" without TJ explicitly reopening it.
+
+**THE #1 THING THAT WILL BURN YOU: the deploy target.**
 ```
-git push origin hf-deploy
-git push hf hf-deploy:main
+git push origin hf-deploy        # GitHub source of truth
+git push hf hf-deploy:main       # ← THIS is what actually deploys to berylize.com
 ```
+The Hugging Face Space `AIBRUH/ycberyldemo` (which is what `berylize.com` resolves to) **only rebuilds from its `main` branch.** For most of the last 48 hours of this project, commits were pushed to the Space's `hf-deploy` branch and origin's `hf-deploy` branch, and everyone — including the AI — assumed that was enough. It was not. The Space's `main` sat stale for two days while TJ kept refreshing his phone and seeing an old layout, increasingly frustrated, unable to figure out why his live changes weren't showing up. The fix, once found, was a one-line addition to every deploy: a clean-squash commit pushed straight onto `hf/main`. That is now mandatory, every single time, no exceptions, and it's why the push pattern above has three lines instead of two. If you are a fresh Claude reading this and you're about to `git push` after making a change, and you skip the third line, you will repeat this exact failure and TJ will not be happy about it a second time.
 
 ---
 
-## 🧠 7AM DEEP DIVE: SOVEREIGN AGENT ARCHITECTURE
+## PROJECT OVERVIEW — HOW WE GOT HERE AND WHY
 
-Full architecture plan lives at: `docs/CLIQUE_AGENT_ARCHITECTURE.md`
+### What Beryl Live actually is
 
-**READ THAT DOC FIRST at 7am.** It covers:
-- Per-agent LLM assignments (Nu=Qwen2.5-72B, Amanda=Llama-3.1-70B, Jeff=GLM-4, India=Mistral-7B)
-- Plug-and-play HF inference router (`lib/hf-inference.ts`)
-- Skill MD system — Amanda generates agent skills mid-session
-- QCR memory write-back stub
-- **20 ABSOLUTE DOMINATION features** with ease ratings
-- 7am–10am implementation sequence to hit the 10am live target
-- 5 discussion questions for TJ to answer before build starts
+Beryl Live is TJ's company, and its flagship product is called **the Clique** — a live, face-to-face video conferencing room where a human sits across from a handful of AI agents who have names, faces, voices, and — critically — no code required to summon them. The pitch, distilled to its sharpest form after many iterations, is this: every other AI agent framework on the market (CrewAI, LangChain, AutoGPT-style orchestrators) makes the user a developer first. You write Python, you wire agents together with dozens of lines of boilerplate, you get back a string of text with no face, no memory of you, and no relationship. Beryl Clique inverts that completely. You open a video call. You say a name. That agent joins, live, on camera, and does the work — the same way you'd loop in a coworker on a Zoom call. Zero prompts. Zero config files. Zero orchestration code. This is why so much of the copy across the site repeats variations of "the easy button" — TJ has been extremely insistent, across many sessions, that this specific narrative thread never get diluted or replaced with generic SaaS marketing language. AI was supposed to make things easy. Writing code to orchestrate agents is not easy. Beryl makes AI easy. That sentence, in that shape, is now load-bearing copy on the homepage (see `components/EasyBanner.tsx`, added today) and it should be treated as close to sacred.
 
----
+The four agents that make up the "V1 team" — the ones actually wired to live voice and video today — are Amanda, India, Jeff, and Nu. Amanda is the Clique Supervisor: every meeting starts with her alone, she takes the intake, and she decides whether to handle things solo or bring in a specialist. India owns Growth. Jeff owns Operations. Nu owns Innovation — the lateral thinker who surfaces the option nobody else considered. This four-person roster is deliberately small and locked. There exists a much larger 16-person roster in `lib/clique-roster.ts` (Eve, Jamarr, Jessica, Lacara, Terrell, Brice, Kizzy, Maria, Shelly, Bri, Naomi, Cleo, and others) which represents the V2 vision — a full agency of specialists — but that expansion is explicitly gated behind funding and a dedicated inference pipeline. Nobody should expand the live team beyond the four without TJ asking for it directly. Cleo, notably, does show up decoratively in the marketing pages (she's the "Clique Scribe" in the big typewriter hero) even though she isn't part of the live V1 voice roster — she's doing visual/brand duty, not functional duty, and that distinction matters if you're ever asked to "add her to the room."
 
-## 🌅 MORNING TASKS (July 1, 2026)
+### Why today's session happened: the YC deadline
 
-Priority order for the morning session with TJ:
-1. **Film the 40-second promo** — use `docs/CLIQUE_COMMERCIAL_40S.md` for the script. Shoot Seg 2 + Seg 3 in Runway UI (need face control). Seg 1 (Marcus desk) + Seg 4 (logo lockup) can be done via Runway API (~200 credits).
-2. **Drop `public/videos/clique-hero.mp4`** → activates Banner 1 on `/clique` promo page. Until then a gold-grid fallback with placement instructions shows.
-3. **Clean the entire site** — audit all pages for polish, broken links, placeholder copy.
-4. **Apply for YC** — TJ wants Claude's help writing the application.
-5. **Apply for Runway startup partnership**.
-6. **Deploy clique-hero video** once shot and stitched.
+Today's entire arc of work was driven by one external constraint: TJ found out, this morning, that he needed to submit a Y Combinator application before the holiday weekend cutoff, and he needed the live site to be presentable, coherent, and mobile-flawless before that submission went out. This is the reason for the rapid sequence of structural decisions you'll see in the git log — they were not made speculatively or for their own sake, they were made because a specific human being was going to put this URL in front of YC partners within hours and needed it to not embarrass him. Every decision below should be read with that pressure in mind: fast, decisive, verified-in-browser-before-claiming-done, no scope creep beyond what unblocks the deadline.
 
----
+### Decision 1 — Route all landing CTAs to the demo, gate the studio
 
-## ✅ SESSION COMPLETE (June 30 night)
+The first request of the day was deceptively simple sounding but touched four files: every call-to-action button on the Clique marketing/landing page needed to point at `/demo` (the polished Eve avatar demo experience — LiveKit + Runway, countdown timer, whiteboard/media display modes) rather than at `/clique` (the actual multi-agent studio room). The reasoning, inferred from context: `/demo` is the controlled, scripted, always-impressive experience — three minutes, a clear narrative, a sign-up nudge at the end. `/clique` is the real product, which is more powerful but also rawer and less predictable in a live demo setting, especially to someone who might click around unsupervised. So `/clique` got locked behind an `AccessGate` component (a full-screen 4-digit PIN keypad, code `2440`, session-persisted) and pulled out of being a primary marketing destination, while still being reachable — deliberately — via a "Studio" link so TJ himself, or a sufficiently curious YC partner, could still get in with the code. This was the first time in this project that AccessGate's placement rule got formalized: **the gate belongs on the index page and on internal studio/build pages, never on public marketing or promotional pages.** That rule is saved in long-term memory now specifically so it doesn't get re-litigated by a future session that doesn't have this context.
 
-Everything below was built and pushed in the last session:
+### Decision 2 — Build a "Beryl Suite" showcase instead of cluttering the nav
 
-### Clique v1 Wiring (all done)
-- `lib/clique-agent-prompts.ts` — master prompts, `resolveResponders`, `detectAmandaHandoff`, `isGroupGreeting`, `getAgentPrompt`
-- `lib/clique-roster.ts` — `getV1Team()` returns only Amanda/India/Jeff/Nu
-- `components/clique/CliqueRoom.tsx` — fully wired to v1 team, `silent-listening` state, Amanda canonical opener, `resolveResponders`/`detectAmandaHandoff` in transcript handlers, `PreviewTab` tab bar above project preview
-- `components/clique/AgentTile.tsx` — `silent-listening` state: dimmed to 0.55 opacity, "Listening." badge, prewarms `speak` clip after 1s
-- `lib/use-amanda-voice.ts` — `onAmandaTranscript`/`onUserTranscript` callbacks, `amandaBuf` accumulator
-- `app/api/clique/realtime-token/route.ts` — Amanda's system prompt baked server-side via `getAgentPrompt("amanda")`
+The original site nav was crowded: Home, The Clique, Demo, Pricing, Desktop, Matinee (the AI cinema/OMEGA cinematography product), Beryl Diffusion (the image-generation model that produces all the agent portraits), Contact. That's a lot of surface area for a first-time visitor, and critically, a lot of surface area that has nothing to do with the Clique — which needed, for YC's sake, to be unambiguously the star of the show. Rather than just deleting those other products from the site (they're real, they're built, they represent genuine engineering work TJ wants investors to eventually see), the decision was to consolidate them into a single new component, `components/ShowcaseBanners.tsx`, mounted under the existing "Use Cases" section on what was then still the homepage. Each of the four products — Clique Studio, Beryl Desktop, Beryl Matinee, Beryl Diffusion — got its own full-width hero-style banner with authentic framing pulled from each product's actual page (the Matinee banner reuses the real muted cinema video and OMEGA cinematographer branding; the Diffusion banner crossfades real model output portraits; the Desktop banner has a hand-built stylized app-window mockup with animated voice-wave bars). The nav itself got slimmed to remove those four destinations entirely, leaving only Clique-relevant navigation. This was a genuine design tradeoff — burying real products one scroll deeper — made consciously in service of narrative clarity for a specific, time-boxed audience (YC reviewers), not because those products are less important long-term.
 
-### Clique Chat tab (done)
-- `app/api/clique/chat/route.ts` — POST `{message, targetId, history}` → multi-agent GPT-4o responses
-- `components/clique/CliqueChat.tsx` — full Microsoft Agent Framework style chat UI: group channel + per-agent DMs, CLS mini avatars, typing indicator, 420ms staggered responses
+### Decision 3 — The Clique becomes the front door, not a sub-page
 
-### CliqueLandingPage banners (done)
-- **Banner 1 (VideoHero)** — `<video src="/videos/clique-hero.mp4">` with gold-grid fallback. Drop the file to activate.
-- **Banner 2 (MarcusPhoneBanner)** — iPhone mockup showing user on call with all 4 agents on screen, floating + glow animations, copyblock with CTA
+This was the biggest structural decision of the day and came directly from TJ after seeing the initial YC-ready build: "make the Clique the first page anyone would see." Up to that point, the site's actual root URL (`/`) was the general Beryl Live homepage — hero video, stats bar, a Kizzy banner, the Use Cases section, pricing, manifesto — and the Clique had its own dedicated marketing page at `/clique-promo`. TJ's read, and the right one, was that anyone landing on berylize.com cold should see the Clique's pitch immediately, not scroll past a generic AI-avatar-company homepage to find it. So the routing got inverted: `app/page.tsx` (the site root) now renders `CliqueFlagship`, which used to live at `/clique-promo`. The entire former homepage got relocated wholesale to a new route, `/meet-beryl`, keeping every section intact (hero video, stats, difference panel, Kizzy banner, Use Cases, the new Beryl Suite showcase, voice agents, pricing, manifesto). `/clique-promo` itself was converted into a one-line Next.js redirect to `/` so that any old links, bookmarks, or cached references don't 404. TJ specified the exact new nav order himself, which is now locked in: **THE CLIQUE → DEMO → MEET BERYL → PRICING → CONTACT**, plus the gold "Live Session ›" call-to-action button in the top-right, which always points to `/demo`. The renamed "Home" link — now "Meet Beryl" — was a naming choice TJ made explicitly; don't revert it to "Home" without him asking.
 
-### Build fixes
-- `app/api/ltx/generate/route.ts` — TS narrowing fix for `rawData.output.data`
-- `app/ltx-studio/page.tsx` — `as const` status field type fix
+### Decision 4 — The mobile experience was quietly broken and got a full pass
 
-### PinGate (done tonight)
-- `components/PinGate.tsx` — 4-digit overlay, PIN: **2440**, sessionStorage persistence, shake on wrong code, full Beryl brand
-- `app/privacy/page.tsx` — Privacy Policy, wrapped in PinGate
-- `app/terms/page.tsx` — Terms of Service, wrapped in PinGate
-- `app/api-docs/page.tsx` — API Reference (internal routes documented), wrapped in PinGate
-- `app/contact/page.tsx` — existing contact form, wrapped in PinGate
-- `components/Footer.tsx` — footer links now use `<Link>` pointing to real pages: `/privacy`, `/terms`, `/api-docs`, `/contact`
+While all of the above was happening at the desktop/structural level, TJ sent a screenshot of the site on his Android phone that looked meaningfully different from — and worse than — the desktop experience: cramped type, an old layout bleeding through, headlines clamped down to sizes that felt timid rather than confident. This triggered a full mobile audit. Two real bugs were found and fixed. First, `app/globals.css` had a blanket rule clamping every `h1`/`h2` on mobile down to `clamp(1.4rem, 7vw, 2.5rem)` — reasonable in isolation, but it was flattening what should have been bold, YC-pitch-deck-worthy display type into something that read as an afterthought. That clamp got pushed up to `clamp(1.9rem, 8.4vw, 3rem)` globally, with individual hero components (the Cleo typewriter hero, the Beryl Suite banners) getting their own tighter, bigger mobile-specific overrides on top of that. Second, several full-height hero sections were sized with `100vh` / `90vh` / `80vh` units, which on mobile Safari and Chrome do not account for the collapsing/expanding browser URL bar — meaning content was getting clipped or leaving awkward whitespace as the user scrolled. Those got switched to `svh` (small viewport height) units, which lock to the browser's smallest possible chrome state and never shift underneath the user. A later pass also caught the nav itself overflowing horizontally at tablet widths (roughly 769–1023px) because the desktop nav links and the gold CTA button were still trying to render side-by-side in a space too narrow for them — the hamburger-menu breakpoint got extended from `max-width: 768px` up to `max-width: 1023px` to close that gap. All of these fixes were verified with actual DOM measurements taken through the browser preview tooling (checking `scrollWidth` vs `innerWidth` for horizontal overflow, checking computed `font-size` values, taking real screenshots at 375px and 903px viewports) rather than just eyeballing the code — this is a standing practice on this project and should continue.
 
-### 40-second promo script
-- Saved to `docs/CLIQUE_COMMERCIAL_40S.md`
+### Decision 5 — Restoring the lost typewriter hero
+
+At some point across the many redesign passes this project has been through, a component TJ genuinely loved got dropped: a full-bleed hero section with Cleo (the Clique Scribe agent) as the background image, a headline that types itself out letter by letter — "Video Conferencing, With AI." — with a blinking text cursor, set against a dark velvet backdrop. TJ specifically called out that he loves the blinking cursor effect and was upset to discover it had quietly disappeared during a prior redesign. It got rebuilt as its own standalone component, `components/CleoHero.tsx`, rather than restored from whatever old file it used to live in, both because the old file (`CliqueLandingPage.tsx`) had grown into a much larger, messier single-file page with a lot of other now-superseded content mixed in, and because the rebuild gave the chance to fix a real bug the original had: the typewriter used to start typing immediately on page load, which meant if Cleo's hero was positioned anywhere below the fold (which it now is, mounted at the bottom of both `/` and `/meet-beryl`), most visitors would scroll past the typing animation entirely and only ever see the final static state. The rebuilt version uses an `IntersectionObserver` to detect when the section actually scrolls into the viewport and only then starts the typewriter, guaranteeing every visitor who reaches that section sees the full effect, cursor and all. It is explicitly described in the component's own comment as temporary — mounted at page-bottom "until the flow is confirmed" — meaning a future session should expect TJ to eventually ask for it to be repositioned, likely higher up, once he's happy with how the overall page order reads.
+
+### Decision 6 — The bold thesis statement banner
+
+Later in the day, TJ sent a phone screenshot of a live-meeting mockup image (a photorealistic conference room with a team on a video call, an AI agent named Jaydian hosting on the big screen, three more agents — Jeff, Nu, India — visible in the sidebar) and asked for something bold built around it: a section that states, plainly and forcefully, "AI was supposed to make things easy. Code isn't easy. Beryl makes AI easy." This became `components/EasyBanner.tsx`, mounted directly under the Clique flagship hero on the site root. It's built as a three-beat reveal: a quiet italic serif line ("AI was supposed to make things easy"), then a monospace, code-editor-styled chip reading "code isn't easy" that gets a strikethrough animation drawn across it half a second after it appears (the visual joke being: we're crossing out the premise), then a massive Cinzel Decorative headline in gold-shimmer text, "BERYL MAKES AI EASY." Below that sits the conference-room proof image (already present in the repo at `public/images/clique-agents-pov.png` — it turned out TJ had already dropped that exact image in during a previous session, so no new asset work was needed, just a new frame to put it in) inside a glowing gold-bordered frame with a caption overlay and a final CTA button reading "Press the Easy Button ›" pointing at `/demo`. Verifying this component surfaced the tablet-width nav overflow bug described above — the wider EasyBanner content made the pre-existing nav bug visible in a way it hadn't been before, which is a good example of why every visual change on this project gets checked across multiple viewport widths rather than just the one being actively worked on.
+
+### Decision 7 — Fixing a background that shouldn't have been faked
+
+The most recent fix of the day was small in scope but important in principle. The "Build, Create, Deploy" banner section (in `components/CliqueFlagship.tsx`, the green section between the Clique hero and the pricing/comparison content) had a background that was supposed to be a specific green velvet fabric texture with an embossed gold fleur-de-lis pattern — TJ had provided this exact photograph, sitting in his reference-asset folder, specifically so it would be used verbatim. Instead, at some point a previous AI session (on the older Sonnet 4.9 model, per TJ's own account) decided to *recreate* the look with CSS instead of using the real photo — a gradient background plus a hand-laid-out grid of Unicode fleur-de-lis characters (⚜) scattered across the section at low opacity. It looked passable but was visibly not the real texture, and TJ was annoyed that his explicit instruction to use the actual image had been quietly overridden with a synthetic approximation. The fix was straightforward once correctly diagnosed: copy the real file (`GREEN VELVET BACKGROUND.jpg`) out of TJ's reference folder into `public/images/green-velvet-fleur.jpg`, delete the CSS-recreated gradient-and-Unicode-grid entirely, and set the real photo as a standard `background-image: cover` on the section with only a subtle radial darkening overlay so the gold headline text stays legible on top of it. The broader lesson here, worth internalizing for any future work on this project: **when TJ provides a reference image and says to use it, use the literal file — never approximate, recreate, or "improve on" it with a synthetic substitute, even if the synthetic version seems close enough.** This preference is now saved to persistent memory.
+
+### The asset pipeline TJ has set up
+
+TJ has established a working pattern for how he hands off visual assets: everything he wants incorporated into the project — images, videos, GIFs — gets dropped into a single folder, `C:\Users\tjlsu\Downloads\LILLY`. This folder started as the canonical source for the 16-agent staff portrait shields (`*_SHIELD.png` files, waist-up shots showing the blazer pocket crest) but has since become his general inbox for anything he wants pulled into the live site. As of this session, that folder also contains a few files that have been referenced in conversation but not yet fully incorporated: `OLD WAY TO AI AGENTS.gif` (an animated reference, purpose not yet specified — ask TJ before using it), and `BANNER I LIKE.jpg` (a phone screenshot TJ sent showing the old typewriter hero he wanted restored — this is now satisfied by `CleoHero.tsx`, so that particular file's job is done, though it remains in the folder). Any future session should check this folder before assuming an asset needs to be generated or recreated — there is a very real chance TJ has already supplied exactly what's needed and is waiting for it to be picked up and used as-is, not reinterpreted.
+
+### Working style TJ expects
+
+A few behavioral patterns have been established firmly enough across this project that they should be treated as standing instructions rather than one-off preferences. TJ operates in ALL CAPS when he's moving fast or frustrated — this is not a signal to slow down or ask clarifying questions, it's a signal to execute immediately and confirm after the fact, not before. He has pre-approved essentially all routine engineering and deployment actions (file edits, dependency installs, git commits, pushes to both remotes) and finds it wasteful to be asked permission for things already implied by the request — the operating assumption on this project is full autonomous execution once a request is understood, with verification happening through actual browser-preview testing (DOM measurements, screenshots, console log checks) rather than by describing what should theoretically work. When he flags a defect — like the recreated velvet background, or the missing typewriter hero — the right response is to find the actual root cause in the actual file, not to build something new that approximates what he's describing. He uses two separate Claude accounts specifically so that when one hits a rate limit mid-task, he can switch immediately to the other and keep moving without losing momentum — which is the entire reason this handoff document needs to be this thorough: it is the bridge between those two accounts, and it needs to contain enough narrated context that a cold-started session can behave as if it had been present for the whole conversation.
 
 ---
 
----
+## CURRENT SITE MAP (as of this session)
 
-## 🚀 WHERE TO START (next Claude, cold-boot)
+| Route | Renders | Notes |
+|---|---|---|
+| `/` | `CliqueFlagship` + `EasyBanner` + `CleoHero` + `Footer` | Site root. The Clique's pitch, the bold thesis statement, the typewriter hero, in that order. |
+| `/meet-beryl` | Full former homepage: `HeroVideo`, `StatsBar`, `DifferencePanel`, `CliquePromo`, `KizzyBanner`, `UseCases`, `ShowcaseBanners`, `VoiceAgents`, `Pricing` (`#pricing` anchor), `Manifesto`, `CleoHero`, `Footer` | The general Beryl Live company page. Reached via "Meet Beryl" nav link. |
+| `/clique-promo` | Redirects to `/` | Old route, kept alive so nothing 404s. |
+| `/clique` | `CliqueRoom` (the actual multi-agent studio), gated by `AccessGate` (code `2440`) | The real product. Not a marketing destination. |
+| `/demo` | Eve avatar demo — LiveKit + Runway, 3-minute countdown, whiteboard/media modes | Where every landing CTA and the gold "Live Session ›" nav button point. |
+| `/desktop`, `/matinee`, `/beryl-llm` | Standalone product pages, still live, no longer in main nav | Represented instead via `ShowcaseBanners` on `/meet-beryl`. |
 
-1. **Read `lib/clique-agent-prompts.ts` in full.** It's the core deliverable of the
-   last session. It encodes the entire Clique v1 conversation protocol — master
-   prompts for Amanda / India / Jeff / Nu + the routing helpers
-   (`isGroupGreeting`, `resolveResponders`, `detectAmandaHandoff`).
-2. **Read this section: "Clique v1 — REMAINING WIRING"** below. That's the
-   ordered task list. Start with #1 (point `CliqueRoom` at `getV1Team()`).
-3. **Do NOT touch The Gym.** It's frozen and working. Its section is below for
-   reference only.
-4. **Commercial scripts are done** — user is shooting them himself in Runway UI.
-   Don't rewrite them unless asked.
-5. **User's name for personalization: TJ.** He's the founder. Address him
-   directly.
-6. Push pattern (do BOTH remotes every commit, video assets are slow so run in
-   background):
-   ```
-   git push origin hf-deploy
-   git push hf hf-deploy:main
-   ```
+**Nav order (locked in by TJ):** ✦ The Clique → Demo → Meet Beryl → Pricing (→ `/meet-beryl#pricing`) → Contact, plus the gold "Live Session ›" CTA → `/demo`.
 
 ---
 
-## ⭐ ACTIVE FOCUS: CLIQUE v1 (reduced 4-member live team)
+## KEY FILES TOUCHED TODAY
 
-**The Gym is DONE and frozen** (see later section). Active work is Clique, which
-is now feature-defined and needs frontend wiring.
-
-### Clique v1 team — LOCKED IN
-Exactly 4 members. User has provided their canonical portraits. The rest of the
-scroller is **v2**, unlocked when funding + own pipeline arrive — do NOT expand
-the team.
-
-| Order | Agent | Lens | Runtime |
-|---|---|---|---|
-| 1 | **India** | Growth / Distribution / Reach | OpenAI Realtime (realtime-live2) |
-| 2 | **Jeff** | Operations / Delivery / Release | OpenAI Realtime (realtime-live2) |
-| 3 | **Nu** | Innovation / Lateral Thinker | OpenAI Realtime (realtime-live2) |
-| 4 | **Amanda** | Clique Supervisor & Chief Orchestrator | **Microsoft Agent Framework** |
-
-**Every member is first and foremost a top-tier software engineer**: min 15 yrs
-FANG (Google/Meta/Amazon/Apple/Netflix/Microsoft), staff→principal level. The named
-lens is what they lead with, NOT a fence — any member can own any task end-to-end.
-Amanda handles the majority of any task alone and only escalates when specialist
-depth or parallelism genuinely helps.
-
-### Meeting protocol (LOCKED IN — do not renegotiate)
-1. **Every meeting starts with Amanda alone.** She greets, takes the intake
-   (goal / prompt / build request), mirrors back the goal in one crisp sentence,
-   asks at most one clarifying question, then decides: solo vs. bring-in-team.
-2. **India, Jeff, Nu are on realtime-live listening from meeting start** — silent
-   and attentive from second zero. They DO NOT speak until Amanda has introduced
-   them by name. If the user names them before Amanda has, they defer with a
-   single word — *"Listening."* — and let Amanda drive.
-3. **Canonical handoff phrase** (say the name TWICE, exactly as written):
-   > *"I'm bringing in <Name> — <Name>, take this."*
-   Frontends pattern-match via `detectAmandaHandoff(text)` from
-   `lib/clique-agent-prompts.ts` and flip that agent's UI from silent-listening →
-   active. Both em-dash and hyphen tolerated.
-4. **Group greeting is the ONE exception**: "hey everyone" / "hi team" /
-   "hello Clique" → ALL FOUR reply together (one short warm eager line each,
-   staggered ~200ms so they don't clip). Amanda leads the working session
-   immediately after. Detect via `isGroupGreeting(text)`.
-5. Amanda **closes** every session with a 2–4 line summary (decisions, ownership)
-   and a clean handback: *"That's yours to take from here. Ping us when you need us."*
-6. Never mention OpenAI / Runway / Microsoft / Anthropic / "as an AI" — they are
-   simply people on the team.
-
-### Runtime stack
-- **OpenAI Realtime (realtime-live2)** → voice I/O, computer use, listening for all
-  four (Amanda's voice too — she just also runs MS Agent Framework for orchestration).
-- **Runway API** → the "alive" visual state + active-listening presence for all four.
-  (Runway IS allowed in Clique — the no-Runway rule is Gym-only.)
-- **Microsoft Agent Framework** → Amanda's orchestration brain (tool routing,
-  member-invocation, computer-use).
-- **LiveKit** → the shared room. Every agent joins from meeting start so their
-  Realtime session is warm before Amanda calls their name.
-
-### Clique v1 code — what exists
-| File | Status | Purpose |
-|------|--------|---------|
-| `lib/clique-agent-prompts.ts` | ✅ SHIPPED | Master system prompts for all 4 agents. Shared `CORE` preamble encodes conversation protocol (active-listening default, speak-only-when-named, pre-introduction silence, group-greeting override, handoff phrase, close-and-handback). Exports `CLIQUE_V1_PROMPTS`, `CLIQUE_V1_IDS`, `getAgentPrompt()`, `isGroupGreeting()`, `resolveResponders()`, `detectAmandaHandoff()`. **This is the core deliverable of the session — read it first.** |
-| `lib/clique-roster.ts` | ✅ SHIPPED | Full roster + `CLIQUE_V1_TEAM_IDS = ["amanda", "india", "jeff", "nu"]` + `getV1Team()` helper. |
-| `components/clique/CliqueRoom.tsx` | 🟡 EXISTS, needs rewiring | Live room UI. Currently keys off `AMANDA` from full roster + Amanda intro/join flow. Needs to (a) point at `getV1Team()`, (b) consume master prompts from `clique-agent-prompts.ts`, (c) implement `detectAmandaHandoff()` on Amanda's transcript stream. |
-| `components/clique/AgentTile.tsx` | 🟡 EXISTS | Individual tile UI. Needs to accept a "silent-listening" state distinct from "listening" so pre-introduction agents render dimmed/quiet. |
-| `lib/use-amanda-voice.ts` | ✅ EXISTS | Amanda's OpenAI Realtime WebRTC hook. Need equivalent hooks for India/Jeff/Nu (or a generalized `useAgentVoice(agentId)`). |
-| `app/api/clique/realtime-token/route.ts` | ✅ EXISTS | Realtime session token minting. |
-| `app/api/clique/livekit-token/route.ts` | ✅ EXISTS | LiveKit room token minting. |
-| `app/clique/page.tsx` | 🟡 EXISTS | Landing page. May need copy update aligned with commercial docs. |
-
-### Clique v1 — REMAINING WIRING (do these in order)
-1. **Point `CliqueRoom` at `getV1Team()`**. Replace 9-member default with the 4.
-2. **Feed each agent's master `system` prompt** from `clique-agent-prompts.ts` into
-   its Realtime session at connect time (Amanda's session gets Amanda's prompt +
-   MS Agent Framework tools; the other three get their prompts via realtime-live2).
-3. **Wire `resolveResponders(text)`** into the live transcript listener so each
-   incoming user utterance is routed:
-   - `isGroupGreeting(text)` → fire all 4 `greeting` lines (stagger ~200ms).
-   - named member(s) mentioned → only those speak.
-   - else → Amanda answers/routes.
-4. **Wire `detectAmandaHandoff(text)`** on Amanda's outgoing transcript. When it
-   returns an agent id, flip that AgentTile from "silent-listening" → "active" so
-   they can speak on their next turn.
-5. **Pre-introduction silence**: India/Jeff/Nu render as active-listening (dim,
-   attentive) from meeting start but their Realtime session's response is
-   suppressed until step 4 flips them active. If the user names them early, they
-   emit exactly the word *"Listening."* and defer.
-6. **Amanda's canonical opener** on meeting start:
-   *"Hey — I'm Amanda. Tell me what you're building."* Prefer this over any prior
-   greeting text.
-7. **Portraits**: user has re-uploaded canonical portraits for the 4. If they end
-   up as new SHIELD PNGs, replace `public/characters/{AMANDA,INDIA,JEFF,NU}_SHIELD.png`
-   accordingly. Do NOT retouch the other 15+ portraits — v2 concern.
-
-### Clique v1 — DO NOT DO (explicit non-goals)
-- **Do not add pre-baked video loops** to Clique. User uses own API key to power all
-  four active simultaneously. No loops needed.
-- Do not expand beyond the 4 members. The scroller = v2.
-- Do not remove Runway from Clique. The no-Runway rule is **Gym-only**.
-- Do not rename the handoff phrase. Frontend + regex + prompt all depend on the
-  exact wording *"I'm bringing in X — X, take this."*
+| File | What it is |
+|---|---|
+| `app/page.tsx` | Site root — now the Clique flagship page. |
+| `app/meet-beryl/page.tsx` | The relocated former homepage. |
+| `app/clique-promo/page.tsx` | One-line redirect to `/`. |
+| `app/clique/page.tsx` | Studio room, wrapped in `<AccessGate />`. |
+| `components/Nav.tsx` | New nav order, tablet-overflow fix (hamburger breakpoint now 1023px), unused `usePathname` removed. |
+| `components/ShowcaseBanners.tsx` | The four-product "Beryl Suite" showcase (Studio/Desktop/Matinee/Diffusion). |
+| `components/CleoHero.tsx` | Restored typewriter hero, in-view-triggered typing, mounted at the bottom of `/` and `/meet-beryl`. |
+| `components/EasyBanner.tsx` | "AI was supposed to make things easy" bold statement banner with the conference-room proof image. |
+| `components/CliqueFlagship.tsx` | The Clique's own landing content; today's fix replaced the fake CSS fleur-de-lis pattern in the Build/Create/Deploy section with the real `green-velvet-fleur.jpg` photo. |
+| `components/AccessGate.tsx` | 4-digit PIN gate (code `2440`), session-persisted. Belongs on index + studio pages only, never marketing pages. |
+| `app/globals.css` | Mobile responsive layer — `h1`/`h2` clamp raised, hero heights switched to `svh`. |
+| `public/images/green-velvet-fleur.jpg` | Real velvet/fleur-de-lis photo, newly copied in from the LILLY reference folder. |
+| `public/images/clique-agents-pov.png` | Conference-room proof shot used in `EasyBanner`; was already present in the repo from a prior session. |
 
 ---
 
-## 🎬 COMMERCIAL SCRIPTS (three docs, all shipped)
+## OPEN THREADS / LIKELY NEXT REQUESTS
 
-Three commercial scripts live in `docs/` — all pushed to both remotes.
-
-| Doc | Runtime | Purpose | Status |
-|-----|---------|---------|--------|
-| `docs/CLIQUE_COMMERCIAL.md` | ~95s (8×~12s) | v1 original — villain: "complexity". **Archived**, do not use as source of truth. | archive |
-| `docs/CLIQUE_COMMERCIAL_V2.md` | ~95s (8×~12s) | v2 revision — villain: **facelessness of AI agents**. Amanda's arrival is the pivot. Full production notes. | **canonical long-form** |
-| `docs/CLIQUE_COMMERCIAL_40S.md` | 40s (4×10s) | **Compact sound-native Runway prompts** — one copy-paste prompt per 10s clip, in-clip narration + music + SFX described directly. Close: *"The first of its kind. Video chat with your AI agents. This is how we do AI now."* NO funding-round mention (user removed it — that info was for internal context only). | **canonical short-form / active shooting script** |
-
-### 40s promo — the exact structure
-
-| Seg | 0–10s | 10–20s | 20–30s | 30–40s |
-|---|---|---|---|---|
-| **Beat** | THE PROBLEM | THE SOLUTION | THE TEAM | THE CATEGORY |
-| **Faces** | Marcus (prompt-gen'd, no ref) | Marcus + **Amanda** | Amanda + **India + Jeff + Nu** | All 4 in logo lockup |
-| **Villain** | Faceless dashboards, nameless bots | — | — | — |
-| **Turn** | — | Amanda: *"Hey — I'm Amanda. Tell me what you're building."* | Amanda: *"I'm bringing in India, Jeff, and Nu — team, meet him."* | Narrator: *"The first of its kind. Video chat — with your AI agents. Not prompts. Not chatbots. People. This is how we do AI now."* |
-| **Transition OUT** | 0.7s cold→warm cross-dissolve | 0.5s gold-particle wipe | 0.6s slow zoom-out | hold on logo |
-
-**Key production constraint**: user is building the video **manually in the Runway
-build UI** to save credits (NOT via API). Prompts are written to be **sound-native**
-— narration + music + SFX described inside the visual prompt, so Runway's audio
-model generates it in-clip. No separate VO mix needed. India/Jeff/Nu/Amanda MUST
-remain identifiable via the existing `*_SHIELD.png` reference stills — every
-Runway prompt already flags this.
-
-### Commercial — remaining
-- User will shoot the 4 clips in Runway and stitch them. Nothing for Claude to do
-  unless prompts need tweaks.
-- The v2 long-form script (`CLIQUE_COMMERCIAL_V2.md`) is the source of truth for
-  the fuller ~95s version if he decides to shoot that too later.
+1. **CleoHero positioning.** It's explicitly a placeholder position at page-bottom. Expect TJ to ask for it to move higher once he's confirmed the page flow he wants.
+2. **LILLY folder assets not yet used**: `OLD WAY TO AI AGENTS.gif` — purpose unconfirmed, ask before using.
+3. **YC submission** — the actual application. If TJ asks for writing help on the application itself (not the site), that's a distinct task from anything above.
+4. **V2 sixteen-agent roster expansion** — explicitly gated behind funding/pipeline. Do not expand the live Clique team without direct instruction.
+5. Always re-verify the **HF Space `main` branch** is what actually got the latest push before telling TJ something is live. `git ls-remote hf refs/heads/main` and compare against your local HEAD.
 
 ---
 
-## Frozen: The Gym — Two-State Live Video Avatar ✅ (DONE, not active)
+## HARD CONSTRAINTS (unchanged, still binding)
 
-The Gym is a real-time conversational AI avatar — no overlay, no Runway, no per-second
-billing. Eve is **alive on page load** (breathing/blinking idle video) and switches to a
-talking-motion loop only while she's speaking. Voice is real TTS; visuals are pre-baked
-Wan2.2 clips swapped by audio events.
-
-### Design evolution (important context)
-- **v1**: single `eve_talking_loop.mp4` looping every turn → looked scripted/robotic.
-- **v2**: viseme PNG frame-swapping synced to TTS word boundaries → too 2D, flickery,
-  lost head/body motion. **Abandoned.** (Viseme endpoint + PNGs still exist, unused.)
-- **v3 (current)**: two full-motion videos, clean state machine:
-  - `eve_idle.mp4` — stationary waiting state, micro eye-movements, slow blink, lips
-    closed, breathing. Plays **at all times** including on load.
-  - `eve_talking_loop.mp4` — lips/head moving. Swaps in **only** while `<audio>` plays,
-    swaps back to idle on `audio.onended`.
-  - No wave greeting (deleted — caused two competing loops, unnatural).
-
-### What's Working
-- **Grok-3 Mini** → reply (~4s)
-- **AIBRUH/eve-tts (fn_index 1)** → audio + word timing (~4s)
-- **Total round-trip: ~8–11s**
-- **Opener**: on mount, Eve fires `__OPEN__` through the pipeline → speaks a greeting to
-  TJ. Idle video already playing underneath.
-- **Hardcoded** for demo: no overlay, `userName = "TJ"`. Overlay to be reinstalled later.
-
----
-
-## Pipeline Architecture
-
-```
-Page load
-    └─► eve_idle.mp4 plays immediately (alive, waiting)
-    └─► after 900ms: eveRespond("__OPEN__", true) → Eve greets TJ
-
-User message
-    │
-    ▼
-POST /api/hf/speak
-    ├─► Grok-3 Mini (api.x.ai) ──► reply text (~4s)
-    │       (__OPEN__ gets a dedicated "wave hello, introduce yourself" opener prompt)
-    └─► AIBRUH/eve-tts fn_index 1 (edge-tts boundary=WordBoundary)
-            └─► audioUrl + visemes [{word, offsetMs, durationMs}]  (~4s)
-    │
-    ▼
-Client (the-gym/page.tsx)
-    ├─► setVideoSrc(EVE_TALK_VIDEO)  — swap to talking motion
-    ├─► <audio> plays audioUrl
-    │       onended → setVideoSrc(EVE_IDLE_VIDEO), avatarState "idle"
-    └─► visemes[] still returned but NOT used for rendering in v3
-        (kept in payload for potential future re-enable)
-```
-
-**State machine**: `EVE_IDLE_VIDEO ⇄ EVE_TALK_VIDEO`, driven purely by
-`audio.onplay` / `audio.onended`. On any failure → falls back to idle video + browser TTS.
-
----
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `app/api/hf/speak/route.ts` | Pipeline: Grok→TTS, returns `{reply, audioUrl, visemes}`. `__OPEN__` gets opener prompt. |
-| `app/the-gym/page.tsx` | Two-state video avatar, TTS playback, chat UI. No overlay, userName="TJ". |
-| `public/eve_idle.mp4` | 1.1MB — breathing/blinking waiting state (Wan2.2) |
-| `public/eve_talking_loop.mp4` | 1.6MB — talking motion loop (Wan2.2) |
-| `public/eve_wave_greeting.mp4` | 1.2MB — wave clip, generated but NO LONGER USED (deleted from flow) |
-| `public/visemes/eve_viseme_*.png` | 6 mouth frames from v2 — unused in v3 |
-| `public/eve_speaking.mp4` | PROOF: LatentSync lip-sync output (807KB) |
-
----
-
-## HF Spaces
-
-| Space | Hardware | Status | Role |
-|-------|----------|--------|------|
-| `AIBRUH/eve-tts` | cpu-upgrade | RUNNING | TTS + word boundaries. fn_index 0 = audio, fn_index 1 = audio + visemes JSON |
-| `AIBRUH/latentsync` | A10G Small | **PAUSED** | Video+Audio → lip-synced video (66s). Not in hot path. Paused to stop GPU billing. |
-| `eldmans/wan2-2-14b-i2v-480p-lightning-nsfw-diffusers` | GPU | shared | Image→video. Used to bake idle/talk/wave clips. |
-
-**Wake latentsync when needed**: `POST /api/spaces/AIBRUH/latentsync/restart` with HF_TOKEN.
-
----
-
-## Regenerating Avatar Videos (Wan2.2)
-
-Scripts in scratchpad: `gen_idle.mjs`, `gen_wave.mjs`, `gen_speaking_loop.mjs`.
-
-**Critical gotchas**:
-- Must **upload image bytes** to the space first (`/gradio_api/upload`). Passing a
-  `berylize.com` URL directly → HF servers return **503** ("Failed to download file").
-  Read local `public/characters/EVE_SHIELD.png` and upload it.
-- `data` array order (fn_index 0):
-  `[imageData, null, prompt, steps(20), negative, duration(4), guidance(7.5), guidance2(1), seed, randomize(true), quality(6), "UniPCMultistep", flow_shift(3), frame_multiplier(16 int), safe_mode(true), video_component(true)]`
-- `frame_multiplier` **must be int**. Auth header required on join, SSE, and download.
-
----
-
-## eve-tts Space: fn_index Map
-
-```
-fn_index 0  →  tts_interface(text, voice, rate, pitch) → [AudioFile, warning]
-fn_index 1  →  visemes_interface(...) → [AudioFile, visemes_json, warning]
-               visemes_json: [{word, offsetMs, durationMs}, ...]
-```
-- **Voice**: `en-US-AvaNeural - en-US (Female)` — must be standard (not Multilingual),
-  and pass `boundary='WordBoundary'` to edge-tts Communicate.
-- AvaMultilingualNeural only emits SentenceBoundary → no per-word timing.
-
----
-
-## API Keys (all in `C:\Users\tjlsu\berylllm\.env` — NEVER commit)
-- `XAI_API_KEY` — Grok-3 Mini
-- `HF_TOKEN` — eve-tts, latentsync, Wan2.2
-- `RUNWAY_API_KEY` — **NOT used in The Gym** (no-Runway rule)
-- `LIVEKIT_*` — future Clique real-time room
-
----
-
-## Hard Constraints
-- `pnpm` only — never npm
-- Never commit `.env` / `.env.local`
-- **No Runway in The Gym** — own pipeline only
-- Push to BOTH: `git push origin hf-deploy` AND `git push hf hf-deploy:main`
-  (HF remote = `AIBRUH/ycberyldemo`, branch mapping `hf-deploy:main`)
-- Zero native binary deps in prod (native `fetch()` only)
-- **Video pushes are slow (~2min)** — run `git push` in background, they do complete.
-
----
-
-## What Was Attempted & Abandoned
-| Approach | Why Abandoned |
-|----------|---------------|
-| LatentSync in hot path | 66s per response — too slow |
-| Single talking loop every turn | Looks scripted/robotic |
-| Viseme PNG frame-swap (v2) | Too 2D, flickery, no head/body motion |
-| Wave greeting on open | Competed with idle loop = unnatural double-loop |
-| AvaMultilingualNeural for visemes | No WordBoundary, only SentenceBoundary |
-| xAI TTS | 403 "Team not authorized" |
-| LongCat, LTX-2-3-sync | ZeroGPU file isolation bug |
-
----
-
-## Next Steps / Open TODOs
-1. **Reinstall overlay**: restore name-entry gate; make `userName` dynamic again (currently
-   hardcoded "TJ" in `page.tsx`, was `phase` state + overlay JSX — see git history 40a63ad).
-2. **Idle↔talk crossfade**: the `key={videoSrc}` remounts the `<video>` on swap → hard cut.
-   Consider two stacked `<video>` elements with opacity crossfade to smooth the transition.
-3. **Better lip realism**: current talk loop is generic mouth motion, not synced to actual
-   words. If true lip-sync is required, revisit LatentSync (A10G, 66s) as an async
-   post-process, or a real-time viseme→video model.
-4. **Clique multi-agent**: expand Eve's pipeline to full Clique (CSA on separate HF Space,
-   KREWE canvas orchestration, all agents active per 500%-cheaper cost model).
-5. **GPU hygiene**: latentsync is PAUSED — remember to restart before any lip-sync work,
-   and re-pause after.
+- `pnpm` only — never `npm`.
+- Never commit `.env` / `.env.local`. All keys live in `C:\Users\tjlsu\berylllm\.env`.
+- Zero native binary deps in prod — native `fetch()` only.
+- Every deploy: `git push origin hf-deploy` **and** a clean-squash push onto `hf/main` (see top of this doc). Pushing only to `hf-deploy` does not deploy anything.
+- Video/image asset pushes can be slow (LFS) — fine to background them, but always confirm completion before reporting done.
+- Use the literal reference asset TJ provides in the LILLY folder — never recreate it synthetically.
